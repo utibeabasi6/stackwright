@@ -10,7 +10,7 @@ commit that finishes a phase.
 | 1 | Done, reviewed 2026-11-11 |
 | 2 | Done, reviewed 2026-11-11 |
 | 3 | Done, reviewed 2026-11-11 |
-| 4 | Not started |
+| 4 | Built, waiting for review |
 
 ## Phase 0: Repository and compose
 
@@ -161,8 +161,67 @@ Decisions: [0017](adr/0017-personal-tokens-for-state.md).
 - A write that fails after its blob reached S3 leaves an orphan blob. Nothing
   cleans those up yet.
 - State over 64 MiB is refused; that limit is a guess, not measured.
-- A lock has no expiry. A stuck lock needs an admin's force-unlock.
+- A lock has no expiry. A stuck lock needs an admin's force-unlock. From
+  phase 4, a lock that a job holds goes when the job is lost.
 - Terraform 1.5.7 prints its own lock info under the held lock's ID; that is
   the engine's output, not ours.
 - The sample project and the form default to OpenTofu 1.10.7; OpenTofu is at
   1.13 now.
+
+## Phase 4: Sandbox backend and executor
+
+Decisions: [0018](adr/0018-docker-sandboxes.md).
+
+**Verified on 2026-11-11** (Docker 29.8.2 on OrbStack, linux/arm64):
+- The engine mirror checks real releases: OpenTofu 1.10.7 and Terraform
+  1.5.7 pass the signature check with the pinned keys. With a fake upstream,
+  a checksum file signed by another key, a changed archive, a key file that
+  does not match its fingerprint, and a version with a path in it are all
+  refused, and nothing is recorded. A second request does not go upstream.
+- A plan of the `ok` fixture emits one `engine.planned_change` event for each
+  resource, and each matches `resource_changes` in the `show -json` artifact.
+- Applying that plan emits `apply_start` then `apply_complete` for each
+  resource, in dependency order. The state has 2 resources, and the audit
+  log names the job as the writer. A sensitive output's value is not in the
+  `engine.outputs` event.
+- Terraform 1.5.7 plans the same fixture. Its `init` has no `-json`, so those
+  lines arrive as `engine.log`.
+- The `broken` fixture fails with an error diagnostic at `main.tf` line 6.
+- A changed engine binary in S3 is refused before it runs: the job fails
+  with "the engine binary does not match its checksum", and no `engine.*`
+  event exists.
+- Killing the sandbox during an apply that holds the state lock: the lock
+  went 45 s after the kill, and the job is `lost`.
+- During that apply, neither `docker inspect` nor `docker top` shows the
+  ticket or a job token.
+- A ticket works once. A job token reads its own workspace's state, gets 404
+  on another workspace, and gets 401 on the state backend and the executor
+  API once its job ends. A session cookie cannot call the executor API.
+- The sandbox runs as uid 65532 with no capabilities, a read-only root,
+  `no-new-privileges` and the limits, and reaches the internet. Its
+  container and network are gone after `Remove`.
+- Source archives are unpacked through `os.Root`; entries with `..` are
+  refused.
+
+**Deferred to phase 22:**
+- Egress limits. On this OrbStack host, a sandbox on its own bridge network
+  connected to Postgres, NATS and RustFS by their container IPs. Docker on
+  Linux drops traffic between bridge networks; I have not checked it. The
+  done-when item "The sandbox cannot reach Postgres, NATS or RustFS" moved to
+  phase 22's escape tests.
+
+**Not verified:**
+- Nothing in the server starts sandboxes yet. Tests create jobs and start
+  sandboxes themselves; the built-in builder comes in phase 5.
+- Sandboxes reach the test server and RustFS through `host.docker.internal`.
+  On Linux that needs RustFS published on the bridge gateway, not only on
+  127.0.0.1. CI has not run.
+- `plan.json` keeps the values of sensitive attributes, as `show -json`
+  writes them. Redaction of variables comes with phase 7.
+- Docker's default address pools hold about 30 bridge networks. More
+  sandboxes at once than that fail to start.
+- The cloud metadata address is reachable from a sandbox on a cloud VM
+  (adr/0018), also deferred to phase 22.
+- A job that fails after its source reached S3 leaves an orphan blob, as
+  state does.
+

@@ -33,3 +33,9 @@ func LookupToken(ctx context.Context, pool *pgxpool.Pool, token string) (userID,
 	}
 	return userID, orgID, nil
 }
+
+const JobTokenPrefix = "swj_"
+
+func NewJobToken() string {
+	return JobTokenPrefix + RandomToken()
+}

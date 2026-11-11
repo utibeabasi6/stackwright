@@ -12,6 +12,11 @@ const (
 	SignedIn
 	InstanceAdmin
 	InOrg
+	// JobTicket takes a job's one-time ticket as the bearer token, and
+	// spends it.
+	JobTicket
+	// Job takes a job token as the bearer token. Each call is a heartbeat.
+	Job
 )
 
 type Rule struct {
@@ -65,6 +70,10 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.TokenServiceListApiTokensProcedure:  org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.TokenServiceCreateApiTokenProcedure: org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.TokenServiceRevokeApiTokenProcedure: org(v1.Role_ROLE_VIEWER),
+
+	stackwrightv1connect.ExecutorServiceClaimJobProcedure:     {Access: JobTicket},
+	stackwrightv1connect.ExecutorServiceReportEventsProcedure: {Access: Job},
+	stackwrightv1connect.ExecutorServiceFinishJobProcedure:    {Access: Job},
 }
 
 var rank = map[v1.Role]int{

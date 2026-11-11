@@ -13,18 +13,22 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/engine"
+	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/server"
 	"github.com/stackwright/stackwright/internal/state"
@@ -44,6 +48,7 @@ type world struct {
 	s3     *minio.Client
 	bucket string
 	public string
+	jobs   *jobs.Service
 }
 
 func newWorld(t *testing.T, web fstest.MapFS) *world {
@@ -76,13 +81,22 @@ func start(t *testing.T, web fstest.MapFS, engines bool) *world {
 	if public == "" {
 		public = srv.URL
 	}
+	presign, err := minio.New("host.docker.internal:19000", &minio.Options{
+		Creds:  credentials.NewStaticV4(os.Getenv("STACKWRIGHT_S3_ACCESS_KEY"), os.Getenv("STACKWRIGHT_S3_SECRET_KEY"), ""),
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := &jobs.Service{Pool: d.App, KEK: kek, S3: s3, Presign: presign, Bucket: bucket,
+		Engines: &engine.Mirror{Pool: d.App, S3: s3, Bucket: bucket, HTTP: http.DefaultClient}}
 	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
-		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}}
+		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js}
 	if web != nil {
 		cfg.Web = web
 	}
 	srv.Config.Handler = server.New(cfg)
-	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public}
+	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public, jobs: js}
 }
 
 type client struct {
@@ -179,6 +193,7 @@ func methods() []method {
 		v1.File_stackwright_v1_auth_proto, v1.File_stackwright_v1_orgs_proto,
 		v1.File_stackwright_v1_instance_proto, v1.File_stackwright_v1_meta_proto,
 		v1.File_stackwright_v1_projects_proto, v1.File_stackwright_v1_state_proto,
+		v1.File_stackwright_v1_executor_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -362,6 +377,12 @@ func TestRoleMatrix(t *testing.T) {
 			if _, code := anonymous.call(short(m.procedure), map[string]any{"org": "a"}); code != "unauthenticated" {
 				t.Errorf("%s anonymous: %s, want unauthenticated", m.procedure, code)
 			}
+		case authz.JobTicket, authz.Job:
+			for name, c := range map[string]*client{"anonymous": anonymous, "the owner's session": owner} {
+				if _, code := c.call(short(m.procedure), map[string]any{}); code != "unauthenticated" {
+					t.Errorf("%s as %s: %s, want unauthenticated", m.procedure, name, code)
+				}
+			}
 		default:
 			t.Errorf("%s has access %v", m.procedure, rule.Access)
 		}
@@ -518,7 +539,8 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 	}
 
 	for _, m := range methods() {
-		if m.write && !covered[m.procedure] {
+		access := authz.Policy[m.procedure].Access
+		if m.write && !covered[m.procedure] && access != authz.JobTicket && access != authz.Job {
 			t.Errorf("%s writes, but this test does not check its audit row", m.procedure)
 		}
 	}

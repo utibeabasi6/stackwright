@@ -14,7 +14,13 @@ COPY cmd cmd
 COPY internal internal
 COPY gen gen
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" -o /out/stackwright ./cmd/stackwright
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" -o /out/ ./cmd/stackwright ./cmd/stackwright-executor
+RUN mkdir -p /out/files
+
+FROM gcr.io/distroless/static-debian12:nonroot AS executor
+COPY --from=go /out/stackwright-executor /stackwright-executor
+COPY --from=go --chown=65532:65532 /out/files /run/stackwright
+ENTRYPOINT ["/stackwright-executor"]
 
 FROM gcr.io/distroless/static-debian12:nonroot AS binary
 COPY --from=go /out/stackwright /stackwright

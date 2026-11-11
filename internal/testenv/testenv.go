@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
@@ -57,8 +58,17 @@ func New(t *testing.T) DB {
 	if err := db.Migrate(ctx, owner); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.SetAppPassword(ctx, owner, os.Getenv("STACKWRIGHT_APP_DB_PASSWORD")); err != nil {
-		t.Fatal(err)
+	// The login is shared by every test database, and parallel tests that
+	// alter it at once fail with "tuple concurrently updated".
+	for try := 0; ; try++ {
+		err := db.SetAppPassword(ctx, owner, os.Getenv("STACKWRIGHT_APP_DB_PASSWORD"))
+		if err == nil {
+			break
+		}
+		if try == 4 {
+			t.Fatal(err)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	app, err := db.Open(ctx, config(name, "stackwright_app", os.Getenv("STACKWRIGHT_APP_DB_PASSWORD")))
 	if err != nil {

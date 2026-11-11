@@ -1,0 +1,329 @@
+// Package executor runs one job inside a sandbox: it claims the job, checks
+// and runs the engine, reports each output line as an event, and uploads the
+// artifacts.
+package executor
+
+import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"connectrpc.com/connect"
+
+	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	"github.com/stackwright/stackwright/internal/artifact"
+)
+
+var (
+	ErrEngineChecksum = errors.New("the engine binary does not match its checksum")
+	errNotFound       = errors.New("not found")
+)
+
+const mask = "(sensitive value)"
+
+// Run claims the job that ticket names and runs it in workDir.
+func Run(ctx context.Context, serverURL, ticket, workDir string) error {
+	serverURL = strings.TrimRight(serverURL, "/")
+	client := stackwrightv1connect.NewExecutorServiceClient(http.DefaultClient, serverURL)
+	claim := connect.NewRequest(&v1.ClaimJobRequest{})
+	claim.Header().Set("Authorization", "Bearer "+ticket)
+	resp, err := client.ClaimJob(ctx, claim)
+	if err != nil {
+		return fmt.Errorf("claim job: %w", err)
+	}
+	job := resp.Msg.GetJob()
+	slog.Info("job claimed", "job", job.GetId(), "operation", job.GetOperation().String())
+
+	ctx, cancel := context.WithDeadline(ctx, job.GetDeadline().AsTime())
+	defer cancel()
+	rep := &reporter{client: client, token: job.GetToken(), lost: cancel}
+	reportCtx, stopReporting := context.WithCancel(context.WithoutCancel(ctx))
+	defer stopReporting()
+	go rep.run(reportCtx)
+
+	r := &runner{job: job, rep: rep, serverURL: serverURL, work: workDir}
+	r.emit("executor.started", map[string]any{
+		"operation": job.GetOperation().String(), "engine": job.GetEngine().String(), "version": job.GetEngineVersion(),
+	})
+	runErr := r.run(ctx)
+	if runErr != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		runErr = fmt.Errorf("the job ran past its time limit: %w", runErr)
+	}
+	if err := r.upload(context.WithoutCancel(ctx), "log.jsonl", r.log.Bytes()); err != nil {
+		slog.Error("upload log", "err", err)
+	}
+	msg := ""
+	if runErr != nil {
+		msg = string(r.redact([]byte(runErr.Error())))
+	}
+	r.emit("executor.finished", map[string]any{"succeeded": runErr == nil, "has_changes": r.hasChanges, "error": msg})
+
+	stopReporting()
+	end, cancelEnd := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+	defer cancelEnd()
+	if err := rep.flush(end); err != nil {
+		return errors.Join(runErr, fmt.Errorf("report events: %w", err))
+	}
+	finish := connect.NewRequest(&v1.FinishJobRequest{Succeeded: runErr == nil, Error: msg, HasChanges: r.hasChanges})
+	finish.Header().Set("Authorization", "Bearer "+job.GetToken())
+	if _, err := client.FinishJob(end, finish); err != nil {
+		return errors.Join(runErr, fmt.Errorf("finish job: %w", err))
+	}
+	return runErr
+}
+
+type runner struct {
+	job        *v1.Job
+	rep        *reporter
+	serverURL  string
+	work       string
+	log        bytes.Buffer
+	hasChanges bool
+}
+
+type stageError struct {
+	stage string
+	err   error
+}
+
+func (e *stageError) Error() string { return e.stage + ": " + e.err.Error() }
+func (e *stageError) Unwrap() error { return e.err }
+
+func (r *runner) redact(b []byte) []byte {
+	return bytes.ReplaceAll(b, []byte(r.job.GetToken()), []byte(mask))
+}
+
+func (r *runner) emit(typ string, payload map[string]any) {
+	b, _ := json.Marshal(payload)
+	r.rep.emit(typ, "", b)
+}
+
+func (r *runner) run(ctx context.Context) (err error) {
+	defer func() {
+		if se, ok := errors.AsType[*stageError](err); ok {
+			r.emit("executor.failed", map[string]any{"stage": se.stage, "error": string(r.redact([]byte(se.err.Error())))})
+		}
+	}()
+	job := r.job
+
+	bin, err := r.download(ctx, job.GetEngineBinary().GetUrl())
+	if err != nil {
+		return &stageError{"engine", err}
+	}
+	if sum := sha256.Sum256(bin); hex.EncodeToString(sum[:]) != job.GetEngineBinary().GetSha256() {
+		return &stageError{"engine", ErrEngineChecksum}
+	}
+	binPath := filepath.Join(r.work, "bin", job.GetEngineBinary().GetName())
+	if err := os.MkdirAll(filepath.Dir(binPath), 0o700); err != nil {
+		return &stageError{"engine", err}
+	}
+	if err := os.WriteFile(binPath, bin, 0o700); err != nil { //nolint:gosec // the engine must be executable
+		return &stageError{"engine", err}
+	}
+	r.emit("executor.engine_ready", map[string]any{"sha256": job.GetEngineBinary().GetSha256()})
+
+	root := filepath.Join(r.work, "src")
+	inputs := map[string][]byte{}
+	for _, in := range job.GetInputs() {
+		sealed, err := r.download(ctx, in.GetUrl())
+		if errors.Is(err, errNotFound) && in.GetName() == "lock.hcl" {
+			continue
+		}
+		if err != nil {
+			return &stageError{"inputs", fmt.Errorf("%s: %w", in.GetName(), err)}
+		}
+		if inputs[in.GetName()], err = artifact.Open(job.GetArtifactKey(), in.GetJobId(), in.GetName(), sealed); err != nil {
+			return &stageError{"inputs", fmt.Errorf("%s: %w", in.GetName(), err)}
+		}
+	}
+	if err := untar(inputs["source.tar.gz"], root); err != nil {
+		return &stageError{"source", err}
+	}
+	dir, err := within(root, job.GetProjectPath())
+	if err != nil {
+		return &stageError{"source", err}
+	}
+	address := r.serverURL + job.GetStatePath()
+	override := fmt.Sprintf("terraform {\n  backend \"http\" {\n    address        = %q\n    lock_address   = %q\n    unlock_address = %q\n    username       = \"stackwright\"\n  }\n}\n",
+		address, address, address)
+	plan, lock := filepath.Join(dir, "plan.bin"), filepath.Join(dir, ".terraform.lock.hcl")
+	files := map[string][]byte{filepath.Join(dir, "stackwright_override.tf"): []byte(override)}
+	if b, ok := inputs["plan.bin"]; ok {
+		files[plan] = b
+	}
+	if b, ok := inputs["lock.hcl"]; ok {
+		files[lock] = b
+	}
+	for path, b := range files {
+		if err := os.WriteFile(path, b, 0o600); err != nil {
+			return &stageError{"source", err}
+		}
+	}
+
+	home := filepath.Join(r.work, "home")
+	if err := os.MkdirAll(home, 0o700); err != nil {
+		return &stageError{"source", err}
+	}
+	engine := &cli{
+		bin: binPath, dir: dir, initJSON: job.GetEngine() == v1.Engine_ENGINE_OPENTOFU, redact: r.redact,
+		env: []string{"HOME=" + home, "TF_IN_AUTOMATION=1", "TF_INPUT=0", "TF_HTTP_PASSWORD=" + job.GetToken()},
+		line: func(e event) {
+			r.log.Write(e.payload)
+			r.log.WriteByte('\n')
+			r.rep.emit(e.typ, e.resourceAddr, e.payload)
+		},
+	}
+	if err := engine.init(ctx); err != nil {
+		return &stageError{"init", err}
+	}
+
+	if job.GetOperation() == v1.JobOperation_JOB_OPERATION_APPLY {
+		if err := engine.apply(ctx, plan); err != nil {
+			return &stageError{"apply", err}
+		}
+		return nil
+	}
+	if r.hasChanges, err = engine.plan(ctx, plan); err != nil {
+		return &stageError{"plan", err}
+	}
+	planJSON, err := engine.show(ctx, plan)
+	if err != nil {
+		return &stageError{"plan", err}
+	}
+	outputs := map[string]string{"plan.bin": plan, "lock.hcl": lock}
+	for name, path := range outputs {
+		b, err := os.ReadFile(path) //nolint:gosec // a path this function built
+		if name == "lock.hcl" && errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return &stageError{"artifacts", err}
+		}
+		if err := r.upload(ctx, name, b); err != nil {
+			return &stageError{"artifacts", err}
+		}
+	}
+	if err := r.upload(ctx, "plan.json", planJSON); err != nil {
+		return &stageError{"artifacts", err}
+	}
+	return nil
+}
+
+func (r *runner) upload(ctx context.Context, name string, data []byte) error {
+	url, ok := r.job.GetUploads()[name]
+	if !ok {
+		return fmt.Errorf("the job has no upload URL for %s", name)
+	}
+	sealed, err := artifact.Seal(r.job.GetArtifactKey(), r.job.GetId(), name, data)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(sealed))
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("upload %s: %s", name, resp.Status)
+	}
+	return nil
+}
+
+func (r *runner) download(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, errNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download: %s", resp.Status)
+	}
+	const limit = 512 << 20
+	data, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+	if err == nil && len(data) > limit {
+		err = fmt.Errorf("download is larger than %d bytes", limit)
+	}
+	return data, err
+}
+
+// untar unpacks a .tar.gz into dir. os.Root refuses entries that would land
+// outside it. Links and special files are skipped.
+func untar(archive []byte, dir string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+	gz, err := gzip.NewReader(bytes.NewReader(archive))
+	if err != nil {
+		return err
+	}
+	tr := tar.NewReader(gz)
+	for {
+		h, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		name := filepath.FromSlash(strings.TrimPrefix(h.Name, "/"))
+		switch h.Typeflag {
+		case tar.TypeDir:
+			if err := root.MkdirAll(name, 0o700); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			if err := root.MkdirAll(filepath.Dir(name), 0o700); err != nil {
+				return err
+			}
+			f, err := root.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(f, io.LimitReader(tr, 256<<20))
+			if cerr := f.Close(); err == nil {
+				err = cerr
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func within(root, rel string) (string, error) {
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if path != root && !strings.HasPrefix(path, root+string(filepath.Separator)) {
+		return "", fmt.Errorf("path %q leaves the source folder", rel)
+	}
+	return path, nil
+}

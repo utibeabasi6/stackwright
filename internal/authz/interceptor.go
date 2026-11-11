@@ -18,6 +18,7 @@ import (
 type Scope struct {
 	Tx     pgx.Tx
 	UserID string
+	JobID  string
 	OrgID  string
 	Role   v1.Role
 	IP     string
@@ -63,7 +64,8 @@ func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 			return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("%s has no policy", procedure))
 		}
 		user, signedIn := auth.UserFrom(ctx)
-		if rule.Access != Public && !signedIn {
+		jobAccess := rule.Access == JobTicket || rule.Access == Job
+		if rule.Access != Public && !jobAccess && !signedIn {
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not signed in"))
 		}
 
@@ -87,6 +89,26 @@ func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 			}
 			if !admin {
 				return nil, connect.NewError(connect.CodePermissionDenied, errors.New("only an instance admin may do this"))
+			}
+		case JobTicket, Job:
+			bearer, ok := strings.CutPrefix(req.Header().Get("Authorization"), "Bearer ")
+			if !ok || bearer == "" {
+				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("no job credential"))
+			}
+			query := `UPDATE job_leases SET heartbeat_at = now() WHERE token_hash = $1 AND expires_at > now() RETURNING job_id, org_id`
+			if rule.Access == JobTicket {
+				query = `UPDATE job_leases SET ticket_hash = NULL WHERE ticket_hash = $1 AND expires_at > now() RETURNING job_id, org_id`
+			}
+			var orgID string
+			err := tx.QueryRow(ctx, query, auth.HashToken(bearer)).Scan(&s.JobID, &orgID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("the job credential is unknown, spent or expired"))
+			}
+			if err != nil {
+				return nil, Internal(err)
+			}
+			if err := s.SetOrg(ctx, orgID); err != nil {
+				return nil, Internal(err)
 			}
 		case InOrg:
 			msg, ok := req.Any().(interface{ GetOrg() string })
@@ -116,7 +138,7 @@ func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		if err != nil {
 			return nil, err
 		}
-		if req.Spec().IdempotencyLevel != connect.IdempotencyNoSideEffects {
+		if req.Spec().IdempotencyLevel != connect.IdempotencyNoSideEffects && !jobAccess {
 			if s.target == "" {
 				return nil, Internal(fmt.Errorf("%s wrote without an audit target", procedure))
 			}

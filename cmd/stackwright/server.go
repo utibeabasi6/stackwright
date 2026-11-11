@@ -24,6 +24,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/stackwright/stackwright/internal/db"
+	"github.com/stackwright/stackwright/internal/engine"
+	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/server"
 	"github.com/stackwright/stackwright/internal/state"
@@ -68,10 +70,15 @@ func runServer(args []string) error {
 		slog.Warn("this instance has no admin yet; open it in a browser and enter the setup code", "setup_code", setupCode)
 	}
 
-	store, err := stateStore(ctx, kek)
+	s3, presign, bucket, err := objectStore(ctx)
 	if err != nil {
 		return err
 	}
+	jobService := &jobs.Service{
+		Pool: pool, KEK: kek, S3: s3, Presign: presign, Bucket: bucket,
+		Engines: &engine.Mirror{Pool: pool, S3: s3, Bucket: bucket, HTTP: &http.Client{Timeout: 10 * time.Minute}},
+	}
+	go jobService.RunReaper(ctx, 5*time.Second)
 
 	var web fs.FS
 	if *webDir != "" {
@@ -83,7 +90,8 @@ func runServer(args []string) error {
 		PublicURL: strings.TrimRight(env("STACKWRIGHT_PUBLIC_URL", "http://127.0.0.1:8080"), "/"),
 		SetupCode: setupCode,
 		Web:       web,
-		State:     store,
+		State:     state.Store{S3: s3, Bucket: bucket, KEK: kek},
+		Jobs:      jobService,
 	})
 
 	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
@@ -111,33 +119,42 @@ func runServer(args []string) error {
 	return nil
 }
 
-func stateStore(ctx context.Context, kek seal.KEK) (state.Store, error) {
-	endpoint, err := url.Parse(env("STACKWRIGHT_S3_ENDPOINT", "http://rustfs:9000"))
-	if err != nil || endpoint.Host == "" {
-		return state.Store{}, fmt.Errorf("STACKWRIGHT_S3_ENDPOINT must be a URL such as http://rustfs:9000")
-	}
+// objectStore returns a client for the server and one that signs URLs for
+// sandboxes, which may reach S3 at another address.
+func objectStore(ctx context.Context) (client, presign *minio.Client, bucket string, err error) {
 	access, err := secretEnv("STACKWRIGHT_S3_ACCESS_KEY")
 	if err != nil {
-		return state.Store{}, err
+		return nil, nil, "", err
 	}
 	secret, err := secretEnv("STACKWRIGHT_S3_SECRET_KEY")
 	if err != nil {
-		return state.Store{}, err
+		return nil, nil, "", err
 	}
-	client, err := minio.New(endpoint.Host, &minio.Options{
-		Creds:  credentials.NewStaticV4(access, secret, ""),
-		Secure: endpoint.Scheme == "https",
-	})
-	if err != nil {
-		return state.Store{}, fmt.Errorf("S3 client: %w", err)
+	connect := func(name, raw string) (*minio.Client, error) {
+		u, err := url.Parse(raw)
+		if err != nil || u.Host == "" {
+			return nil, fmt.Errorf("%s must be a URL such as http://rustfs:9000", name)
+		}
+		return minio.New(u.Host, &minio.Options{
+			Creds:  credentials.NewStaticV4(access, secret, ""),
+			Secure: u.Scheme == "https",
+			Region: env("STACKWRIGHT_S3_REGION", "us-east-1"),
+		})
 	}
-	bucket := env("STACKWRIGHT_S3_BUCKET", "stackwright")
+	endpoint := env("STACKWRIGHT_S3_ENDPOINT", "http://rustfs:9000")
+	if client, err = connect("STACKWRIGHT_S3_ENDPOINT", endpoint); err != nil {
+		return nil, nil, "", err
+	}
+	if presign, err = connect("STACKWRIGHT_S3_PUBLIC_URL", env("STACKWRIGHT_S3_PUBLIC_URL", endpoint)); err != nil {
+		return nil, nil, "", err
+	}
+	bucket = env("STACKWRIGHT_S3_BUCKET", "stackwright")
 	exists, err := client.BucketExists(ctx, bucket)
 	if err == nil && !exists {
 		err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})
 	}
 	if err != nil {
-		return state.Store{}, fmt.Errorf("S3 bucket %s: %w", bucket, err)
+		return nil, nil, "", fmt.Errorf("S3 bucket %s: %w", bucket, err)
 	}
-	return state.Store{S3: client, Bucket: bucket, KEK: kek}, nil
+	return client, presign, bucket, nil
 }

@@ -77,9 +77,20 @@ func (h Handler) serve(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Set("WWW-Authenticate", `Basic realm="stackwright"`)
 		return fail(http.StatusUnauthorized, "set TF_HTTP_PASSWORD to a Stackwright API token")
 	}
-	userID, tokenOrg, err := auth.LookupToken(r.Context(), h.Pool, token)
-	if errors.Is(err, auth.ErrBadToken) {
-		return fail(http.StatusUnauthorized, err.Error())
+	var userID, jobID, tokenOrg, jobWorkspace string
+	var err error
+	if strings.HasPrefix(token, auth.JobTokenPrefix) {
+		err = h.Pool.QueryRow(r.Context(), `UPDATE job_leases SET heartbeat_at = now()
+			WHERE token_hash = $1 AND expires_at > now() RETURNING job_id, org_id, workspace_id`,
+			auth.HashToken(token)).Scan(&jobID, &tokenOrg, &jobWorkspace)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fail(http.StatusUnauthorized, "the job token is unknown, or its job has ended")
+		}
+	} else {
+		userID, tokenOrg, err = auth.LookupToken(r.Context(), h.Pool, token)
+		if errors.Is(err, auth.ErrBadToken) {
+			return fail(http.StatusUnauthorized, err.Error())
+		}
 	}
 	if err != nil {
 		return err
@@ -94,13 +105,18 @@ func (h Handler) serve(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	return pgx.BeginFunc(r.Context(), h.Pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(r.Context(), `SELECT set_config('stackwright.user_id', $1, true)`, userID); err != nil {
+		if _, err := tx.Exec(r.Context(), `SELECT set_config('stackwright.user_id', $1, true), set_config('stackwright.org_id', $2, true)`,
+			userID, tokenOrg); err != nil {
 			return err
 		}
 		var orgID, role string
-		err := tx.QueryRow(r.Context(), `SELECT o.id, m.role FROM orgs o JOIN memberships m ON m.org_id = o.id
-			WHERE o.slug = $1 AND m.user_id = app_user_id()`, org).Scan(&orgID, &role)
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && orgID != tokenOrg) {
+		if jobID != "" {
+			err = tx.QueryRow(r.Context(), `SELECT id FROM orgs WHERE slug = $1 AND id = app_org_id()`, org).Scan(&orgID)
+		} else {
+			err = tx.QueryRow(r.Context(), `SELECT o.id, m.role FROM orgs o JOIN memberships m ON m.org_id = o.id
+				WHERE o.slug = $1 AND m.user_id = app_user_id() AND o.id = app_org_id()`, org).Scan(&orgID, &role)
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
 			return errNotFound
 		}
 		if err != nil {
@@ -109,20 +125,17 @@ func (h Handler) serve(w http.ResponseWriter, r *http.Request) error {
 		if write && (role == "viewer" || role == "security" || role == "reviewer") {
 			return fail(http.StatusForbidden, "writing state needs the writer role or above")
 		}
-		if _, err := tx.Exec(r.Context(), `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
-			return err
-		}
 		var workspaceID string
 		err = tx.QueryRow(r.Context(), `SELECT w.id FROM workspaces w JOIN projects p ON p.id = w.project_id
 			WHERE p.slug = $1 AND w.name = $2 AND p.archived_at IS NULL AND w.archived_at IS NULL`,
 			project, workspace).Scan(&workspaceID)
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) || (err == nil && jobID != "" && workspaceID != jobWorkspace) {
 			return errNotFound
 		}
 		if err != nil {
 			return err
 		}
-		req := request{ctx: r.Context(), tx: tx, orgID: orgID, workspaceID: workspaceID, userID: userID,
+		req := request{ctx: r.Context(), tx: tx, orgID: orgID, workspaceID: workspaceID, userID: userID, jobID: jobID,
 			target: "workspace:" + project + "/" + workspace, ip: auth.ClientIP(r)}
 
 		switch r.Method {
@@ -139,10 +152,10 @@ func (h Handler) serve(w http.ResponseWriter, r *http.Request) error {
 }
 
 type request struct {
-	ctx                                context.Context
-	tx                                 pgx.Tx
-	orgID, workspaceID, userID, target string
-	ip                                 string
+	ctx                                       context.Context
+	tx                                        pgx.Tx
+	orgID, workspaceID, userID, jobID, target string
+	ip                                        string
 }
 
 func (h Handler) get(w http.ResponseWriter, r *http.Request, q request) error {
@@ -199,9 +212,13 @@ func (h Handler) post(w http.ResponseWriter, r *http.Request, q request, body []
 	case err != nil:
 		return err
 	}
+	actorKind, actor := "user", q.userID
+	if q.jobID != "" {
+		actorKind, actor = "job", q.jobID
+	}
 	if _, err := q.tx.Exec(q.ctx, `INSERT INTO audit_log (org_id, actor_kind, actor_id, action, target, ip)
-		VALUES ($1, 'user', $2, 'state.write', $3, nullif($4, '')::inet)`,
-		q.orgID, q.userID, fmt.Sprintf("%s@%d", q.target, v.Serial), q.ip); err != nil {
+		VALUES ($1, $2, $3, 'state.write', $4, nullif($5, '')::inet)`,
+		q.orgID, actorKind, actor, fmt.Sprintf("%s@%d", q.target, v.Serial), q.ip); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusOK)
@@ -220,8 +237,9 @@ func (h Handler) lock(w http.ResponseWriter, q request, body []byte) error {
 	if isLocked {
 		return locked(raw)
 	}
-	tag, err := q.tx.Exec(q.ctx, `INSERT INTO state_locks (workspace_id, org_id, lock_id, info, locked_by) VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (workspace_id) DO NOTHING`, q.workspaceID, q.orgID, want.ID, body, q.userID)
+	tag, err := q.tx.Exec(q.ctx, `INSERT INTO state_locks (workspace_id, org_id, lock_id, info, locked_by, job_id)
+		VALUES ($1, $2, $3, $4, nullif($5, '')::uuid, nullif($6, '')::uuid)
+		ON CONFLICT (workspace_id) DO NOTHING`, q.workspaceID, q.orgID, want.ID, body, q.userID, q.jobID)
 	if err != nil {
 		return err
 	}

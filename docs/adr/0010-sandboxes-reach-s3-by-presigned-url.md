@@ -1,6 +1,7 @@
 # 0010 — Sandboxes reach S3 through presigned URLs
 
-**Status:** Accepted, 2026-11-11.
+**Status:** Accepted, 2026-11-11. The egress proxy line is superseded by
+[0018](0018-docker-sandboxes.md).
 
 ## Context
 

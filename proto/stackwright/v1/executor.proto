@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stackwright/v1/projects.proto";
+
+// The executor in a sandbox calls this service. ClaimJob takes the job's
+// one-time ticket as its bearer token; the other calls take the job token
+// that ClaimJob returns. Every call counts as a heartbeat.
+service ExecutorService {
+  rpc ClaimJob(ClaimJobRequest) returns (ClaimJobResponse);
+  rpc ReportEvents(ReportEventsRequest) returns (ReportEventsResponse);
+  rpc FinishJob(FinishJobRequest) returns (FinishJobResponse);
+}
+
+enum JobOperation {
+  JOB_OPERATION_UNSPECIFIED = 0;
+  JOB_OPERATION_PLAN = 1;
+  JOB_OPERATION_APPLY = 2;
+}
+
+// A presigned URL. job_id names the job whose key sealed the object.
+message Download {
+  string name = 1;
+  string url = 2;
+  string sha256 = 3;
+  string job_id = 4;
+}
+
+message Job {
+  string id = 1;
+  string token = 2;
+  JobOperation operation = 3;
+  Engine engine = 4;
+  string engine_version = 5;
+  Download engine_binary = 6;
+  // The state backend's path on the server, such as /state/acme/net/prod.
+  string state_path = 7;
+  // The project's folder inside the source archive.
+  string project_path = 8;
+  bytes artifact_key = 9;
+  repeated Download inputs = 10;
+  // Presigned PUT URLs by artifact name.
+  map<string, string> uploads = 11;
+  google.protobuf.Timestamp deadline = 12;
+}
+
+message ClaimJobRequest {}
+
+message ClaimJobResponse {
+  Job job = 1;
+}
+
+message JobEvent {
+  int64 seq = 1;
+  string type = 2;
+  string resource_addr = 3;
+  // JSON.
+  bytes payload = 4;
+  google.protobuf.Timestamp at = 5;
+}
+
+message ReportEventsRequest {
+  repeated JobEvent events = 1;
+}
+
+message ReportEventsResponse {}
+
+message FinishJobRequest {
+  bool succeeded = 1;
+  string error = 2;
+  bool has_changes = 3;
+}
+
+message FinishJobResponse {}

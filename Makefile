@@ -52,6 +52,7 @@ build:
 
 images:
 	docker build -t stackwright/stackwright:dev .
+	docker build --target executor -t stackwright/executor:dev .
 
 secrets:
 	$(TOOL) gitleaks git --no-banner --redact .

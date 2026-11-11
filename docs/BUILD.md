@@ -27,6 +27,7 @@ Each decision has a record in [adr/](adr/).
 | Invites | A one-time link; no email yet | [0015](adr/0015-invite-links.md) |
 | Projects | A repository is optional until phase 8; archive, not delete | [0016](adr/0016-projects-before-repositories.md) |
 | State access | Personal tokens, checked against the user's role on every request | [0017](adr/0017-personal-tokens-for-state.md) |
+| Docker sandboxes | Our own Docker API client, secrets as files, an engine mirror in S3, open egress | [0018](adr/0018-docker-sandboxes.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; Terraform up to 1.5.7 | — |
@@ -278,25 +279,28 @@ backend, with locks and full history.
 
 ### Phase 4: Sandbox backend and executor
 
-**Goal.** One job runs in a Docker sandbox on the built-in builder and turns
-the engine's output into typed events.
+**Goal.** One job runs in a Docker sandbox and turns the engine's output into
+typed events.
 
 **Build.**
-- The sandbox backend interface and the Docker backend
-  ([0007](adr/0007-sandbox-backends-and-build-servers.md)).
-- `stackwright-builder`, built in: enrols with the join token and holds the
-  Docker socket. The server never holds it.
-- `stackwright-executor`: claims its job with a one-time ticket, fetches the
-  source archive and the engine binary by presigned URL
+- The sandbox backend interface and the Docker backend, on our own client
+  for the Docker Engine API ([0007](adr/0007-sandbox-backends-and-build-servers.md),
+  [0018](adr/0018-docker-sandboxes.md)).
+- Jobs: a one-time ticket, the claim, events, heartbeats, and the end of a
+  job. A job token reaches the state backend for its workspace while the job
+  runs. A job whose heartbeat stops is ended and its state lock released.
+- The engine mirror: the server fetches a version on first use, checks the
+  signature and checksum, and stores it in S3.
+- `stackwright-executor`: reads its ticket from a file, claims its job,
+  fetches the source and the engine by presigned URL
   ([0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md)), checks the
-  engine's SHA-256 and signature, and runs `init`, `plan` and `apply` with
-  `-json`.
-- An engine interface with the OpenTofu and Terraform adapter.
-- The JSON stream parser, mapped to the event catalogue, with sensitive
-  values redacted.
-- Artifacts sealed with the run's key and uploaded by presigned URL.
-- One Docker network per sandbox; an egress proxy with a grant per workspace.
-- Secrets reach the sandbox as a mounted file, never as `-e` arguments.
+  engine's SHA-256, and runs `init`, `plan` and `apply` with `-json`.
+- One engine runner for OpenTofu and Terraform, which share the CLI and the
+  JSON format.
+- The JSON stream parser: each output line becomes one typed event, with
+  sensitive outputs removed.
+- Artifacts sealed with the job's key and uploaded by presigned URL.
+- One Docker network for each sandbox; open egress; secrets as files.
 
 **Done when.**
 - [ ] A plan of the sample project emits planned-change events that match
@@ -307,7 +311,6 @@ the engine's output into typed events.
 - [ ] Killing the sandbox mid-plan releases the state lock within 60 s
 - [ ] A changed engine binary is refused before it runs
 - [ ] No secret shows in `docker inspect` or in the host's process list
-- [ ] The sandbox cannot reach NATS, Postgres or the server's internal ports
 
 **Depends on:** 3.
 
@@ -316,6 +319,10 @@ the engine's output into typed events.
 **Goal.** Runs follow the state machine, and the user sees each run live.
 
 **Build.**
+- `stackwright-builder`, built in: one container in compose, the only one
+  with the Docker socket. It holds an outbound gRPC stream to the server
+  ([0008](adr/0008-build-server-channel.md)), authenticated with a join token
+  from `.env`, and starts sandboxes when told.
 - The orchestrator: the run state machine in `runs`, every change an event.
 - One active run per workspace; others wait in Queued.
 - An apply uses only the stored plan, and refuses it if the state serial or
@@ -342,7 +349,7 @@ the engine's output into typed events.
 **Goal.** A user enrols their own machine, and jobs run there.
 
 **Build.**
-- The gRPC stream with mTLS from builder to server
+- mTLS on the builder stream from phase 5
   ([0008](adr/0008-build-server-channel.md)); certificates issued at
   enrolment, short lived, renewed on the stream.
 - Enrol over SSH: the org's SSH key, the host key check, the install, a test
@@ -689,7 +696,8 @@ questions they will have.
 - [ ] A restore from backup on a new host opens the same state
 - [ ] An upgrade by one minor version keeps every run and build server working
 - [ ] The escape tests pass: a sandbox cannot reach another sandbox, the
-      host's metadata service or the server's internal ports
+      host's metadata service, the server's internal ports, or Postgres,
+      NATS and RustFS
 
 **Depends on:** 6, 21.
 
@@ -800,7 +808,8 @@ builds it.
 - Secrets reach a sandbox as a mounted file. Never in argv, an environment
   flag on the command line, or a URL.
 - Artifacts are sealed with the run's key before upload.
-- Egress from a sandbox goes through a proxy with a grant for each workspace.
+- A sandbox has its own network. Its egress is open, with no limits yet
+  ([0018](adr/0018-docker-sandboxes.md)); phase 22 decides the limits.
 - The agent holds no cloud credentials and has no path to apply. It never
   commits, pushes or opens a PR without a person's approval.
 - Tokens are stored as SHA-256 hashes and compared in constant time.
