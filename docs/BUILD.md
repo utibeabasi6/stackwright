@@ -28,6 +28,7 @@ Each decision has a record in [adr/](adr/).
 | Projects | A repository is optional until phase 8; archive, not delete | [0016](adr/0016-projects-before-repositories.md) |
 | State access | Personal tokens, checked against the user's role on every request | [0017](adr/0017-personal-tokens-for-state.md) |
 | Docker sandboxes | Our own Docker API client, secrets as files, an engine mirror in S3, open egress | [0018](adr/0018-docker-sandboxes.md) |
+| Terraform Stacks | Stackwright reads Stacks files and runs each component as a workspace; no HCP Terraform | [0019](adr/0019-terraform-stacks-files.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; Terraform up to 1.5.7 | — |
@@ -649,6 +650,44 @@ schedule.
       interval
 
 **Depends on:** 5, 18.
+
+### Phase 19b: Terraform Stacks files
+
+**Goal.** A repository with Terraform Stacks files deploys through
+Stackwright, with no HCP Terraform account
+([0019](adr/0019-terraform-stacks-files.md)).
+
+**Build.**
+- A project layout for Stacks. The importer finds `.tfdeploy.hcl` files.
+- A parser for the component and deployment files. First, check each block
+  below against real Stacks files and HashiCorp's docs, and record what the
+  check found.
+- Blocks to run: `required_providers`, `provider` (with `for_each`),
+  `variable`, `locals`, `output`, `component` (with `for_each`), `removed`,
+  and `deployment` with its `inputs`.
+- `identity_token` maps to phase 7's cloud credentials. `store` maps to
+  workspace variables.
+- Blocks refused by name for now: `publish_output` and `upstream_input`
+  (linked Stacks). Decide `deployment_group` and auto-approve rules against
+  phase 19's approvals.
+- One workspace for each component instance in each deployment. References
+  between components give the order of a phase 19 deployment.
+- A generated root module for each component: its provider configuration,
+  its inputs, and a call to its source.
+- The UI says "Terraform Stacks" for the layout and names each workspace by
+  deployment and component.
+
+**Done when.**
+- [ ] A two-component Stack (`network` then `app`, `app` reads an output
+      of `network`) deploys `dev` and `prod` in order, with one approval for
+      each deployment
+- [ ] The same fixture runs on OpenTofu and on Terraform 1.5.7
+- [ ] A component with `for_each` gives one workspace for each instance
+- [ ] A refused block fails the plan with its name, file and line
+- [ ] The parser test suite holds real Stacks files, with the version of the
+      format they follow
+
+**Depends on:** 7, 15, 19.
 
 ### Phase 20: CLI
 
