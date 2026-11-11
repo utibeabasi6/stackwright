@@ -151,6 +151,7 @@ func methods() []method {
 	for _, f := range []protoreflect.FileDescriptor{
 		v1.File_stackwright_v1_auth_proto, v1.File_stackwright_v1_orgs_proto,
 		v1.File_stackwright_v1_instance_proto, v1.File_stackwright_v1_meta_proto,
+		v1.File_stackwright_v1_projects_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -358,10 +359,16 @@ func TestAnotherOrgIsNotFound(t *testing.T) {
 			t.Errorf("%s on org b: %s, want not_found", m.procedure, code)
 		}
 	}
+	owner.must("ProjectService/CreateProject", map[string]any{"org": "b", "slug": "secret", "engine": "ENGINE_OPENTOFU",
+		"engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"})
 	for _, call := range []struct {
 		procedure string
 		body      map[string]any
 	}{
+		{"ProjectService/GetWorkspace", map[string]any{"org": "a", "project": "secret", "workspace": "default"}},
+		{"ProjectService/UpdateProject", map[string]any{"org": "a", "project": "secret", "engineVersion": "1.10.7"}},
+		{"ProjectService/ArchiveProject", map[string]any{"org": "a", "project": "secret"}},
+		{"ProjectService/CreateWorkspace", map[string]any{"org": "a", "project": "secret", "name": "x"}},
 		{"OrgService/SetMemberRole", map[string]any{"org": "a", "userId": memberB, "role": "ROLE_VIEWER"}},
 		{"OrgService/RemoveMember", map[string]any{"org": "a", "userId": memberB}},
 		{"OrgService/RevokeInvite", map[string]any{"org": "a", "id": inviteBID}},
@@ -427,6 +434,25 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 	})
 	step("InstanceService/DeleteSignInProvider", func() {
 		owner.must("InstanceService/DeleteSignInProvider", map[string]any{"id": providerID})
+	})
+	step("ProjectService/CreateProject", func() {
+		owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "net", "engine": "ENGINE_OPENTOFU",
+			"engineVersion": "1.10.7", "layout": "LAYOUT_CLI_WORKSPACES", "workspaces": []string{"dev", "prod"}})
+	})
+	step("ProjectService/CreateSampleProject", func() {
+		owner.must("ProjectService/CreateSampleProject", map[string]any{"org": "a"})
+	})
+	step("ProjectService/UpdateProject", func() {
+		owner.must("ProjectService/UpdateProject", map[string]any{"org": "a", "project": "net", "path": "network", "engineVersion": "1.10.7"})
+	})
+	step("ProjectService/CreateWorkspace", func() {
+		owner.must("ProjectService/CreateWorkspace", map[string]any{"org": "a", "project": "net", "name": "staging"})
+	})
+	step("ProjectService/ArchiveWorkspace", func() {
+		owner.must("ProjectService/ArchiveWorkspace", map[string]any{"org": "a", "project": "net", "workspace": "staging"})
+	})
+	step("ProjectService/ArchiveProject", func() {
+		owner.must("ProjectService/ArchiveProject", map[string]any{"org": "a", "project": "net"})
 	})
 	second := w.client()
 	step("AuthService/SignIn", func() {
@@ -565,5 +591,73 @@ func TestOIDCSignInIsByInviteOnly(t *testing.T) {
 	}
 	if bytes.Contains(stored, []byte("dev-client-secret")) {
 		t.Error("the client secret is stored in plain text")
+	}
+}
+
+func TestProjects(t *testing.T) {
+	w := newWorld(t, nil)
+	owner := w.setup()
+	create := func(body map[string]any) (map[string]any, string) {
+		body["org"] = "a"
+		return owner.call("ProjectService/CreateProject", body)
+	}
+
+	out, code := create(map[string]any{"slug": "network", "path": "/network/", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7",
+		"layout": "LAYOUT_CLI_WORKSPACES", "workspaces": []string{"dev", "staging", "prod"}})
+	if code != "" {
+		t.Fatalf("create: %s %v", code, out["message"])
+	}
+	list := owner.must("ProjectService/ListProjects", map[string]any{"org": "a"})["projects"].([]any)
+	if len(list) != 1 || len(list[0].(map[string]any)["workspaces"].([]any)) != 3 {
+		t.Fatalf("ListProjects = %v, want one project with three workspaces", list)
+	}
+	if path := list[0].(map[string]any)["path"]; path != "network" {
+		t.Errorf("path = %v, want network", path)
+	}
+
+	out = owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "bastion", "engine": "ENGINE_TERRAFORM",
+		"engineVersion": "1.5.7", "layout": "LAYOUT_PLAIN", "workspaces": []string{"ignored"}})
+	if ws := asJSON(out["project"].(map[string]any)["workspaces"]); !strings.Contains(ws, `"name":"default"`) || strings.Contains(ws, "ignored") {
+		t.Errorf("a plain folder got workspaces %s, want default only", ws)
+	}
+	if _, code := owner.call("ProjectService/CreateWorkspace", map[string]any{"org": "a", "project": "bastion", "name": "dev"}); code != "failed_precondition" {
+		t.Errorf("a second workspace in a plain folder: %s", code)
+	}
+
+	for _, bad := range []map[string]any{
+		{"slug": "tf16", "engine": "ENGINE_TERRAFORM", "engineVersion": "1.6.0", "layout": "LAYOUT_PLAIN"},
+		{"slug": "tofu17", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.7.9", "layout": "LAYOUT_PLAIN"},
+		{"slug": "noversion", "engine": "ENGINE_OPENTOFU", "engineVersion": "latest", "layout": "LAYOUT_PLAIN"},
+		{"slug": "escape", "path": "../etc", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"},
+		{"slug": "Bad Name", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"},
+		{"slug": "nows", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_CLI_WORKSPACES"},
+		{"slug": "twice", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_CLI_WORKSPACES", "workspaces": []string{"dev", "dev"}},
+	} {
+		if _, code := create(bad); code != "invalid_argument" {
+			t.Errorf("%v: %s, want invalid_argument", bad["slug"], code)
+		}
+	}
+	if _, code := create(map[string]any{"slug": "network", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"}); code != "already_exists" {
+		t.Errorf("a second project named network: %s", code)
+	}
+
+	if _, code := owner.call("ProjectService/ArchiveWorkspace", map[string]any{"org": "a", "project": "bastion", "workspace": "default"}); code != "failed_precondition" {
+		t.Errorf("archiving the last workspace: %s", code)
+	}
+	owner.must("ProjectService/ArchiveProject", map[string]any{"org": "a", "project": "network"})
+	if list := asJSON(owner.must("ProjectService/ListProjects", map[string]any{"org": "a"})); strings.Contains(list, `"slug":"network"`) {
+		t.Error("an archived project is still listed")
+	}
+	if _, code := owner.call("ProjectService/GetWorkspace", map[string]any{"org": "a", "project": "network", "workspace": "dev"}); code != "not_found" {
+		t.Errorf("an archived project's workspace: %s", code)
+	}
+	if _, code := create(map[string]any{"slug": "network", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"}); code != "" {
+		t.Errorf("reusing an archived project's name: %s", code)
+	}
+
+	sample := owner.must("ProjectService/CreateSampleProject", map[string]any{"org": "a"})["project"].(map[string]any)
+	again := owner.must("ProjectService/CreateSampleProject", map[string]any{"org": "a"})["project"].(map[string]any)
+	if sample["slug"] != "sample" || again["slug"] != "sample-2" || sample["sample"] != true {
+		t.Errorf("samples = %v, %v", sample["slug"], again["slug"])
 	}
 }

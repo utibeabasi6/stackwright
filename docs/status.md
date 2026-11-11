@@ -8,7 +8,8 @@ commit that finishes a phase.
 | Design | Approved 2026-11-11 |
 | 0 | Done, reviewed 2026-11-11 |
 | 1 | Done, reviewed 2026-11-11 |
-| 2 | Not started |
+| 2 | Done, reviewed 2026-11-11 |
+| 3 | Not started |
 
 ## Phase 0: Repository and compose
 
@@ -94,3 +95,36 @@ provider.
   back.
 - The setup code lives in the server's memory. With more than one server,
   each prints its own.
+
+## Phase 2: Projects, workspaces and the shell
+
+Decisions: [0016](adr/0016-projects-before-repositories.md). Open tabs are kept
+in the browser, for each org. Only admins and owners change projects.
+
+**Verified on 2026-11-11:**
+- Go tests: create, list, get, update and archive projects and workspaces;
+  a plain folder gets only `default`; the engine allow-list refuses
+  Terraform 1.6.0, OpenTofu 1.7.9 and `latest`; a folder with `..` is
+  refused; an archived project leaves every list and its name can be used
+  again; the last workspace cannot be archived; the sample is named
+  `sample`, then `sample-2`. The policy, role, cross-org and audit tests now
+  cover the eight new RPCs.
+- Web tests: a project with CLI workspaces dev, staging and prod shows three
+  rows; every page is in the command palette, and choosing a workspace opens
+  it; tabs survive a remount and Alt+W closes the current one; an admin with
+  no projects is offered the sample.
+- In the browser, light and dark: "Try the sample", the workspace Overview,
+  the palette with ⌘K, opening a workspace from it, ⌥W, tabs after a reload,
+  and the New project form.
+
+**Changed from the plan:**
+- ⌘T and ⌘W became ⌥T and ⌥W: browsers keep ⌘T and ⌘W for their own tabs.
+- "Archiving a project with a locked workspace is refused" moved to phase 3,
+  where locks arrive.
+- The "Waiting on you" count appears in phase 5.
+
+**Not verified:**
+- Tabs in the browser's local storage are per browser; they do not follow a
+  user to another device (by decision).
+- Workspaces are listed by name, so `dev, prod, staging`, not the order they
+  were typed in.

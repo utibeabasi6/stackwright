@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service ProjectService {
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
+  rpc CreateSampleProject(CreateSampleProjectRequest) returns (CreateSampleProjectResponse);
+  rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse);
+  rpc ArchiveProject(ArchiveProjectRequest) returns (ArchiveProjectResponse);
+  rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+  rpc ArchiveWorkspace(ArchiveWorkspaceRequest) returns (ArchiveWorkspaceResponse);
+}
+
+enum Engine {
+  ENGINE_UNSPECIFIED = 0;
+  ENGINE_OPENTOFU = 1;
+  ENGINE_TERRAFORM = 2;
+}
+
+enum Layout {
+  LAYOUT_UNSPECIFIED = 0;
+  LAYOUT_PLAIN = 1;
+  LAYOUT_CLI_WORKSPACES = 2;
+}
+
+message Project {
+  string slug = 1;
+  string path = 2;
+  Engine engine = 3;
+  string engine_version = 4;
+  Layout layout = 5;
+  string repo_url = 6;
+  string branch = 7;
+  bool sample = 8;
+  repeated Workspace workspaces = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message Workspace {
+  string name = 1;
+  google.protobuf.Timestamp created_at = 2;
+}
+
+message ListProjectsRequest {
+  string org = 1;
+}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+}
+
+message GetWorkspaceRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+}
+
+message GetWorkspaceResponse {
+  Project project = 1;
+  Workspace workspace = 2;
+}
+
+message CreateProjectRequest {
+  string org = 1;
+  string slug = 2;
+  string path = 3;
+  Engine engine = 4;
+  string engine_version = 5;
+  Layout layout = 6;
+  repeated string workspaces = 7;
+  string repo_url = 8;
+  string branch = 9;
+}
+
+message CreateProjectResponse {
+  Project project = 1;
+}
+
+message CreateSampleProjectRequest {
+  string org = 1;
+}
+
+message CreateSampleProjectResponse {
+  Project project = 1;
+}
+
+message UpdateProjectRequest {
+  string org = 1;
+  string project = 2;
+  string path = 3;
+  string engine_version = 4;
+  string repo_url = 5;
+  string branch = 6;
+}
+
+message UpdateProjectResponse {
+  Project project = 1;
+}
+
+message ArchiveProjectRequest {
+  string org = 1;
+  string project = 2;
+}
+
+message ArchiveProjectResponse {}
+
+message CreateWorkspaceRequest {
+  string org = 1;
+  string project = 2;
+  string name = 3;
+}
+
+message CreateWorkspaceResponse {
+  Workspace workspace = 1;
+}
+
+message ArchiveWorkspaceRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+}
+
+message ArchiveWorkspaceResponse {}

@@ -67,7 +67,7 @@ There is no sidebar. Two bars and one inspector hold the navigation.
 
 **The toolbar** (`chrome`, one row): the app name and org on the left. In a workspace, a segmented control in the centre switches the view: Overview, Plan, Topology, Security, Editor, Log. On the right: Projects, "Waiting on you" with its count, search (⌘K), Build servers, and Settings. The app name also goes to Projects.
 
-**The workspace tab strip** (`tabstrip`, under the toolbar): one tab for each open workspace, named "project › workspace". A tab carries one status mark when something needs the user: an `accent` dot for agent changes, `~` for drift, `!` for a failure or a High finding. "+" opens a workspace by name; ⌘T does the same. ⌘W closes a tab. Tabs stay open between visits.
+**The workspace tab strip** (`tabstrip`, under the toolbar): one tab for each open workspace, named "project › workspace". A tab carries one status mark when something needs the user: an `accent` dot for agent changes, `~` for drift, `!` for a failure or a High finding. "+" opens a workspace by name; ⌥T does the same. ⌥W closes the current tab. Browsers keep ⌘T and ⌘W for their own tabs, so a web page cannot use them. Tabs stay open between visits.
 
 **Organisation pages** (Projects, Waiting on you, Build servers, Settings) open in the content area with no tab selected. Their content column is at most 1120px, with `space-6` margins.
 

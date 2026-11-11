@@ -25,6 +25,7 @@ Each decision has a record in [adr/](adr/).
 | Accounts | Invite only; providers managed in Settings by instance admins, secrets sealed | [0013](adr/0013-sign-in-providers-and-accounts.md) |
 | Orgs | Many per instance; requests name their org | [0014](adr/0014-many-orgs.md) |
 | Invites | A one-time link; no email yet | [0015](adr/0015-invite-links.md) |
+| Projects | A repository is optional until phase 8; archive, not delete | [0016](adr/0016-projects-before-repositories.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; Terraform up to 1.5.7 | — |
@@ -221,21 +222,23 @@ against the caller's role.
 works on every page.
 
 **Build.**
-- `repos`, `projects`, `workspaces`; create, list, get, update, archive.
+- `projects` and `workspaces`; create, list, get, update, archive. Only
+  admins and owners change them ([0016](adr/0016-projects-before-repositories.md)).
 - Engine and version from an allow-list: OpenTofu 1.8 and newer, Terraform up
   to 1.5.7.
-- The shell: the toolbar, the workspace tab strip, the command palette, the
-  "Waiting on you" count (empty until phase 5), light and dark.
+- The shell: the toolbar, the workspace tab strip, the command palette, light
+  and dark. Open tabs are kept in the browser, for each org. The "Waiting on
+  you" count appears in phase 5, when something can wait.
 - The Projects page and the workspace Overview, with empty states.
-- The sample project, created on request.
+- The sample project, created on request. Its code arrives in phase 4.
 
 **Done when.**
 - [ ] A project with CLI workspaces `dev`, `staging` and `prod` shows three
       rows on its card
 - [ ] Every page is reachable from the command palette
-- [ ] Open workspace tabs survive a reload; ⌘T opens one and ⌘W closes one
-- [ ] Archiving a project with a locked workspace is refused with a clear
-      message
+- [ ] Open workspace tabs survive a reload; ⌥T opens one and ⌥W closes one.
+      Browsers keep ⌘T and ⌘W for their own tabs
+- [ ] An archived project leaves every list, and its name can be used again
 
 **Depends on:** 1.
 
@@ -260,6 +263,8 @@ backend, with locks and full history.
 - [ ] The same tests pass with Terraform 1.5.7
 - [ ] Blobs in RustFS cannot be read without the data key
 - [ ] A rollback makes a new serial, and the next plan shows the expected diff
+- [ ] Archiving a project with a locked workspace is refused with a clear
+      message
 
 **Depends on:** 2.
 

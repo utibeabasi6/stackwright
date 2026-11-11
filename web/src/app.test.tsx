@@ -1,14 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { routeTree } from "./router";
 import { Role } from "./gen/stackwright/v1/orgs_pb";
+import { Engine, Layout } from "./gen/stackwright/v1/projects_pb";
 
 const api = vi.hoisted(() => ({
   me: undefined as unknown,
   setupNeeded: false,
   invites: [] as string[],
+  projects: [] as unknown[],
 }));
 
 vi.mock("./api", () => ({
@@ -34,6 +36,15 @@ vi.mock("./api", () => ({
     },
   },
   instanceApi: {},
+  projectApi: {
+    listProjects: async () => ({ projects: api.projects }),
+    getWorkspace: async ({ project, workspace }: { project: string; workspace: string }) => {
+      const p = (api.projects as { slug: string; workspaces: { name: string }[] }[]).find((x) => x.slug === project);
+      const w = p?.workspaces.find((x) => x.name === workspace);
+      if (!p || !w) throw new ConnectError("not found", Code.NotFound);
+      return { project: p, workspace: w };
+    },
+  },
 }));
 
 function at(path: string) {
@@ -49,10 +60,24 @@ function signedInAs(role: Role) {
   };
 }
 
+const network = {
+  slug: "network",
+  path: "network",
+  engine: Engine.OPENTOFU,
+  engineVersion: "1.10.7",
+  layout: Layout.CLI_WORKSPACES,
+  repoUrl: "",
+  branch: "",
+  sample: false,
+  workspaces: [{ name: "dev" }, { name: "staging" }, { name: "prod" }],
+};
+
 beforeEach(() => {
   api.me = undefined;
   api.setupNeeded = false;
   api.invites = [];
+  api.projects = [];
+  window.localStorage.clear();
 });
 
 test("a fresh instance sends you to setup", async () => {
@@ -88,4 +113,63 @@ test("a viewer sees members but no invite form", async () => {
   at("/a/settings/members");
   expect(await screen.findByText("owner@a.test")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Make invite link" })).not.toBeInTheDocument();
+});
+
+test("a project with three CLI workspaces shows three rows", async () => {
+  signedInAs(Role.VIEWER);
+  api.projects = [network];
+  at("/a");
+  const card = await screen.findByRole("region", { name: "Project network" });
+  expect(within(card).getAllByRole("listitem")).toHaveLength(3);
+});
+
+test("an admin with no projects is offered the sample", async () => {
+  signedInAs(Role.ADMIN);
+  at("/a");
+  expect(await screen.findByRole("button", { name: "Try the sample" })).toBeInTheDocument();
+});
+
+test("every page is in the command palette", async () => {
+  signedInAs(Role.OWNER);
+  api.projects = [network];
+  at("/a");
+  await screen.findByRole("heading", { name: "Projects" });
+  await userEvent.keyboard("{Control>}k{/Control}");
+  const list = await screen.findByRole("listbox");
+  const labels = within(list)
+    .getAllByRole("option")
+    .map((o) => o.textContent);
+  for (const page of [
+    "Projects",
+    "Waiting on you",
+    "Build servers",
+    "Settings: General",
+    "Settings: Members",
+    "Settings: Audit log",
+    "Settings: Sign-in",
+    "New project",
+    "New org",
+    "network › prod",
+  ]) {
+    expect(labels.some((l) => l?.startsWith(page))).toBe(true);
+  }
+  await userEvent.type(screen.getByRole("combobox", { name: "Search pages and workspaces" }), "staging{Enter}");
+  expect(await screen.findByRole("heading", { name: "staging" })).toBeInTheDocument();
+});
+
+test("workspace tabs survive a reload and close with Alt+W", async () => {
+  signedInAs(Role.VIEWER);
+  api.projects = [network];
+  at("/a/projects/network/prod");
+  expect(await screen.findByRole("tab", { name: /prod/ })).toHaveAttribute("aria-selected", "true");
+  cleanup();
+
+  at("/a");
+  expect(await screen.findByRole("tab", { name: /prod/ })).toBeInTheDocument();
+  cleanup();
+
+  at("/a/projects/network/prod");
+  await screen.findByRole("heading", { name: "prod" });
+  await userEvent.keyboard("{Alt>}w{/Alt}");
+  expect(await screen.findByText("No open workspaces")).toBeInTheDocument();
 });

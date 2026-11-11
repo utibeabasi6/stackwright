@@ -1,12 +1,3 @@
-export function Projects() {
-  return (
-    <>
-      <h1>Projects</h1>
-      <p className="muted">No projects yet.</p>
-    </>
-  );
-}
-
 export function Inbox() {
   return (
     <>

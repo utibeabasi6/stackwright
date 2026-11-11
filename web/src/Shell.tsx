@@ -1,16 +1,21 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { Link, Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
-import { authApi, message } from "./api";
+import { authApi, message, projectApi } from "./api";
 import type { GetMeResponse } from "./gen/stackwright/v1/auth_pb";
-import { MeContext } from "./me";
+import { Role } from "./gen/stackwright/v1/orgs_pb";
+import { ShellContext } from "./me";
+import { Palette, type Command } from "./Palette";
+import { useTabs } from "./tabs";
+import { useLoad } from "./useLoad";
 
 export function Shell() {
   const navigate = useNavigate();
   const router = useRouter();
-  const params = useParams({ strict: false }) as { org?: string };
+  const params = useParams({ strict: false }) as { org?: string; project?: string; workspace?: string };
   const [me, setMe] = useState<GetMeResponse>();
   const [error, setError] = useState<string>();
+  const [palette, setPalette] = useState(false);
 
   useEffect(() => {
     authApi.getMe({}).then(setMe, async (e) => {
@@ -23,18 +28,101 @@ export function Shell() {
     });
   }, [navigate, router]);
 
+  const org = params.org ?? me?.orgs[0]?.slug ?? "";
+  const projects = useLoad(`projects:${org}`, () =>
+    org ? projectApi.listProjects({ org }).then((r) => r.projects) : Promise.resolve([]),
+  );
+  const { tabs, open, close } = useTabs(org);
+  const openRef = useRef(open);
+  openRef.current = open;
+  const openTab = useCallback((t: { project: string; workspace: string }) => openRef.current(t), []);
+  const current = useMemo(
+    () => (params.project && params.workspace ? { project: params.project, workspace: params.workspace } : undefined),
+    [params.project, params.workspace],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPalette(true);
+      } else if (e.altKey && e.code === "KeyT") {
+        e.preventDefault();
+        setPalette(true);
+      } else if (e.altKey && e.code === "KeyW" && current) {
+        e.preventDefault();
+        close(current);
+        navigate({ to: "/$org", params: { org } });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [current, close, navigate, org]);
+
+  const role = me?.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
+  const commands = useMemo<Command[]>(() => {
+    if (!me || !org) return [];
+    const go = (to: string, p: Record<string, string> = {}) => () => navigate({ to, params: { org, ...p } });
+    const list: Command[] = [
+      { id: "projects", label: "Projects", group: "Page", run: go("/$org") },
+      { id: "inbox", label: "Waiting on you", group: "Page", run: go("/$org/inbox") },
+      { id: "servers", label: "Build servers", group: "Page", run: go("/$org/build-servers") },
+      { id: "settings", label: "Settings: General", group: "Page", run: go("/$org/settings") },
+      { id: "members", label: "Settings: Members", group: "Page", run: go("/$org/settings/members") },
+    ];
+    if (role >= Role.ADMIN) {
+      list.push(
+        { id: "audit", label: "Settings: Audit log", group: "Page", run: go("/$org/settings/audit") },
+        { id: "new-project", label: "New project", group: "Page", run: go("/$org/projects/new") },
+      );
+    }
+    if (me.user?.instanceAdmin) {
+      list.push(
+        { id: "sign-in", label: "Settings: Sign-in", group: "Page", run: go("/$org/settings/sign-in") },
+        { id: "new-org", label: "New org", group: "Page", run: () => navigate({ to: "/new-org" }) },
+      );
+    }
+    for (const p of projects.data ?? []) {
+      for (const w of p.workspaces) {
+        list.push({
+          id: `ws-${p.slug}-${w.name}`,
+          label: `${p.slug} › ${w.name}`,
+          group: "Workspace",
+          run: go("/$org/projects/$project/$workspace", { project: p.slug, workspace: w.name }),
+        });
+      }
+    }
+    if (current) {
+      list.push({
+        id: "close-tab",
+        label: "Close this tab",
+        group: "Tab",
+        run: () => {
+          close(current);
+          go("/$org")();
+        },
+      });
+    }
+    for (const o of me.orgs) {
+      if (o.slug !== org) {
+        list.push({ id: `org-${o.slug}`, label: `Switch to ${o.name}`, group: "Org", run: () => navigate({ to: "/$org", params: { org: o.slug } }) });
+      }
+    }
+    return list;
+  }, [me, org, role, projects.data, current, close, navigate]);
+
   if (error) return <p className="page error">{error}</p>;
   if (!me) return null;
 
-  const org = params.org ?? me.orgs[0]?.slug;
   const signOut = async () => {
     await authApi.signOut({});
     navigate({ to: "/sign-in" });
   };
 
   return (
-    <MeContext.Provider value={me}>
-      <header>
+    <ShellContext.Provider value={{ me, projects: projects.data, reloadProjects: projects.reload, openTab }}>
+      <header className="shell">
         <div className="toolbar">
           <Link to="/" className="app">
             Stackwright
@@ -59,14 +147,29 @@ export function Shell() {
               </select>
             </label>
           )}
+          <span className="grow" />
+          {current && (
+            <nav className="segmented" aria-label="Views">
+              <Link
+                to="/$org/projects/$project/$workspace"
+                params={{ org, project: current.project, workspace: current.workspace }}
+              >
+                Overview
+              </Link>
+            </nav>
+          )}
+          <span className="grow" />
           {org && (
-            <nav aria-label="Main">
+            <nav aria-label="Main" className="main-nav">
               <Link to="/$org" params={{ org }} activeOptions={{ exact: true }}>
                 Projects
               </Link>
               <Link to="/$org/inbox" params={{ org }}>
                 Waiting on you
               </Link>
+              <button type="button" className="search" onClick={() => setPalette(true)}>
+                Search <kbd>⌘K</kbd>
+              </button>
               <Link to="/$org/build-servers" params={{ org }}>
                 Build servers
               </Link>
@@ -82,13 +185,45 @@ export function Shell() {
             </button>
           </div>
         </div>
-        <div className="tabstrip" role="tablist" aria-label="Open workspaces">
-          No open workspaces
-        </div>
+        {org && (
+          <div className="tabstrip" role="tablist" aria-label="Open workspaces">
+            {tabs.length === 0 && <span className="tab-empty">No open workspaces</span>}
+            {tabs.map((t) => {
+              const selected = current?.project === t.project && current?.workspace === t.workspace;
+              return (
+                <span key={`${t.project}/${t.workspace}`} className="tab" role="presentation">
+                  <Link
+                    role="tab"
+                    aria-selected={selected}
+                    to="/$org/projects/$project/$workspace"
+                    params={{ org, project: t.project, workspace: t.workspace }}
+                  >
+                    <span className="muted">{t.project} ›</span> {t.workspace}
+                  </Link>
+                  <button
+                    type="button"
+                    className="tab-close"
+                    aria-label={`Close ${t.project} › ${t.workspace}`}
+                    onClick={() => {
+                      close(t);
+                      if (selected) navigate({ to: "/$org", params: { org } });
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+            <button type="button" className="tab-add" aria-label="Open a workspace" onClick={() => setPalette(true)}>
+              +
+            </button>
+          </div>
+        )}
       </header>
       <main className="page">
         <Outlet />
       </main>
-    </MeContext.Provider>
+      {palette && <Palette commands={commands} onClose={() => setPalette(false)} />}
+    </ShellContext.Provider>
   );
 }

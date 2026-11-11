@@ -41,6 +41,7 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewAuthServiceHandler(&api.Auth{Cookies: cookies, SetupCode: c.SetupCode}, opts))
 	serve(stackwrightv1connect.NewOrgServiceHandler(&api.Orgs{PublicURL: c.PublicURL}, opts))
 	serve(stackwrightv1connect.NewInstanceServiceHandler(&api.Instance{KEK: c.KEK, SignIn: signIn}, opts))
+	serve(stackwrightv1connect.NewProjectServiceHandler(api.Projects{}, opts))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
