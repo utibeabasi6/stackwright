@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package stackwright.meta.v1;
+
+service MetaService {
+  rpc GetVersion(GetVersionRequest) returns (GetVersionResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetVersionRequest {}
+
+message GetVersionResponse {
+  string version = 1;
+}

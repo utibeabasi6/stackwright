@@ -1,0 +1,80 @@
+name: stackwright
+
+x-postgres-password: &postgres-password
+  environment: STACKWRIGHT_POSTGRES_PASSWORD
+
+services:
+  stackwright:
+    build: .
+    image: stackwright/stackwright:dev
+    environment:
+      STACKWRIGHT_POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # Plain HTTP. Put a TLS proxy in front before publishing beyond this host.
+      - 127.0.0.1:8080:8080
+    healthcheck:
+      test: ["CMD", "/stackwright", "healthcheck"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16.14-alpine
+    environment:
+      POSTGRES_USER: stackwright
+      POSTGRES_DB: stackwright
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "stackwright", "-d", "stackwright"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.15.2-alpine
+    command: ["-c", "/etc/nats/nats.conf"]
+    environment:
+      NATS_PASSWORD: ${STACKWRIGHT_NATS_PASSWORD:?Run make init to create .env}
+    volumes:
+      - ./deploy/nats.conf:/etc/nats/nats.conf:ro
+      - nats:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8222/healthz"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  rustfs:
+    image: rustfs/rustfs:1.0.4
+    environment:
+      RUSTFS_ACCESS_KEY: ${STACKWRIGHT_S3_ACCESS_KEY:?Run make init to create .env}
+      RUSTFS_SECRET_KEY: ${STACKWRIGHT_S3_SECRET_KEY:?Run make init to create .env}
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ENABLE: "false"
+    volumes:
+      - rustfs:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+secrets:
+  postgres_password: *postgres-password
+
+volumes:
+  postgres:
+  nats:
+  rustfs:

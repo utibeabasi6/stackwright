@@ -35,9 +35,10 @@ Compose runs RustFS as the default store.
 
 - Verified on 2026-11-11 from the RustFS README: Apache-2.0, versioned images
   (`rustfs/rustfs:1.0.5`), and a status for each feature.
-- Not verified: presigned URLs and multipart upload. The README does not
-  mention them. Phase 0 tests both, plus a wrong key. If RustFS fails, compose
-  uses SeaweedFS, which the first build used (its ADR 0002).
+- Verified on 2026-11-11 in phase 0, against `rustfs/rustfs:1.0.4`
+  (`test/infra`): a presigned PUT and GET work; a presigned URL changed to
+  another key is refused with 403; a 12 MiB upload in 5 MiB parts works and
+  reads back the same; a wrong secret is refused. Compose uses RustFS.
 
 ## Alternatives
 

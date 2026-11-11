@@ -1,0 +1,73 @@
+/* Generated from docs/design/tokens.json by scripts/tokens.mjs. */
+:root {
+  color-scheme: light dark;
+  --window: #ffffff;
+  --chrome: #f3f3f3;
+  --tabstrip: #e8e8e8;
+  --inspector: #fbfbfb;
+  --canvas: #fafafa;
+  --hairline: #d6d6d6;
+  --separator: #e5e5e5;
+  --ink: #1d1d1f;
+  --ink-muted: #636366;
+  --accent: #0a5bd3;
+  --on-accent: #ffffff;
+  --accent-ink: #0a5bd3;
+  --selection: #e3ecfb;
+  --create: #16702f;
+  --create-wash: #edf7ef;
+  --update: #985400;
+  --update-wash: #fff6e5;
+  --replace: #6e40c9;
+  --destroy: #b42318;
+  --syntax-keyword: #2f5bb7;
+  --syntax-string: #7a5a12;
+  --syntax-number: #11646f;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --type-large-title: 700 22px/28px var(--font-sans);
+  --type-title: 600 15px/20px var(--font-sans);
+  --type-heading: 600 13px/18px var(--font-sans);
+  --type-body: 400 13px/18px var(--font-sans);
+  --type-label: 600 11px/14px var(--font-sans);
+  --type-code: 400 12px/18px var(--font-mono);
+  --type-log: 400 12px/18px var(--font-mono);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --radius-pill: 9px;
+  --control-height: 32px;
+  --tab-height: 32px;
+  --inspector-width: 360px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --window: #1e1e1f;
+    --chrome: #2b2b2d;
+    --tabstrip: #232325;
+    --inspector: #252527;
+    --canvas: #19191a;
+    --hairline: #3a3a3c;
+    --separator: #313133;
+    --ink: #f5f5f7;
+    --ink-muted: #a7a7ac;
+    --accent: #2f6fe0;
+    --on-accent: #ffffff;
+    --accent-ink: #6aa6ff;
+    --selection: #22344f;
+    --create: #4cc38a;
+    --create-wash: #1b3326;
+    --update: #f0a84b;
+    --update-wash: #3a2e1a;
+    --replace: #b9a3ff;
+    --destroy: #ff7b72;
+    --syntax-keyword: #8fb7ff;
+    --syntax-string: #e6c98a;
+    --syntax-number: #7fd4e0;
+  }
+}

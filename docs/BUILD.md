@@ -112,7 +112,7 @@ it.
 | `internal/<package>` | One package per concern: `auth`, `state`, `runs`, `graph`, `github`, `agent`, … |
 | `proto/` | Connect-RPC definitions |
 | `web/` | The React app; `web/src/ui/tokens.css` mirrors `docs/design/tokens.json` |
-| `deploy/` | `compose.yaml`, the builder's install script, the Helm chart later |
+| `deploy/` | Config files that compose mounts, the builder's install script, the Helm chart later |
 | `fixtures/` | Sample repos for every layout, plus the sample project |
 | `docs/` | This plan, the ADRs, the design system, status, the threat model |
 
@@ -134,17 +134,22 @@ checks every change.
 
 **Build.**
 - The layout above; one Go module; pnpm for `web/`; a `Makefile`.
-- `stackwright init` writes `.env` with random values: the KEK, the
-  Postgres, NATS and RustFS passwords, and the builder join token. `.env` is
-  git-ignored. Compose has no secret in it.
-- `deploy/compose.yaml`: Postgres 16, NATS JetStream with a password, RustFS,
-  Mailpit, `stackwright server` and one builder. Only the web port is
-  published.
+- `stackwright init` writes `.env` with random values: the Postgres and NATS
+  passwords and the RustFS keys. Later phases add the values they need: the
+  KEK in phase 3, the builder join token in phase 4. `.env` is git-ignored.
+  Compose has no secret in it. `make init` runs it in Docker, so a user needs
+  no Go.
+- `compose.yaml` at the repo root: Postgres 16, NATS JetStream with a
+  password, RustFS and `stackwright server`. Only the web port is published,
+  on 127.0.0.1. `compose.dev.yaml` also publishes Postgres, NATS and RustFS on
+  local ports for the tests. Mailpit comes in phase 1 and the built-in builder
+  in phase 4, when something uses them.
 - `stackwright server` skeleton: Connect-RPC, `/healthz`, config from the
   environment, JSON logs, OpenTelemetry.
 - `web/` skeleton: Vite, React, TanStack Router, the tokens as CSS
-  variables, light and dark from the system setting, the empty shell from
-  rule 1.
+  variables generated from `docs/design/tokens.json`, light and dark from the
+  system setting, the empty shell from rule 1. The server serves the built app
+  on the same port as the API.
 - goose migrations with a first, empty migration.
 - CI: golangci-lint, eslint, tests, gitleaks, govulncheck, a licence check,
   image builds, and a smoke test that boots compose.
