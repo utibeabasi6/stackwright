@@ -16,8 +16,19 @@ make init
 docker compose up -d
 ```
 
-`make init` writes `.env` with new random passwords. Keep it out of git and back
-it up: it holds the keys to your data. Then open http://127.0.0.1:8080.
+`make init` writes `.env` with new random secrets. Keep it out of git and back
+it up: it holds the keys to your data. Then open http://127.0.0.1:8080 and
+enter the setup code from this command:
+
+```bash
+docker compose logs stackwright | grep setup_code
+```
+
+To reset a password when nobody can sign in:
+
+```bash
+docker compose run --rm migrate user reset-password -email you@example.com
+```
 
 ## Develop
 

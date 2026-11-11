@@ -6,10 +6,12 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    proxy: {
-      "/stackwright.": "http://127.0.0.1:8080",
-      "/healthz": "http://127.0.0.1:8080",
-    },
+    proxy: Object.fromEntries(
+      ["/stackwright.", "/auth/", "/healthz"].map((path) => [
+        path,
+        { target: "http://127.0.0.1:8080", headers: { origin: "http://127.0.0.1:8080" } },
+      ]),
+    ),
   },
   test: {
     environment: "jsdom",

@@ -4,7 +4,7 @@ COMPOSE := docker compose -f compose.yaml -f compose.dev.yaml
 export GOTOOLCHAIN := local
 
 -include .env
-export STACKWRIGHT_POSTGRES_PASSWORD STACKWRIGHT_NATS_PASSWORD STACKWRIGHT_S3_ACCESS_KEY STACKWRIGHT_S3_SECRET_KEY
+export STACKWRIGHT_POSTGRES_PASSWORD STACKWRIGHT_APP_DB_PASSWORD STACKWRIGHT_NATS_PASSWORD STACKWRIGHT_S3_ACCESS_KEY STACKWRIGHT_S3_SECRET_KEY STACKWRIGHT_KEK
 
 .PHONY: init up down dev test test-go test-web lint lint-go lint-web lint-proto generate build images secrets vuln licenses smoke
 
@@ -66,5 +66,5 @@ licenses:
 smoke:
 	$(COMPOSE) up -d --build --wait
 	curl -fsS http://127.0.0.1:8080/healthz
-	curl -fsS -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:8080/stackwright.meta.v1.MetaService/GetVersion
+	curl -fsS -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:8080/stackwright.v1.MetaService/GetVersion
 	curl -fsS http://127.0.0.1:8080/ | grep -q '<div id="root">'

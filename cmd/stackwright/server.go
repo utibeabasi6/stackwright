@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,8 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -22,6 +21,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/stackwright/stackwright/internal/db"
+	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/server"
 	"github.com/stackwright/stackwright/internal/version"
 )
@@ -36,24 +36,45 @@ func runServer(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg, err := dbConfig()
+	cfg, err := dbConfig("stackwright_app", "STACKWRIGHT_APP_DB_PASSWORD")
 	if err != nil {
 		return err
+	}
+	kekText, err := secretEnv("STACKWRIGHT_KEK")
+	if err != nil {
+		return err
+	}
+	kek, err := seal.ParseKEK(kekText)
+	if err != nil {
+		return fmt.Errorf("STACKWRIGHT_KEK: %w", err)
 	}
 	pool, err := db.Open(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
-	if err := db.Migrate(ctx, pool); err != nil {
-		return err
+
+	var setupCode string
+	var needed bool
+	if err := pool.QueryRow(ctx, `SELECT NOT EXISTS (SELECT FROM users)`).Scan(&needed); err != nil {
+		return fmt.Errorf("check setup: %w", err)
+	}
+	if needed {
+		setupCode = strings.ToLower(rand.Text()[:8])
+		slog.Warn("this instance has no admin yet; open it in a browser and enter the setup code", "setup_code", setupCode)
 	}
 
 	var web fs.FS
 	if *webDir != "" {
 		web = os.DirFS(*webDir)
 	}
-	handler := server.New(pool, web)
+	handler := server.New(server.Config{
+		Pool:      pool,
+		KEK:       kek,
+		PublicURL: strings.TrimRight(env("STACKWRIGHT_PUBLIC_URL", "http://127.0.0.1:8080"), "/"),
+		SetupCode: setupCode,
+		Web:       web,
+	})
 
 	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
 		exp, err := otlptracehttp.New(ctx)
@@ -78,33 +99,4 @@ func runServer(args []string) error {
 		return err
 	}
 	return nil
-}
-
-func dbConfig() (db.Config, error) {
-	get := func(k, def string) string {
-		if v := os.Getenv(k); v != "" {
-			return v
-		}
-		return def
-	}
-	port, err := strconv.Atoi(get("STACKWRIGHT_POSTGRES_PORT", "5432"))
-	if err != nil {
-		return db.Config{}, fmt.Errorf("STACKWRIGHT_POSTGRES_PORT: %w", err)
-	}
-	password := os.Getenv("STACKWRIGHT_POSTGRES_PASSWORD")
-	if file := os.Getenv("STACKWRIGHT_POSTGRES_PASSWORD_FILE"); file != "" {
-		b, err := os.ReadFile(filepath.Clean(file))
-		if err != nil {
-			return db.Config{}, fmt.Errorf("STACKWRIGHT_POSTGRES_PASSWORD_FILE: %w", err)
-		}
-		password = strings.TrimRight(string(b), "\r\n")
-	}
-	return db.Config{
-		Host:     get("STACKWRIGHT_POSTGRES_HOST", "postgres"),
-		Port:     port,
-		User:     get("STACKWRIGHT_POSTGRES_USER", "stackwright"),
-		Database: get("STACKWRIGHT_POSTGRES_DB", "stackwright"),
-		Password: password,
-		SSLMode:  get("STACKWRIGHT_POSTGRES_SSLMODE", "prefer"),
-	}, nil
 }

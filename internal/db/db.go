@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -19,7 +20,10 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-var ErrNoPassword = errors.New("postgres password is empty")
+var (
+	ErrNoPassword  = errors.New("postgres password is empty")
+	ErrBadPassword = errors.New("the app database password must be 20 or more letters and digits")
+)
 
 type Config struct {
 	Host     string
@@ -75,6 +79,18 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	if _, err := p.Up(ctx); err != nil {
 		return fmt.Errorf("migrate: %w", err)
+	}
+	return nil
+}
+
+func SetAppPassword(ctx context.Context, pool *pgxpool.Pool, password string) error {
+	if len(password) < 20 || strings.IndexFunc(password, func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9')
+	}) >= 0 {
+		return ErrBadPassword
+	}
+	if _, err := pool.Exec(ctx, "ALTER ROLE stackwright_app WITH LOGIN PASSWORD '"+password+"'"); err != nil {
+		return fmt.Errorf("set the stackwright_app password: %w", err)
 	}
 	return nil
 }

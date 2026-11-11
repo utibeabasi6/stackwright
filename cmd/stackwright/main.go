@@ -8,8 +8,10 @@ import (
 const usage = `usage: stackwright <command> [flags]
 
 commands:
-  init         write .env with new random secrets
+  init         add any missing secrets to .env
+  migrate      apply database migrations and set the app login
   server       run the control plane
+  user         reset-password -email <address>
   healthcheck  exit 0 if the server answers /healthz`
 
 func main() {
@@ -21,8 +23,12 @@ func main() {
 	switch os.Args[1] {
 	case "init":
 		err = runInit(os.Args[2:])
+	case "migrate":
+		err = runMigrate(os.Args[2:])
 	case "server":
 		err = runServer(os.Args[2:])
+	case "user":
+		err = runUser(os.Args[2:])
 	case "healthcheck":
 		err = runHealthcheck(os.Args[2:])
 	default:

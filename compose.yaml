@@ -1,18 +1,20 @@
 name: stackwright
 
-x-postgres-password: &postgres-password
-  environment: STACKWRIGHT_POSTGRES_PASSWORD
+x-stackwright-image: &stackwright-image
+  build: .
+  image: stackwright/stackwright:dev
 
 services:
   stackwright:
-    build: .
-    image: stackwright/stackwright:dev
+    <<: *stackwright-image
     environment:
-      STACKWRIGHT_POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-    secrets: [postgres_password]
+      STACKWRIGHT_APP_DB_PASSWORD_FILE: /run/secrets/app_db_password
+      STACKWRIGHT_KEK_FILE: /run/secrets/kek
+      STACKWRIGHT_PUBLIC_URL: ${STACKWRIGHT_PUBLIC_URL:-http://127.0.0.1:8080}
+    secrets: [app_db_password, kek]
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       # Plain HTTP. Put a TLS proxy in front before publishing beyond this host.
       - 127.0.0.1:8080:8080
@@ -22,6 +24,18 @@ services:
       timeout: 5s
       retries: 12
     restart: unless-stopped
+
+  migrate:
+    <<: *stackwright-image
+    command: ["migrate"]
+    environment:
+      STACKWRIGHT_POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      STACKWRIGHT_APP_DB_PASSWORD_FILE: /run/secrets/app_db_password
+    secrets: [postgres_password, app_db_password]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   postgres:
     image: postgres:16.14-alpine
@@ -72,7 +86,12 @@ services:
     restart: unless-stopped
 
 secrets:
-  postgres_password: *postgres-password
+  postgres_password:
+    environment: STACKWRIGHT_POSTGRES_PASSWORD
+  app_db_password:
+    environment: STACKWRIGHT_APP_DB_PASSWORD
+  kek:
+    environment: STACKWRIGHT_KEK
 
 volumes:
   postgres:

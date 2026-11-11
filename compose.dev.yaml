@@ -5,3 +5,8 @@ services:
     ports: ["127.0.0.1:14222:4222"]
   rustfs:
     ports: ["127.0.0.1:19000:9000"]
+  oidc:
+    image: ghcr.io/navikt/mock-oauth2-server:6.1.2
+    environment:
+      SERVER_PORT: "18071"
+    ports: ["127.0.0.1:18071:18071"]

@@ -17,3 +17,7 @@ line to the old one that points to the new one.
 | [0009](0009-local-accounts-and-oidc.md) | Local accounts and OIDC, claimed with a setup code |
 | [0010](0010-sandboxes-reach-s3-by-presigned-url.md) | Sandboxes reach S3 through presigned URLs |
 | [0011](0011-agent-session-sandboxes.md) | Each agent session gets a fresh sandbox |
+| [0012](0012-two-database-logins.md) | Two database logins |
+| [0013](0013-sign-in-providers-and-accounts.md) | Sign-in providers in Settings; accounts by invite only |
+| [0014](0014-many-orgs.md) | Many orgs in one instance |
+| [0015](0015-invite-links.md) | Invites are links |

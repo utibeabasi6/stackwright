@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_VIEWER = 1;
+  ROLE_SECURITY = 2;
+  ROLE_REVIEWER = 3;
+  ROLE_WRITER = 4;
+  ROLE_ADMIN = 5;
+  ROLE_OWNER = 6;
+}
+
+service OrgService {
+  rpc CreateOrg(CreateOrgRequest) returns (CreateOrgResponse);
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc SetMemberRole(SetMemberRoleRequest) returns (SetMemberRoleResponse);
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  rpc CreateInvite(CreateInviteRequest) returns (CreateInviteResponse);
+  rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc RevokeInvite(RevokeInviteRequest) returns (RevokeInviteResponse);
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message CreateOrgRequest {
+  string slug = 1;
+  string name = 2;
+}
+
+message CreateOrgResponse {
+  string slug = 1;
+}
+
+message ListMembersRequest {
+  string org = 1;
+}
+
+message ListMembersResponse {
+  repeated Member members = 1;
+}
+
+message Member {
+  string user_id = 1;
+  string email = 2;
+  string name = 3;
+  Role role = 4;
+  google.protobuf.Timestamp joined_at = 5;
+}
+
+message SetMemberRoleRequest {
+  string org = 1;
+  string user_id = 2;
+  Role role = 3;
+}
+
+message SetMemberRoleResponse {}
+
+message RemoveMemberRequest {
+  string org = 1;
+  string user_id = 2;
+}
+
+message RemoveMemberResponse {}
+
+message CreateInviteRequest {
+  string org = 1;
+  string email = 2;
+  Role role = 3;
+}
+
+message CreateInviteResponse {
+  Invite invite = 1;
+  string url = 2;
+}
+
+message Invite {
+  string id = 1;
+  string email = 2;
+  Role role = 3;
+  string invited_by = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+message ListInvitesRequest {
+  string org = 1;
+}
+
+message ListInvitesResponse {
+  repeated Invite invites = 1;
+}
+
+message RevokeInviteRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message RevokeInviteResponse {}
+
+message ListAuditEventsRequest {
+  string org = 1;
+  int64 before_id = 2;
+}
+
+message ListAuditEventsResponse {
+  repeated AuditEvent events = 1;
+}
+
+message AuditEvent {
+  int64 id = 1;
+  string actor = 2;
+  string action = 3;
+  string target = 4;
+  google.protobuf.Timestamp at = 5;
+}

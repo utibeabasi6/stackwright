@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package stackwright.meta.v1;
+package stackwright.v1;
 
 service MetaService {
   rpc GetVersion(GetVersionRequest) returns (GetVersionResponse) {

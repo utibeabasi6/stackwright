@@ -21,6 +21,10 @@ Each decision has a record in [adr/](adr/).
 | Sandboxes | A backend interface; Docker first; build servers optional | [0007](adr/0007-sandbox-backends-and-build-servers.md) |
 | Build server channel | Outbound gRPC stream with mTLS; no WireGuard now | [0008](adr/0008-build-server-channel.md) |
 | Sign-in | Local accounts and OIDC; the first admin needs a setup code | [0009](adr/0009-local-accounts-and-oidc.md) |
+| Database logins | Migrations as the owner; requests as `stackwright_app`, which row-level security binds | [0012](adr/0012-two-database-logins.md) |
+| Accounts | Invite only; providers managed in Settings by instance admins, secrets sealed | [0013](adr/0013-sign-in-providers-and-accounts.md) |
+| Orgs | Many per instance; requests name their org | [0014](adr/0014-many-orgs.md) |
+| Invites | A one-time link; no email yet | [0015](adr/0015-invite-links.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; Terraform up to 1.5.7 | — |
@@ -136,14 +140,15 @@ checks every change.
 - The layout above; one Go module; pnpm for `web/`; a `Makefile`.
 - `stackwright init` writes `.env` with random values: the Postgres and NATS
   passwords and the RustFS keys. Later phases add the values they need: the
-  KEK in phase 3, the builder join token in phase 4. `.env` is git-ignored.
+  KEK and the app database password in phase 1, the builder join token in
+  phase 4. `.env` is git-ignored.
   Compose has no secret in it. `make init` runs it in Docker, so a user needs
   no Go.
 - `compose.yaml` at the repo root: Postgres 16, NATS JetStream with a
   password, RustFS and `stackwright server`. Only the web port is published,
   on 127.0.0.1. `compose.dev.yaml` also publishes Postgres, NATS and RustFS on
-  local ports for the tests. Mailpit comes in phase 1 and the built-in builder
-  in phase 4, when something uses them.
+  local ports for the tests. The built-in builder comes in phase 4, when
+  something uses it. A mail catcher comes with notifications.
 - `stackwright server` skeleton: Connect-RPC, `/healthz`, config from the
   environment, JSON logs, OpenTelemetry.
 - `web/` skeleton: Vite, React, TanStack Router, the tokens as CSS
@@ -172,15 +177,29 @@ checks every change.
 against the caller's role.
 
 **Build.**
-- The setup page from the screens: setup code, first admin, org name
+- `stackwright migrate`, a one-shot compose step: the migrations as the
+  owner, then the `stackwright_app` password
+  ([0012](adr/0012-two-database-logins.md)). The server logs in as
+  `stackwright_app` only.
+- The KEK in `.env`; an instance data key, wrapped by it
+  ([0004](adr/0004-key-file-with-optional-vault.md)).
+- The setup page from the screens: setup code, first admin, first org
   ([0009](adr/0009-local-accounts-and-oidc.md)).
-- Local accounts (Argon2id) and OIDC sign-in; session cookies; CSRF.
+- Local accounts (Argon2id); OIDC and GitHub sign-in; session cookies; CSRF.
+- Sign-in providers in Settings for instance admins, with sealed client
+  secrets. Accounts by invite only
+  ([0013](adr/0013-sign-in-providers-and-accounts.md)).
 - `users`, `orgs`, `memberships`; roles owner, admin, writer, reviewer,
-  security, viewer; invites by email.
+  security, viewer. Many orgs and a switcher
+  ([0014](adr/0014-many-orgs.md)).
+- Invites as one-time links ([0015](adr/0015-invite-links.md)).
 - Postgres row-level security on `org_id`, set for each request.
-- One middleware maps each RPC to its lowest allowed role.
+- One middleware maps each RPC to its lowest allowed role, and refuses an RPC
+  that is not in the table.
 - `audit_log`, written by the same middleware for every write.
-- Web: sign-in, the setup checklist, the members page.
+- `stackwright user reset-password`, for an install with no mail.
+- Web: setup, sign-in, the org switcher, members and invites, accepting an
+  invite, sign-in providers.
 
 **Done when.**
 - [ ] Without the setup code, no admin can be created; after the admin exists,
@@ -188,6 +207,11 @@ against the caller's role.
 - [ ] A user in org A gets "not found" for any object in org B, on every RPC
 - [ ] Every RPC is tried with every role and matches the policy table
 - [ ] Every write makes exactly one audit row
+- [ ] `stackwright_app` sees no rows of an org it has no setting for, and
+      cannot turn row-level security off
+- [ ] An OIDC sign-in with no account and no invite is refused; one with an
+      invite makes the account
+- [ ] A provider's client secret is not readable in Postgres
 
 **Depends on:** 0.
 

@@ -16,6 +16,10 @@ linters:
     rules:
       - path: _test\.go
         linters: [gosec, noctx]
+      # Cookies are Secure when the public URL is https, and the CSRF cookie is
+      # read by the web app, so it cannot be HttpOnly.
+      - linters: [gosec]
+        text: G124
 formatters:
   enable:
     - gofmt
