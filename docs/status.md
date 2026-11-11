@@ -9,7 +9,8 @@ commit that finishes a phase.
 | 0 | Done, reviewed 2026-11-11 |
 | 1 | Done, reviewed 2026-11-11 |
 | 2 | Done, reviewed 2026-11-11 |
-| 3 | Not started |
+| 3 | Done, reviewed 2026-11-11 |
+| 4 | Not started |
 
 ## Phase 0: Repository and compose
 
@@ -128,3 +129,40 @@ in the browser, for each org. Only admins and owners change projects.
   user to another device (by decision).
 - Workspaces are listed by name, so `dev, prod, staging`, not the order they
   were typed in.
+
+## Phase 3: State backend
+
+Decisions: [0017](adr/0017-personal-tokens-for-state.md).
+
+**Verified on 2026-11-11:**
+- Real engines, in Docker, against the test server (`STACKWRIGHT_TEST_ENGINES=1`,
+  part of `make test`): OpenTofu 1.10.7 and Terraform 1.5.7 each init with
+  the backend config the server generates, apply the sample (state version
+  1), fail to apply while another lock is held, and after a rollback plan the
+  expected change `"one" -> "two"`.
+- The protocol: no state gives 204; reads return what was written; the same
+  serial and bytes again is accepted; the same serial with new bytes, another
+  lineage and non-JSON are refused with 409; a second lock gives 423 with the
+  holder's info; a write without the lock's ID gives 423; unlock with another
+  ID gives 409; `DELETE` gives 405.
+- Tokens: a viewer reads but cannot write or lock; a writer writes; a token
+  from org A gets 404 in org B; a demoted writer loses write at once; a
+  removed member gets 404; revoked and expired tokens get 401.
+- The blob in RustFS holds neither the state's resources nor its lineage.
+- Archiving a project with a locked workspace is refused, naming the lock.
+- Rollback writes the old content as serial n+1, and a later write moves on
+  from it. The audit test covers the four new writes; the policy, role and
+  cross-org tests cover the eight new RPCs.
+- On the compose stack: a token made in the UI, OpenTofu in Docker applying
+  the sample twice, the Overview showing serial 2 and the history, a rollback
+  from the UI, and a plan against it showing `"hello" -> "world"`.
+
+**Not verified:**
+- A write that fails after its blob reached S3 leaves an orphan blob. Nothing
+  cleans those up yet.
+- State over 64 MiB is refused; that limit is a guess, not measured.
+- A lock has no expiry. A stuck lock needs an admin's force-unlock.
+- Terraform 1.5.7 prints its own lock info under the held lock's ID; that is
+  the engine's output, not ours.
+- The sample project and the form default to OpenTofu 1.10.7; OpenTofu is at
+  1.13 now.

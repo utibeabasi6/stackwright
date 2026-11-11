@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service StateService {
+  rpc GetState(GetStateRequest) returns (GetStateResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListStateVersions(ListStateVersionsRequest) returns (ListStateVersionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetStateVersion(GetStateVersionRequest) returns (GetStateVersionResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc RollbackState(RollbackStateRequest) returns (RollbackStateResponse);
+  rpc ForceUnlockState(ForceUnlockStateRequest) returns (ForceUnlockStateResponse);
+}
+
+service TokenService {
+  rpc ListApiTokens(ListApiTokensRequest) returns (ListApiTokensResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc CreateApiToken(CreateApiTokenRequest) returns (CreateApiTokenResponse);
+  rpc RevokeApiToken(RevokeApiTokenRequest) returns (RevokeApiTokenResponse);
+}
+
+message StateVersion {
+  string id = 1;
+  int64 serial = 2;
+  int32 resources = 3;
+  int32 size = 4;
+  string created_by = 5;
+  google.protobuf.Timestamp created_at = 6;
+  int64 rolled_back_from_serial = 7;
+}
+
+message StateLock {
+  string id = 1;
+  string operation = 2;
+  string who = 3;
+  string locked_by = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message GetStateRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+}
+
+message GetStateResponse {
+  StateVersion latest = 1;
+  StateLock lock = 2;
+  string address = 3;
+  string backend_config = 4;
+}
+
+message ListStateVersionsRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+}
+
+message ListStateVersionsResponse {
+  repeated StateVersion versions = 1;
+}
+
+message GetStateVersionRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  string id = 4;
+}
+
+message GetStateVersionResponse {
+  StateVersion version = 1;
+  string state = 2;
+}
+
+message RollbackStateRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  string id = 4;
+}
+
+message RollbackStateResponse {
+  StateVersion version = 1;
+}
+
+message ForceUnlockStateRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+}
+
+message ForceUnlockStateResponse {}
+
+message ApiToken {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  google.protobuf.Timestamp last_used_at = 5;
+}
+
+message ListApiTokensRequest {
+  string org = 1;
+}
+
+message ListApiTokensResponse {
+  repeated ApiToken tokens = 1;
+}
+
+message CreateApiTokenRequest {
+  string org = 1;
+  string name = 2;
+  int32 expires_in_days = 3;
+}
+
+message CreateApiTokenResponse {
+  ApiToken token = 1;
+  string secret = 2;
+}
+
+message RevokeApiTokenRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message RevokeApiTokenResponse {}

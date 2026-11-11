@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   setupNeeded: false,
   invites: [] as string[],
   projects: [] as unknown[],
+  locked: false,
 }));
 
 vi.mock("./api", () => ({
@@ -36,6 +37,19 @@ vi.mock("./api", () => ({
     },
   },
   instanceApi: {},
+  stateApi: {
+    getState: async () => ({
+      latest: { id: "v3", serial: 3n, resources: 1, createdBy: "Owner" },
+      lock: api.locked ? { id: "lock-1", who: "ci@runner", operation: "OperationTypeApply" } : undefined,
+      address: "http://127.0.0.1:8080/state/a/network/prod",
+      backendConfig: 'address        = "http://127.0.0.1:8080/state/a/network/prod"\n',
+    }),
+    listStateVersions: async () => ({ versions: [] }),
+  },
+  tokenApi: {
+    listApiTokens: async () => ({ tokens: [] }),
+    createApiToken: async () => ({ token: { id: "t1", name: "laptop" }, secret: "swt_secret-value" }),
+  },
   projectApi: {
     listProjects: async () => ({ projects: api.projects }),
     getWorkspace: async ({ project, workspace }: { project: string; workspace: string }) => {
@@ -77,6 +91,7 @@ beforeEach(() => {
   api.setupNeeded = false;
   api.invites = [];
   api.projects = [];
+  api.locked = false;
   window.localStorage.clear();
 });
 
@@ -172,4 +187,32 @@ test("workspace tabs survive a reload and close with Alt+W", async () => {
   await screen.findByRole("heading", { name: "prod" });
   await userEvent.keyboard("{Alt>}w{/Alt}");
   expect(await screen.findByText("No open workspaces")).toBeInTheDocument();
+});
+
+test("the workspace shows its state and the backend setup", async () => {
+  signedInAs(Role.VIEWER);
+  api.projects = [network];
+  api.locked = true;
+  at("/a/projects/network/prod");
+  expect(await screen.findByText("serial 3")).toBeInTheDocument();
+  expect(screen.getByText(/Locked by ci@runner for apply/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Force unlock" })).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Backend config").textContent).toContain('address        = "http://127.0.0.1:8080/state/a/network/prod"');
+  expect(screen.getByLabelText("Init command")).toHaveTextContent("tofu init -reconfigure -backend-config=prod.tfbackend");
+});
+
+test("an admin can force-unlock", async () => {
+  signedInAs(Role.ADMIN);
+  api.projects = [network];
+  api.locked = true;
+  at("/a/projects/network/prod");
+  expect(await screen.findByRole("button", { name: "Force unlock" })).toBeInTheDocument();
+});
+
+test("a new API token is shown once", async () => {
+  signedInAs(Role.VIEWER);
+  at("/a/settings/tokens");
+  await userEvent.type(await screen.findByLabelText("Name"), "laptop");
+  await userEvent.click(screen.getByRole("button", { name: "Make token" }));
+  expect(await screen.findByLabelText("New token")).toHaveTextContent("swt_secret-value");
 });

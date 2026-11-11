@@ -88,7 +88,7 @@ func Middleware(pool *pgxpool.Pool, publicURL string, next http.Handler) http.Ha
 			_ = errs.Write(w, r, connect.NewError(connect.CodePermissionDenied, errors.New("cross-origin request")))
 			return
 		}
-		u := User{IP: clientIP(r)}
+		u := User{IP: ClientIP(r)}
 		if token := SessionToken(r.Header); token != "" {
 			var csrf string
 			err := pool.QueryRow(r.Context(),
@@ -116,7 +116,7 @@ func originOf(publicURL string) string {
 	return u.Scheme + "://" + u.Host
 }
 
-func clientIP(r *http.Request) string {
+func ClientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return ""

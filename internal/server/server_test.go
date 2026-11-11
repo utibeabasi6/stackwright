@@ -6,7 +6,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -16,6 +18,7 @@ import (
 	"testing/fstest"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/minio/minio-go/v7"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 
@@ -24,6 +27,7 @@ import (
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/server"
+	"github.com/stackwright/stackwright/internal/state"
 	"github.com/stackwright/stackwright/internal/testenv"
 )
 
@@ -34,13 +38,23 @@ const (
 )
 
 type world struct {
-	t     *testing.T
-	srv   *httptest.Server
-	owner *pgxpool.Pool
+	t      *testing.T
+	srv    *httptest.Server
+	owner  *pgxpool.Pool
+	s3     *minio.Client
+	bucket string
+	public string
 }
 
 func newWorld(t *testing.T, web fstest.MapFS) *world {
+	return start(t, web, false)
+}
+
+// start with engines listens on every interface, so containers can reach the
+// server through host.docker.internal.
+func start(t *testing.T, web fstest.MapFS, engines bool) *world {
 	d := testenv.New(t)
+	s3, bucket := testenv.S3(t)
 	key := make([]byte, 32)
 	_, _ = rand.Read(key)
 	kek, err := seal.ParseKEK(base64.StdEncoding.EncodeToString(key))
@@ -48,14 +62,27 @@ func newWorld(t *testing.T, web fstest.MapFS) *world {
 		t.Fatal(err)
 	}
 	srv := httptest.NewUnstartedServer(nil)
+	public := ""
+	if engines {
+		l, err := net.Listen("tcp", "0.0.0.0:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		srv.Listener = l
+		public = fmt.Sprintf("http://host.docker.internal:%d", l.Addr().(*net.TCPAddr).Port)
+	}
 	srv.Start()
 	t.Cleanup(srv.Close)
-	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: srv.URL, SetupCode: setupCode}
+	if public == "" {
+		public = srv.URL
+	}
+	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
+		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}}
 	if web != nil {
 		cfg.Web = web
 	}
 	srv.Config.Handler = server.New(cfg)
-	return &world{t: t, srv: srv, owner: d.Owner}
+	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public}
 }
 
 type client struct {
@@ -151,7 +178,7 @@ func methods() []method {
 	for _, f := range []protoreflect.FileDescriptor{
 		v1.File_stackwright_v1_auth_proto, v1.File_stackwright_v1_orgs_proto,
 		v1.File_stackwright_v1_instance_proto, v1.File_stackwright_v1_meta_proto,
-		v1.File_stackwright_v1_projects_proto,
+		v1.File_stackwright_v1_projects_proto, v1.File_stackwright_v1_state_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -453,6 +480,26 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 	})
 	step("ProjectService/ArchiveProject", func() {
 		owner.must("ProjectService/ArchiveProject", map[string]any{"org": "a", "project": "net"})
+	})
+	w.project(owner, "a", "web", "prod")
+	var tokenID, secret string
+	step("TokenService/CreateApiToken", func() {
+		out := owner.must("TokenService/CreateApiToken", map[string]any{"org": "a", "name": "ci"})
+		tokenID, secret = out["token"].(map[string]any)["id"].(string), out["secret"].(string)
+	})
+	w.backend(http.MethodPost, "/state/a/web/prod", secret, stateDoc(1, "L1", "a"))
+	w.backend(http.MethodPost, "/state/a/web/prod", secret, stateDoc(2, "L1", "a", "b"))
+	versions := owner.must("StateService/ListStateVersions", map[string]any{"org": "a", "project": "web", "workspace": "prod"})["versions"].([]any)
+	step("StateService/RollbackState", func() {
+		owner.must("StateService/RollbackState", map[string]any{"org": "a", "project": "web", "workspace": "prod",
+			"id": versions[len(versions)-1].(map[string]any)["id"]})
+	})
+	w.backend("LOCK", "/state/a/web/prod", secret, lock)
+	step("StateService/ForceUnlockState", func() {
+		owner.must("StateService/ForceUnlockState", map[string]any{"org": "a", "project": "web", "workspace": "prod"})
+	})
+	step("TokenService/RevokeApiToken", func() {
+		owner.must("TokenService/RevokeApiToken", map[string]any{"org": "a", "id": tokenID})
 	})
 	second := w.client()
 	step("AuthService/SignIn", func() {

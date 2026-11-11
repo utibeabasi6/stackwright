@@ -14,6 +14,7 @@ import { General } from "./pages/settings/General";
 import { Members } from "./pages/settings/Members";
 import { Settings } from "./pages/settings/Settings";
 import { SignInProviders } from "./pages/settings/SignInProviders";
+import { Tokens } from "./pages/settings/Tokens";
 
 const root = createRootRoute({ component: Outlet });
 const app = createRoute({ getParentRoute: () => root, id: "app", component: Shell });
@@ -37,6 +38,7 @@ export const routeTree = root.addChildren([
         createRoute({ getParentRoute: () => settings, path: "/", component: General }),
         createRoute({ getParentRoute: () => settings, path: "members", component: Members }),
         createRoute({ getParentRoute: () => settings, path: "audit", component: Audit }),
+        createRoute({ getParentRoute: () => settings, path: "tokens", component: Tokens }),
         createRoute({ getParentRoute: () => settings, path: "sign-in", component: SignInProviders }),
       ]),
     ]),

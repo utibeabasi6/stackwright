@@ -24,7 +24,7 @@ dev: up
 test: test-go test-web
 
 test-go:
-	STACKWRIGHT_TEST_INFRA=1 go test -race -count=1 ./...
+	STACKWRIGHT_TEST_INFRA=1 STACKWRIGHT_TEST_ENGINES=1 go test -race -count=1 ./...
 
 test-web:
 	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) test

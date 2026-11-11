@@ -5,6 +5,7 @@ import { InstanceService } from "./gen/stackwright/v1/instance_pb";
 import { MetaService } from "./gen/stackwright/v1/meta_pb";
 import { OrgService } from "./gen/stackwright/v1/orgs_pb";
 import { ProjectService } from "./gen/stackwright/v1/projects_pb";
+import { StateService, TokenService } from "./gen/stackwright/v1/state_pb";
 
 const csrf: Interceptor = (next) => (req) => {
   const token = document.cookie.match(/(?:^|; )sw_csrf=([^;]*)/)?.[1];
@@ -19,6 +20,8 @@ export const authApi = createClient(AuthService, transport);
 export const orgApi = createClient(OrgService, transport);
 export const instanceApi = createClient(InstanceService, transport);
 export const projectApi = createClient(ProjectService, transport);
+export const stateApi = createClient(StateService, transport);
+export const tokenApi = createClient(TokenService, transport);
 
 export function message(err: unknown): string {
   return err instanceof ConnectError ? err.rawMessage : "Something went wrong. Try again.";

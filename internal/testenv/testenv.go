@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"github.com/stackwright/stackwright/internal/db"
 )
@@ -64,4 +66,27 @@ func New(t *testing.T) DB {
 	}
 	t.Cleanup(app.Close)
 	return DB{Owner: owner, App: app}
+}
+
+func S3(t *testing.T) (*minio.Client, string) {
+	t.Helper()
+	Require(t)
+	ctx := context.Background()
+	c, err := minio.New("127.0.0.1:19000", &minio.Options{
+		Creds: credentials.NewStaticV4(os.Getenv("STACKWRIGHT_S3_ACCESS_KEY"), os.Getenv("STACKWRIGHT_S3_SECRET_KEY"), ""),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bucket := "test-" + strings.ToLower(rand.Text()[:12])
+	if err := c.MakeBucket(ctx, bucket, minio.MakeBucketOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		for o := range c.ListObjects(ctx, bucket, minio.ListObjectsOptions{Recursive: true}) {
+			_ = c.RemoveObject(ctx, bucket, o.Key, minio.RemoveObjectOptions{})
+		}
+		_ = c.RemoveBucket(ctx, bucket)
+	})
+	return c, bucket
 }

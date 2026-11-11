@@ -18,6 +18,7 @@ import (
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/seal"
+	"github.com/stackwright/stackwright/internal/state"
 )
 
 type Config struct {
@@ -26,6 +27,7 @@ type Config struct {
 	PublicURL string
 	SetupCode string
 	Web       fs.FS
+	State     state.Store
 }
 
 func New(c Config) http.Handler {
@@ -42,6 +44,9 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewOrgServiceHandler(&api.Orgs{PublicURL: c.PublicURL}, opts))
 	serve(stackwrightv1connect.NewInstanceServiceHandler(&api.Instance{KEK: c.KEK, SignIn: signIn}, opts))
 	serve(stackwrightv1connect.NewProjectServiceHandler(api.Projects{}, opts))
+	serve(stackwrightv1connect.NewStateServiceHandler(&api.State{Store: c.State, PublicURL: c.PublicURL}, opts))
+	serve(stackwrightv1connect.NewTokenServiceHandler(api.Tokens{}, opts))
+	mux.Handle("/state/", state.Handler{Pool: c.Pool, Store: c.State})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()

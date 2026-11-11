@@ -55,6 +55,16 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.ProjectServiceArchiveProjectProcedure:      org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.ProjectServiceCreateWorkspaceProcedure:     org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.ProjectServiceArchiveWorkspaceProcedure:    org(v1.Role_ROLE_ADMIN),
+
+	stackwrightv1connect.StateServiceGetStateProcedure:          org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.StateServiceListStateVersionsProcedure: org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.StateServiceGetStateVersionProcedure:   org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.StateServiceRollbackStateProcedure:     org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.StateServiceForceUnlockStateProcedure:  org(v1.Role_ROLE_ADMIN),
+
+	stackwrightv1connect.TokenServiceListApiTokensProcedure:  org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.TokenServiceCreateApiTokenProcedure: org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.TokenServiceRevokeApiTokenProcedure: org(v1.Role_ROLE_VIEWER),
 }
 
 var rank = map[v1.Role]int{

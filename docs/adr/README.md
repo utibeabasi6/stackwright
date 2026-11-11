@@ -22,3 +22,4 @@ line to the old one that points to the new one.
 | [0014](0014-many-orgs.md) | Many orgs in one instance |
 | [0015](0015-invite-links.md) | Invites are links |
 | [0016](0016-projects-before-repositories.md) | Projects before repositories |
+| [0017](0017-personal-tokens-for-state.md) | Personal tokens for the state backend |

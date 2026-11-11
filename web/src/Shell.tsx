@@ -70,6 +70,7 @@ export function Shell() {
       { id: "servers", label: "Build servers", group: "Page", run: go("/$org/build-servers") },
       { id: "settings", label: "Settings: General", group: "Page", run: go("/$org/settings") },
       { id: "members", label: "Settings: Members", group: "Page", run: go("/$org/settings/members") },
+      { id: "tokens", label: "Settings: API tokens", group: "Page", run: go("/$org/settings/tokens") },
     ];
     if (role >= Role.ADMIN) {
       list.push(

@@ -17,6 +17,9 @@ export function Settings() {
         <Link to="/$org/settings/members" params={{ org }}>
           Members
         </Link>
+        <Link to="/$org/settings/tokens" params={{ org }}>
+          API tokens
+        </Link>
         {admin && (
           <Link to="/$org/settings/audit" params={{ org }}>
             Audit log

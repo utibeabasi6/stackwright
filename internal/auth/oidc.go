@@ -201,7 +201,7 @@ func (s *SignIn) callback(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		_, err = tx.Exec(r.Context(), `INSERT INTO audit_log (actor_kind, actor_id, action, target, ip)
-			VALUES ('user', $1, 'auth.sign_in', $2, nullif($3, '')::inet)`, userID, "provider:"+id, clientIP(r))
+			VALUES ('user', $1, 'auth.sign_in', $2, nullif($3, '')::inet)`, userID, "provider:"+id, ClientIP(r))
 		return err
 	})
 	switch {

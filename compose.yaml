@@ -10,11 +10,15 @@ services:
     environment:
       STACKWRIGHT_APP_DB_PASSWORD_FILE: /run/secrets/app_db_password
       STACKWRIGHT_KEK_FILE: /run/secrets/kek
+      STACKWRIGHT_S3_ACCESS_KEY_FILE: /run/secrets/s3_access_key
+      STACKWRIGHT_S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
       STACKWRIGHT_PUBLIC_URL: ${STACKWRIGHT_PUBLIC_URL:-http://127.0.0.1:8080}
-    secrets: [app_db_password, kek]
+    secrets: [app_db_password, kek, s3_access_key, s3_secret_key]
     depends_on:
       migrate:
         condition: service_completed_successfully
+      rustfs:
+        condition: service_healthy
     ports:
       # Plain HTTP. Put a TLS proxy in front before publishing beyond this host.
       - 127.0.0.1:8080:8080
@@ -92,6 +96,10 @@ secrets:
     environment: STACKWRIGHT_APP_DB_PASSWORD
   kek:
     environment: STACKWRIGHT_KEK
+  s3_access_key:
+    environment: STACKWRIGHT_S3_ACCESS_KEY
+  s3_secret_key:
+    environment: STACKWRIGHT_S3_SECRET_KEY
 
 volumes:
   postgres:

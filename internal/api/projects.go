@@ -287,10 +287,29 @@ func (Projects) UpdateProject(ctx context.Context, req *connect.Request[v1.Updat
 	return connect.NewResponse(&v1.UpdateProjectResponse{Project: pr.p}), nil
 }
 
+func refuseLocked(ctx context.Context, tx pgx.Tx, projectID, workspace string) error {
+	var name, who string
+	var since time.Time
+	err := tx.QueryRow(ctx, `SELECT w.name, coalesce(nullif(u.name, ''), u.email, 'someone'), l.created_at
+		FROM state_locks l JOIN workspaces w ON w.id = l.workspace_id LEFT JOIN users u ON u.id = l.locked_by
+		WHERE w.project_id = $1 AND ($2 = '' OR w.name = $2) LIMIT 1`, projectID, workspace).Scan(&name, &who, &since)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return authz.Internal(err)
+	}
+	return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf(
+		"workspace %s is locked by %s since %s; wait for it to finish, or force-unlock it first", name, who, since.UTC().Format("15:04 MST")))
+}
+
 func (Projects) ArchiveProject(ctx context.Context, req *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	pr, err := project(ctx, s.Tx, req.Msg.Project)
 	if err != nil {
+		return nil, err
+	}
+	if err := refuseLocked(ctx, s.Tx, pr.id, ""); err != nil {
 		return nil, err
 	}
 	if _, err := s.Tx.Exec(ctx, `UPDATE workspaces SET archived_at = now() WHERE project_id = $1 AND archived_at IS NULL`, pr.id); err != nil {
@@ -342,6 +361,9 @@ func (Projects) ArchiveWorkspace(ctx context.Context, req *connect.Request[v1.Ar
 	}
 	if len(pr.p.Workspaces) == 1 {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this is the project's last workspace; archive the project instead"))
+	}
+	if err := refuseLocked(ctx, s.Tx, pr.id, req.Msg.Workspace); err != nil {
+		return nil, err
 	}
 	if _, err := s.Tx.Exec(ctx, `UPDATE workspaces SET archived_at = now() WHERE project_id = $1 AND name = $2 AND archived_at IS NULL`,
 		pr.id, req.Msg.Workspace); err != nil {

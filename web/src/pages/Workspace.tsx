@@ -7,6 +7,7 @@ import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { Layout } from "../gen/stackwright/v1/projects_pb";
 import { useShell } from "../me";
 import { useLoad } from "../useLoad";
+import { StatePanel } from "./StatePanel";
 
 export function Workspace() {
   const { org, project, workspace } = useParams({ strict: false }) as { org: string; project: string; workspace: string };
@@ -81,6 +82,8 @@ export function Workspace() {
         <h2 id="next-h">Nothing waits on you here</h2>
         <p className="muted">Runs, plans and state for this workspace show up here as they arrive.</p>
       </section>
+
+      <StatePanel org={org} project={project} workspace={workspace} engine={p.engine} admin={admin} />
 
       {error && <p className="error">{error}</p>}
 

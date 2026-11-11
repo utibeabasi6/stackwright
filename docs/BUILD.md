@@ -26,6 +26,7 @@ Each decision has a record in [adr/](adr/).
 | Orgs | Many per instance; requests name their org | [0014](adr/0014-many-orgs.md) |
 | Invites | A one-time link; no email yet | [0015](adr/0015-invite-links.md) |
 | Projects | A repository is optional until phase 8; archive, not delete | [0016](adr/0016-projects-before-repositories.md) |
+| State access | Personal tokens, checked against the user's role on every request | [0017](adr/0017-personal-tokens-for-state.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; Terraform up to 1.5.7 | — |
@@ -248,23 +249,30 @@ works on every page.
 backend, with locks and full history.
 
 **Build.**
-- The HTTP backend protocol: `GET`, `POST`, `LOCK`, `UNLOCK`, `DELETE` on
-  `/state/{workspace}`, with a token per workspace.
+- The HTTP backend protocol: `GET`, `POST`, `LOCK` and `UNLOCK` on
+  `/state/<org>/<project>/<workspace>`. `DELETE` is refused
+  ([0017](adr/0017-personal-tokens-for-state.md)).
+- Personal API tokens, checked against the user's role on every request;
+  Settings › API tokens to make and revoke them.
 - Immutable `state_versions` and sealed blobs in S3; a data key per org,
   wrapped by the KEK ([0004](adr/0004-key-file-with-optional-vault.md)).
 - Serial and lineage checks; force-unlock for admins, audited.
 - `ListStateVersions`, `GetStateVersion`, `RollbackState`.
-- The backend snippet on the workspace Overview, ready to copy.
+- On the workspace Overview: the state, the lock, the history with rollback,
+  and the backend setup to copy, one `-backend-config` file for each
+  workspace.
 
 **Done when.**
 - [ ] `tofu init && tofu apply` on the sample project, using the copied
-      snippet, writes state version 1
+      setup, writes state version 1
 - [ ] A second apply at the same time fails with the first one's lock info
 - [ ] The same tests pass with Terraform 1.5.7
 - [ ] Blobs in RustFS cannot be read without the data key
 - [ ] A rollback makes a new serial, and the next plan shows the expected diff
 - [ ] Archiving a project with a locked workspace is refused with a clear
       message
+- [ ] A token from org A gets "not found" in org B; a viewer's token cannot
+      write; a removed member's token stops working
 
 **Depends on:** 2.
 

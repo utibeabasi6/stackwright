@@ -9,12 +9,15 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -23,6 +26,7 @@ import (
 	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/server"
+	"github.com/stackwright/stackwright/internal/state"
 	"github.com/stackwright/stackwright/internal/version"
 )
 
@@ -64,6 +68,11 @@ func runServer(args []string) error {
 		slog.Warn("this instance has no admin yet; open it in a browser and enter the setup code", "setup_code", setupCode)
 	}
 
+	store, err := stateStore(ctx, kek)
+	if err != nil {
+		return err
+	}
+
 	var web fs.FS
 	if *webDir != "" {
 		web = os.DirFS(*webDir)
@@ -74,6 +83,7 @@ func runServer(args []string) error {
 		PublicURL: strings.TrimRight(env("STACKWRIGHT_PUBLIC_URL", "http://127.0.0.1:8080"), "/"),
 		SetupCode: setupCode,
 		Web:       web,
+		State:     store,
 	})
 
 	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
@@ -99,4 +109,35 @@ func runServer(args []string) error {
 		return err
 	}
 	return nil
+}
+
+func stateStore(ctx context.Context, kek seal.KEK) (state.Store, error) {
+	endpoint, err := url.Parse(env("STACKWRIGHT_S3_ENDPOINT", "http://rustfs:9000"))
+	if err != nil || endpoint.Host == "" {
+		return state.Store{}, fmt.Errorf("STACKWRIGHT_S3_ENDPOINT must be a URL such as http://rustfs:9000")
+	}
+	access, err := secretEnv("STACKWRIGHT_S3_ACCESS_KEY")
+	if err != nil {
+		return state.Store{}, err
+	}
+	secret, err := secretEnv("STACKWRIGHT_S3_SECRET_KEY")
+	if err != nil {
+		return state.Store{}, err
+	}
+	client, err := minio.New(endpoint.Host, &minio.Options{
+		Creds:  credentials.NewStaticV4(access, secret, ""),
+		Secure: endpoint.Scheme == "https",
+	})
+	if err != nil {
+		return state.Store{}, fmt.Errorf("S3 client: %w", err)
+	}
+	bucket := env("STACKWRIGHT_S3_BUCKET", "stackwright")
+	exists, err := client.BucketExists(ctx, bucket)
+	if err == nil && !exists {
+		err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})
+	}
+	if err != nil {
+		return state.Store{}, fmt.Errorf("S3 bucket %s: %w", bucket, err)
+	}
+	return state.Store{S3: client, Bucket: bucket, KEK: kek}, nil
 }
