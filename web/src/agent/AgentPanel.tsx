@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { agentApi, message, projectApi } from "../api";
 import { AgentSessionStatus, type AgentSession, type AgentStep } from "../gen/stackwright/v1/agent_pb";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
@@ -357,7 +359,7 @@ function Step({ step, results, canDecide, decide }: StepProps) {
       return text(p.text) ? (
         <li className="msg agent-msg">
           <span className="who">Agent</span>
-          <div className="body">
+          <div className="body prose">
             <Prose text={text(p.text)} />
           </div>
         </li>
@@ -408,18 +410,24 @@ function Step({ step, results, canDecide, decide }: StepProps) {
   return null;
 }
 
-// Prose shows a reply's text, with `code` in the code font.
+// Prose renders a reply's markdown. Images are dropped, so a reply cannot
+// make the browser fetch a URL; links open in a new tab.
 function Prose({ text: t }: { text: string }) {
   return (
-    <>
-      {t.split(/(`[^`\n]+`)/).map((part, i) =>
-        part.startsWith("`") && part.endsWith("`") && part.length > 2 ? (
-          <code key={i}>{part.slice(1, -1)}</code>
-        ) : (
-          <span key={i}>{part}</span>
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      disallowedElements={["img"]}
+      unwrapDisallowed
+      components={{
+        a: ({ href, children }) => (
+          <a href={href} target="_blank" rel="noreferrer noopener">
+            {children}
+          </a>
         ),
-      )}
-    </>
+      }}
+    >
+      {t}
+    </Markdown>
   );
 }
 

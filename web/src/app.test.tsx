@@ -503,7 +503,14 @@ test("a proposed commit waits for a person, who commits and pushes it", async ()
   api.agentKey = true;
   api.agentSteps = [
     { seq: 1n, kind: "user", payload: JSON.stringify({ text: "Add a random_pet named db" }) },
-    { seq: 2n, kind: "assistant", payload: JSON.stringify({ text: "", tool_calls: [{ id: "c1", function: { name: "read_file" } }] }) },
+    {
+      seq: 2n,
+      kind: "assistant",
+      payload: JSON.stringify({
+        text: "**How it works:**\n- reads `main.tf`\n- [docs](https://example.test)\n\n![x](https://tracker.test/p.png)",
+        tool_calls: [{ id: "c1", function: { name: "read_file" } }],
+      }),
+    },
     { seq: 3n, kind: "tool_call", payload: JSON.stringify({ id: "c1", name: "read_file", arguments: '{"path":"terraform.tfstate"}' }) },
     { seq: 4n, kind: "tool_result", payload: JSON.stringify({ id: "c1", output: "Refused: state files hold secrets", error: true }) },
     {
@@ -522,7 +529,11 @@ test("a proposed commit waits for a person, who commits and pushes it", async ()
   expect(await within(panel).findByText("Commit these changes?")).toBeInTheDocument();
   expect(within(panel).getByText("Read terraform.tfstate").closest("li")).toHaveClass("failed");
   expect(within(panel).getByText("Waits for a commit or discard")).toBeInTheDocument();
-  expect(within(panel).getByText("main.tf")).toBeInTheDocument();
+  expect(within(within(panel).getByRole("listitem", { name: "Proposed commit" })).getByText("main.tf")).toBeInTheDocument();
+  expect(within(panel).getByText("How it works:").tagName).toBe("STRONG");
+  expect(within(panel).getByText("main.tf", { selector: "code" })).toBeInTheDocument();
+  expect(within(panel).getByRole("link", { name: "docs" })).toHaveAttribute("target", "_blank");
+  expect(panel.querySelector("img")).toBeNull();
   expect(within(panel).getByRole("textbox", { name: "Message" })).toBeDisabled();
   await userEvent.click(within(panel).getByRole("button", { name: "Commit and push" }));
   expect(api.decisions).toMatchObject([{ org: "a", id: "s1", proposal: 5n, approve: true }]);
