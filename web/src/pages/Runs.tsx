@@ -1,22 +1,16 @@
-import { useEffect } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { runApi } from "../api";
-import { useShell } from "../me";
 import { origin, runTitle, statusOf } from "../runs";
 import { useLoad } from "../useLoad";
 
 export function Runs() {
   const { org, project, workspace } = useParams({ strict: false }) as { org: string; project: string; workspace: string };
-  const { openTab } = useShell();
   const runs = useLoad(`runs:${org}/${project}/${workspace}`, () => runApi.listRuns({ org, project, workspace }).then((r) => r.runs));
-  useEffect(() => openTab({ project, workspace }), [project, workspace, openTab]);
 
   return (
     <div className="stack">
-      <h1>
-        Runs <span className="muted mono">{`${project} › ${workspace}`}</span>
-      </h1>
+      <h1>Runs</h1>
       {runs.error && <p className="error">{runs.error}</p>}
       {runs.data?.length === 0 && <p className="muted">No runs yet. Start one from the Overview.</p>}
       {(runs.data?.length ?? 0) > 0 && (

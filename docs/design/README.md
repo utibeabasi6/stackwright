@@ -1,6 +1,6 @@
 # Stackwright — design system
 
-Stackwright is an open-source, self-hosted workspace for infrastructure code. An AI agent writes OpenTofu and Terraform. Sandboxes on your own machines run the plans. Every change shows as a live graph. The interface looks and behaves like a native desktop tool: the platform's own fonts, a toolbar, tabs for open workspaces, and an inspector on the right. It follows the system's light or dark setting.
+Stackwright is an open-source, self-hosted workspace for infrastructure code. An AI agent writes OpenTofu and Terraform. Sandboxes on your own machines run the plans. Every change shows as a live graph. The interface looks and behaves like a native desktop tool: the platform's own fonts, a sidebar, and an inspector on the right. It follows the system's light or dark setting, unless the person picks a theme in the sidebar.
 
 ## Voice
 
@@ -13,7 +13,7 @@ Stackwright is an open-source, self-hosted workspace for infrastructure code. An
 
 ## Visual foundations
 
-**Surfaces.** Content sits on `window`. The toolbar and bottom bars use `chrome`. Inactive workspace tabs sit on `tabstrip`, and the active tab takes `window`. The inspector uses `inspector`. The plan graph and topology sit on `canvas` with a 16px dot grid. Panes are separated by 1px `hairline` borders. Rows inside a pane are separated by `separator`.
+**Surfaces.** Content sits on `window`. The sidebar, the top bar and bottom bars use `chrome`. The inspector uses `inspector`. The plan graph and topology sit on `canvas` with a 16px dot grid. Panes are separated by 1px `hairline` borders. Rows inside a pane are separated by `separator`.
 
 **Depth.** Flat. Only menus, popovers and the commit sheet float, with one soft shadow (`0 8px 24px` at 14% black). Cards have a `hairline` border and no shadow. Never put a card inside a card.
 
@@ -63,15 +63,15 @@ The agent **proposes** commits. A person **commits and pushes**. A plan made fro
 
 ## Layout
 
-There is no sidebar. Two bars and one inspector hold the navigation.
+A sidebar and one inspector hold the navigation ([0029](../adr/0029-sidebar-navigation.md)).
 
-**The toolbar** (`chrome`, one row): the app name and org on the left. In a workspace, a segmented control in the centre switches the view: Overview, Plan, Topology, Security, Editor, Log. On the right: Projects, "Waiting on you" with its count, search (⌘K), Build servers, and Settings. The app name also goes to Projects.
+**The sidebar** (`chrome`, `sidebar-width`, on the left): the app name, the org switcher, then Projects, "Waiting on you" with its count, Build servers and Settings. Inside a workspace it shows "‹ All projects", the project and workspace name, and the workspace's pages: Overview, Runs, State, Variables, Cloud credentials, Settings; "Waiting on you" stays. The theme switch ("Same as the system", Light, Dark), the signed-in user and Sign out sit at the bottom. A list near the bottom of the window opens upward. The app name also goes to Projects. It collapses with a button in the top bar or ⌘\, and each browser remembers the choice.
 
-**The workspace tab strip** (`tabstrip`, under the toolbar): one tab for each open workspace, named "project › workspace". A tab carries one status mark when something needs the user: an `accent` dot for agent changes, `~` for drift, `!` for a failure or a High finding. "+" opens a workspace by name; ⌥T does the same. ⌥W closes the current tab. Browsers keep ⌘T and ⌘W for their own tabs, so a web page cannot use them. Tabs stay open between visits.
+**The top bar** (`chrome`, one row, over the content): the sidebar button, then breadcrumbs inside a workspace ("Projects › network › prod › Runs › Run #4"), and search (⌘K) on the right.
 
-**Organisation pages** (Projects, Waiting on you, Build servers, Settings) open in the content area with no tab selected. Their content column is at most 1120px, with `space-6` margins.
+**Organisation pages** (Projects, Waiting on you, Build servers, Settings) open in the content area. Their content column is at most 1120px, with `space-6` margins.
 
-**A workspace** fills the area under the tab strip with its view. A bar above the view names what it shows ("Plan #142 · Speculative · +3 ~1 −0"). A bar below the view says what happens next, in `chrome`.
+**A workspace** page has its own URL and no tabs; the sidebar switches between them. ⌘K opens a workspace by name. A run's page fills the window: the timeline on the left and the plan graph on the right, with "Full screen" to hide the timeline. A bar above the view names what it shows ("Plan #142 · Speculative · +3 ~1 −0"). A bar below the view says what happens next, in `chrome`.
 
 **The inspector** (`inspector`, 360px, on the right) has two tabs: Agent and Resource. It opens by default on the Plan view and remembers whether the user hid it. ⌥⌘0 shows or hides it. The Agent tab names the branch and the sandbox it works in. A proposed commit shows as a card titled "Commit these changes?" with "Discard", "Show diff" and the accent "Commit and push".
 

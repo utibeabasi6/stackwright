@@ -18,8 +18,17 @@ ${vars([...light, ...fonts, ...styles, ...lengths])}
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
 ${vars(dark).replaceAll("\n  ", "\n    ").replace(/^ {2}/, "    ")}
   }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+${vars(dark)}
 }
 `);

@@ -38,8 +38,9 @@ async function open(page: Page, m: Mock) {
       saves.push(req);
       return {};
     },
+    WatchRun: () => ({ messages: [{ run: { id: "r3", number: 3, project: "lab", workspace: "default", status: "RUN_STATUS_PLANNED" } }] }),
   });
-  await page.goto("/a/projects/lab/default/plan");
+  await page.goto("/a/projects/lab/default/runs/3");
   return { saves, served: () => served };
 }
 

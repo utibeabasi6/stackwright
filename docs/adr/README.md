@@ -34,3 +34,4 @@ line to the old one that points to the new one.
 | [0026](0026-applies-start-from-the-plan-tree.md) | Applies start from the plan's working tree |
 | [0027](0027-plan-graph.md) | The plan graph: a node for each resource, edges from the configuration, ELK in the browser |
 | [0028](0028-live-apply-and-replay.md) | Live apply and replay: the run page splits, one reducer, gaps capped at 2 s |
+| [0029](0029-sidebar-navigation.md) | A collapsible sidebar instead of the toolbar and workspace tabs; the plan graph on the run page only |

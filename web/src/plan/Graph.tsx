@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
 import {
   Background,
   Controls,
@@ -89,6 +88,9 @@ type GraphProps = {
   diagnostics?: Map<string, Diagnostic[]>;
   // Shown in the bar, such as replay controls.
   controls?: ReactNode;
+  // A change of fit fits the graph to its pane again, such as after the
+  // pane grows.
+  fit?: unknown;
 };
 
 export function Graph(props: GraphProps) {
@@ -110,7 +112,7 @@ function moduleStatus(states: Map<string, NodeStatus>, id: string): NodeStatus |
   return { status, completed, expected };
 }
 
-function Canvas({ org, project, workspace, data, writer, states, diagnostics, controls }: GraphProps) {
+function Canvas({ org, project, workspace, data, writer, states, diagnostics, controls, fit }: GraphProps) {
   const g = data.graph!;
   const closed = g.nodes.length > openLimit;
   const [open, setOpen] = useState(new Set<string>());
@@ -126,6 +128,10 @@ function Canvas({ org, project, workspace, data, writer, states, diagnostics, co
   const stored = useRef(new Map(data.layout.map((p) => [p.id, { x: p.x, y: p.y }])));
   const replaceNext = useRef(false);
   const flow = useReactFlow();
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => void flow.fitView());
+    return () => cancelAnimationFrame(frame);
+  }, [fit, flow]);
 
   const view = useMemo(() => visible(g, closed, open, hideUnchanged), [g, closed, open, hideUnchanged]);
 
@@ -254,10 +260,7 @@ function Canvas({ org, project, workspace, data, writer, states, diagnostics, co
     <>
       <div className="plan-bar">
         <span>
-          <Link to="/$org/projects/$project/$workspace/runs/$number" params={{ org, project, workspace, number: String(data.number) }}>
-            Plan #{data.number}
-          </Link>{" "}
-          · <span className="mono">{summaryText(g.summary)}</span>
+          Plan · <span className="mono">{summaryText(g.summary)}</span>
         </span>
         <form className="row" role="search" onSubmit={search}>
           <label className="sr-only" htmlFor="plan-search">

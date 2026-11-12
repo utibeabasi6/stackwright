@@ -273,28 +273,33 @@ test("every page is in the command palette", async () => {
   expect(await screen.findByRole("heading", { name: "staging" })).toBeInTheDocument();
 });
 
-test("workspace tabs survive a reload and close with Alt+W", async () => {
+test("the sidebar hides and shows, and it and the theme stay chosen after a reload", async () => {
   signedInAs(Role.VIEWER);
   api.projects = [network];
   at("/a/projects/network/prod");
-  expect(await screen.findByRole("tab", { name: /prod/ })).toHaveAttribute("aria-selected", "true");
+  expect(await screen.findByRole("heading", { name: "prod" })).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("combobox", { name: "Theme" }));
+  await userEvent.click(screen.getByRole("option", { name: "Dark" }));
+  expect(document.documentElement.dataset.theme).toBe("dark");
+  await userEvent.keyboard("{Control>}\\{/Control}");
+  expect(document.getElementById("sidebar")).not.toBeVisible();
   cleanup();
 
   at("/a");
-  expect(await screen.findByRole("tab", { name: /prod/ })).toBeInTheDocument();
-  cleanup();
-
-  at("/a/projects/network/prod");
-  await screen.findByRole("heading", { name: "prod" });
-  await userEvent.keyboard("{Alt>}w{/Alt}");
-  expect(await screen.findByText("No open workspaces")).toBeInTheDocument();
+  await userEvent.click(await screen.findByRole("button", { name: "Show sidebar" }));
+  expect(screen.getByRole("complementary", { name: "Sidebar" })).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Theme" })).toHaveTextContent("Dark");
+  await userEvent.click(screen.getByRole("combobox", { name: "Theme" }));
+  await userEvent.click(screen.getByRole("option", { name: "Same as the system" }));
+  expect(document.documentElement.dataset.theme).toBeUndefined();
 });
 
 test("the workspace shows its state and the backend setup", async () => {
   signedInAs(Role.VIEWER);
   api.projects = [network];
   api.locked = true;
-  at("/a/projects/network/prod?tab=state");
+  at("/a/projects/network/prod/state");
   expect(await screen.findByText("serial 3")).toBeInTheDocument();
   expect(screen.getByText(/Locked by ci@runner for apply/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Force unlock" })).not.toBeInTheDocument();
@@ -306,7 +311,7 @@ test("an admin can force-unlock", async () => {
   signedInAs(Role.ADMIN);
   api.projects = [network];
   api.locked = true;
-  at("/a/projects/network/prod?tab=state");
+  at("/a/projects/network/prod/state");
   expect(await screen.findByRole("button", { name: "Force unlock" })).toBeInTheDocument();
 });
 
@@ -425,7 +430,7 @@ test("a workspace shows its variables, and never a sensitive value", async () =>
     { category: 1, key: "greeting", value: "hello-project", scope: { project: "network" } },
     { category: 2, key: "DB_PASSWORD", value: "", sensitive: true, scope: { project: "network", workspace: "prod" } },
   ];
-  at("/a/projects/network/prod?tab=variables");
+  at("/a/projects/network/prod/variables");
   const vars = await screen.findByRole("region", { name: "Variables" });
   expect(await within(vars).findByText("hello-project")).toBeInTheDocument();
   expect(within(vars).getByText("Sensitive, hidden")).toBeInTheDocument();
@@ -440,13 +445,13 @@ test("a workspace shows its variables, and never a sensitive value", async () =>
   ]);
 });
 
-test("an admin sets auto-apply and build server labels on the Settings tab, not the Runs tab", async () => {
+test("an admin sets auto-apply and build server labels on the Settings page, not the Overview", async () => {
   signedInAs(Role.ADMIN);
   api.projects = [network];
   at("/a/projects/network/prod");
   await screen.findByRole("heading", { name: "Start a run" });
   expect(screen.queryByRole("checkbox", { name: /Auto-apply/ })).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole("tab", { name: "Settings" }));
+  await userEvent.click(within(screen.getByRole("navigation", { name: "Workspace" })).getByRole("link", { name: "Settings" }));
   await userEvent.click(await screen.findByRole("checkbox", { name: /Auto-apply plans/ }));
   await userEvent.type(screen.getByRole("textbox", { name: "Build server labels this workspace requires" }), "region=eu");
   await userEvent.click(screen.getByRole("button", { name: "Save labels" }));
@@ -491,16 +496,21 @@ test("a linked project plans its branch and asks for no upload", async () => {
   expect(api.created).toMatchObject([{ org: "a", project: "network", workspace: "prod", sourceName: "" }]);
 });
 
-test("the workspace's sections are tabs", async () => {
+test("a workspace's pages are in the sidebar, and breadcrumbs lead back", async () => {
   signedInAs(Role.ADMIN);
   api.projects = [network];
   at("/a/projects/network/prod");
-  const tabs = await screen.findByRole("tablist", { name: "Workspace sections" });
-  expect(within(tabs).getByRole("tab", { name: "Runs" })).toHaveAttribute("aria-selected", "true");
-  expect(screen.queryByRole("region", { name: "Variables" })).not.toBeInTheDocument();
-  await userEvent.click(within(tabs).getByRole("tab", { name: "Variables" }));
+  const nav = await screen.findByRole("navigation", { name: "Workspace" });
+  expect(within(nav).getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("link", { name: "‹ All projects" })).toHaveAttribute("href", "/a");
+  await userEvent.click(within(nav).getByRole("link", { name: "Variables" }));
   expect(await screen.findByRole("region", { name: "Variables" })).toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Start a run" })).not.toBeInTheDocument();
+
+  const crumbs = screen.getByRole("navigation", { name: "Breadcrumbs" });
+  expect(within(crumbs).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Projects", "network", "prod", "Variables"]);
+  await userEvent.click(within(crumbs).getByRole("link", { name: "prod" }));
+  expect(await screen.findByRole("region", { name: "Start a run" })).toBeInTheDocument();
 });
 
 test("a plan error shows its file, line and detail", async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { graphApi, message, runApi } from "../api";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
@@ -53,12 +53,18 @@ export function Run() {
   const params = useParams({ strict: false }) as { org: string; project: string; workspace: string; number: string };
   const { org, project, workspace } = params;
   const number = Number(params.number);
-  const { me, openTab, reloadWaiting } = useShell();
+  const { me, reloadWaiting } = useShell();
   const { run, events, error, setRun } = useRun(org, project, workspace, number);
   const [actionError, setActionError] = useState<string>();
   const role = me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFull(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [full]);
 
-  useEffect(() => openTab({ project, workspace }), [project, workspace, openTab]);
   useEffect(() => reloadWaiting(), [run?.status, reloadWaiting]);
 
   const act = async (fn: () => Promise<{ run?: RunType }>) => {
@@ -96,19 +102,10 @@ export function Run() {
             </span>
           </>
         )}
-        <span className="grow" />
-        {run && run.status !== RunStatus.QUEUED && run.status !== RunStatus.PLANNING && (
-          <Link to="/$org/projects/$project/$workspace/plan" params={{ org, project, workspace }} search={{ run: String(number) }}>
-            Open the plan graph
-          </Link>
-        )}
-        <Link to="/$org/projects/$project/$workspace/runs" params={{ org, project, workspace }}>
-          All runs
-        </Link>
       </div>
 
       {error && <p className="notice error">{error} Reconnecting…</p>}
-      <div className="run-split">
+      <div className={full ? "run-split full" : "run-split"}>
         <ol className="timeline" aria-label="Timeline" aria-live="polite">
           {events.map((e) => {
             const line = describeEvent(e);
@@ -129,7 +126,16 @@ export function Run() {
           {events.length === 0 && <li className="muted">No events yet.</li>}
         </ol>
         {run && run.status !== RunStatus.QUEUED && run.status !== RunStatus.PLANNING && (
-          <RunGraph org={org} project={project} workspace={workspace} run={run} events={events} writer={role >= Role.WRITER} />
+          <RunGraph
+            org={org}
+            project={project}
+            workspace={workspace}
+            run={run}
+            events={events}
+            writer={role >= Role.WRITER}
+            full={full}
+            setFull={setFull}
+          />
         )}
       </div>
 
@@ -175,11 +181,21 @@ const isApply = (e: RunEvent) => {
   }
 };
 
-type RunGraphProps = { org: string; project: string; workspace: string; run: RunType; events: RunEvent[]; writer: boolean };
+type RunGraphProps = {
+  org: string;
+  project: string;
+  workspace: string;
+  run: RunType;
+  events: RunEvent[];
+  writer: boolean;
+  // full hides the timeline, so the graph takes the page.
+  full: boolean;
+  setFull: (full: boolean) => void;
+};
 
 // RunGraph shows the run's plan graph. During the apply its nodes follow
 // the events; after the run, the apply can be replayed.
-function RunGraph({ org, project, workspace, run, events, writer }: RunGraphProps) {
+function RunGraph({ org, project, workspace, run, events, writer, full, setFull }: RunGraphProps) {
   const graph = useLoad(`plan-graph:${org}/${project}/${workspace}/${run.number}`, () =>
     graphApi.getPlanGraph({ org, project, workspace, number: run.number }),
   );
@@ -220,7 +236,7 @@ function RunGraph({ org, project, workspace, run, events, writer }: RunGraphProp
 
   if (graph.error || !graph.data) return null;
   const replayable = finished(run.status) && applyEvents.length > 0;
-  const controls = replayable ? (
+  const progress = replayable ? (
     <span className="replay row">
       <button
         type="button"
@@ -250,6 +266,14 @@ function RunGraph({ org, project, workspace, run, events, writer }: RunGraphProp
   ) : (
     applyEvents.length > 0 && <span className="live">Applying, live</span>
   );
+  const controls = (
+    <>
+      {progress}
+      <button type="button" aria-pressed={full} onClick={() => setFull(!full)}>
+        {full ? "Exit full screen" : "Full screen"}
+      </button>
+    </>
+  );
   return (
     <div className="plan-view run-graph">
       <Graph
@@ -261,6 +285,7 @@ function RunGraph({ org, project, workspace, run, events, writer }: RunGraphProp
         states={states}
         diagnostics={state.diagnostics}
         controls={controls}
+        fit={full}
       />
     </div>
   );

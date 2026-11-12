@@ -1,22 +1,54 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { Link, Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useParams, useRouter, useRouterState } from "@tanstack/react-router";
 import { authApi, message, projectApi, runApi } from "./api";
 import type { GetMeResponse } from "./gen/stackwright/v1/auth_pb";
 import { Role } from "./gen/stackwright/v1/orgs_pb";
 import { ShellContext } from "./me";
 import { Palette, type Command } from "./Palette";
-import { useTabs } from "./tabs";
+import { applyTheme, savedTheme, type Theme } from "./theme";
 import { useLoad } from "./useLoad";
 import { Select } from "./Select";
+
+const sidebarKey = "stackwright.sidebar";
+
+const sectionNames: Record<string, string> = {
+  runs: "Runs",
+  state: "State",
+  variables: "Variables",
+  cloud: "Cloud credentials",
+  settings: "Settings",
+};
+
+function savedCollapsed() {
+  try {
+    return window.localStorage.getItem(sidebarKey) === "hidden";
+  } catch {
+    return false;
+  }
+}
 
 export function Shell() {
   const navigate = useNavigate();
   const router = useRouter();
   const params = useParams({ strict: false }) as { org?: string; project?: string; workspace?: string };
+  const path = useRouterState({ select: (s) => s.location.pathname });
   const [me, setMe] = useState<GetMeResponse>();
   const [error, setError] = useState<string>();
   const [palette, setPalette] = useState(false);
+  const [collapsed, setCollapsed] = useState(savedCollapsed);
+  const [theme, setTheme] = useState<Theme>(savedTheme);
+  const toggleSidebar = useCallback(() => {
+    setCollapsed((c) => {
+      try {
+        if (c) window.localStorage.removeItem(sidebarKey);
+        else window.localStorage.setItem(sidebarKey, "hidden");
+      } catch {
+        // Storage can be refused; the choice then lasts until reload.
+      }
+      return !c;
+    });
+  }, []);
 
   useEffect(() => {
     authApi.getMe({}).then(setMe, async (e) => {
@@ -30,6 +62,7 @@ export function Shell() {
   }, [navigate, router]);
 
   const org = params.org ?? me?.orgs[0]?.slug ?? "";
+  const ws = params.project && params.workspace ? { org, project: params.project, workspace: params.workspace } : undefined;
   const projects = useLoad(`projects:${org}`, () =>
     org ? projectApi.listProjects({ org }).then((r) => r.projects) : Promise.resolve([]),
   );
@@ -42,14 +75,6 @@ export function Shell() {
     const id = window.setInterval(reloadWaiting, 15000);
     return () => window.clearInterval(id);
   }, [reloadWaiting]);
-  const { tabs, open, close } = useTabs(org);
-  const openRef = useRef(open);
-  openRef.current = open;
-  const openTab = useCallback((t: { project: string; workspace: string }) => openRef.current(t), []);
-  const current = useMemo(
-    () => (params.project && params.workspace ? { project: params.project, workspace: params.workspace } : undefined),
-    [params.project, params.workspace],
-  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -57,18 +82,14 @@ export function Shell() {
       if (mod && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPalette(true);
-      } else if (e.altKey && e.code === "KeyT") {
+      } else if (mod && e.key === "\\") {
         e.preventDefault();
-        setPalette(true);
-      } else if (e.altKey && e.code === "KeyW" && current) {
-        e.preventDefault();
-        close(current);
-        navigate({ to: "/$org", params: { org } });
+        toggleSidebar();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, close, navigate, org]);
+  }, [toggleSidebar]);
 
   const role = me?.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
   const commands = useMemo<Command[]>(() => {
@@ -107,24 +128,13 @@ export function Shell() {
         });
       }
     }
-    if (current) {
-      list.push({
-        id: "close-tab",
-        label: "Close this tab",
-        group: "Tab",
-        run: () => {
-          close(current);
-          go("/$org")();
-        },
-      });
-    }
     for (const o of me.orgs) {
       if (o.slug !== org) {
         list.push({ id: `org-${o.slug}`, label: `Switch to ${o.name}`, group: "Org", run: () => navigate({ to: "/$org", params: { org: o.slug } }) });
       }
     }
     return list;
-  }, [me, org, role, projects.data, current, close, navigate]);
+  }, [me, org, role, projects.data, navigate]);
 
   if (error) return <p className="page error">{error}</p>;
   if (!me) return null;
@@ -135,9 +145,9 @@ export function Shell() {
   };
 
   return (
-    <ShellContext.Provider value={{ me, projects: projects.data, reloadProjects: projects.reload, openTab, waitingVersion, reloadWaiting }}>
-      <header className="shell">
-        <div className="toolbar">
+    <ShellContext.Provider value={{ me, projects: projects.data, reloadProjects: projects.reload, waitingVersion, reloadWaiting }}>
+      <div className="frame">
+        <aside id="sidebar" className="sidebar" aria-label="Sidebar" hidden={collapsed}>
           <Link to="/" className="app">
             Stackwright
           </Link>
@@ -154,30 +164,44 @@ export function Shell() {
               />
             </label>
           )}
-          <span className="grow" />
-          {current && (
-            <nav className="segmented" aria-label="Views">
-              <Link
-                to="/$org/projects/$project/$workspace"
-                params={{ org, project: current.project, workspace: current.workspace }}
-                activeOptions={{ exact: true }}
-              >
-                Overview
+          {org && ws && (
+            <>
+              <Link to="/$org" params={{ org }} className="back">
+                ‹ All projects
               </Link>
-              <Link to="/$org/projects/$project/$workspace/plan" params={{ org, project: current.project, workspace: current.workspace }}>
-                Plan
-              </Link>
-              <Link to="/$org/projects/$project/$workspace/runs" params={{ org, project: current.project, workspace: current.workspace }}>
-                Runs
-              </Link>
-            </nav>
+              <div className="ws-name">
+                <span className="muted">{ws.project}</span>
+                <span className="mono">{ws.workspace}</span>
+              </div>
+              <nav aria-label="Workspace">
+                <Link to="/$org/projects/$project/$workspace" params={ws} activeOptions={{ exact: true }}>
+                  Overview
+                </Link>
+                <Link to="/$org/projects/$project/$workspace/runs" params={ws}>
+                  Runs
+                </Link>
+                <Link to="/$org/projects/$project/$workspace/state" params={ws}>
+                  State
+                </Link>
+                <Link to="/$org/projects/$project/$workspace/variables" params={ws}>
+                  Variables
+                </Link>
+                <Link to="/$org/projects/$project/$workspace/cloud" params={ws}>
+                  Cloud credentials
+                </Link>
+                <Link to="/$org/projects/$project/$workspace/settings" params={ws}>
+                  Settings
+                </Link>
+              </nav>
+            </>
           )}
-          <span className="grow" />
           {org && (
-            <nav aria-label="Main" className="main-nav">
-              <Link to="/$org" params={{ org }} activeOptions={{ exact: true }}>
-                Projects
-              </Link>
+            <nav aria-label="Main">
+              {!ws && (
+                <Link to="/$org" params={{ org }} activeOptions={{ exact: true }}>
+                  Projects
+                </Link>
+              )}
               <Link to="/$org/inbox" params={{ org }}>
                 Waiting on you
                 {(waiting.data ?? 0) > 0 && (
@@ -186,63 +210,104 @@ export function Shell() {
                   </span>
                 )}
               </Link>
-              <button type="button" className="search" onClick={() => setPalette(true)}>
-                Search <kbd>⌘K</kbd>
-              </button>
-              <Link to="/$org/build-servers" params={{ org }}>
-                Build servers
-              </Link>
-              <Link to="/$org/settings" params={{ org }}>
-                Settings
-              </Link>
+              {!ws && (
+                <>
+                  <Link to="/$org/build-servers" params={{ org }}>
+                    Build servers
+                  </Link>
+                  <Link to="/$org/settings" params={{ org }}>
+                    Settings
+                  </Link>
+                </>
+              )}
             </nav>
           )}
           <div className="me">
-            <span>{me.user?.name || me.user?.email}</span>
+            <label className="field">
+              <span>Theme</span>
+              <Select
+                value={theme}
+                onChange={(v) => {
+                  setTheme(v as Theme);
+                  applyTheme(v as Theme);
+                }}
+                options={[
+                  { value: "system", label: "Same as the system" },
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                ]}
+              />
+            </label>
+            <span className="muted">{me.user?.name || me.user?.email}</span>
             <button type="button" onClick={signOut}>
               Sign out
             </button>
           </div>
-        </div>
-        {org && (
-          <div className="tabstrip" role="tablist" aria-label="Open workspaces">
-            {tabs.length === 0 && <span className="tab-empty">No open workspaces</span>}
-            {tabs.map((t) => {
-              const selected = current?.project === t.project && current?.workspace === t.workspace;
-              return (
-                <span key={`${t.project}/${t.workspace}`} className="tab" role="presentation">
-                  <Link
-                    role="tab"
-                    aria-selected={selected}
-                    to="/$org/projects/$project/$workspace"
-                    params={{ org, project: t.project, workspace: t.workspace }}
-                  >
-                    <span className="muted">{t.project} ›</span> {t.workspace}
-                  </Link>
-                  <button
-                    type="button"
-                    className="tab-close"
-                    aria-label={`Close ${t.project} › ${t.workspace}`}
-                    onClick={() => {
-                      close(t);
-                      if (selected) navigate({ to: "/$org", params: { org } });
-                    }}
-                  >
-                    ×
-                  </button>
-                </span>
-              );
-            })}
-            <button type="button" className="tab-add" aria-label="Open a workspace" onClick={() => setPalette(true)}>
-              +
+        </aside>
+        <div className="frame-main">
+          <div className="topbar">
+            <button type="button" aria-controls="sidebar" aria-expanded={!collapsed} onClick={toggleSidebar} title="⌘\">
+              {collapsed ? "Show sidebar" : "Hide sidebar"}
+            </button>
+            {ws && <Crumbs ws={ws} rest={path.split("/").filter(Boolean).slice(4)} />}
+            <span className="grow" />
+            <button type="button" className="search" onClick={() => setPalette(true)}>
+              Search <kbd>⌘K</kbd>
             </button>
           </div>
-        )}
-      </header>
-      <main className="page">
-        <Outlet />
-      </main>
+          <main className="page">
+            <Outlet />
+          </main>
+        </div>
+      </div>
       {palette && <Palette commands={commands} onClose={() => setPalette(false)} />}
     </ShellContext.Provider>
+  );
+}
+
+type WorkspaceParams = { org: string; project: string; workspace: string };
+
+// Crumbs leads from Projects to the page shown: rest is the path after the
+// workspace, such as ["runs", "4"].
+function Crumbs({ ws, rest }: { ws: WorkspaceParams; rest: string[] }) {
+  const [section, number] = rest;
+  return (
+    <nav aria-label="Breadcrumbs" className="crumbs">
+      <ol>
+        <li>
+          <Link to="/$org" params={{ org: ws.org }}>
+            Projects
+          </Link>
+        </li>
+        <li>{ws.project}</li>
+        <li>
+          {section ? (
+            <Link to="/$org/projects/$project/$workspace" params={ws}>
+              {ws.workspace}
+            </Link>
+          ) : (
+            <span aria-current="page">{ws.workspace}</span>
+          )}
+        </li>
+        {section === "runs" && number ? (
+          <>
+            <li>
+              <Link to="/$org/projects/$project/$workspace/runs" params={ws}>
+                Runs
+              </Link>
+            </li>
+            <li>
+              <span aria-current="page">Run #{number}</span>
+            </li>
+          </>
+        ) : (
+          section && (
+            <li>
+              <span aria-current="page">{sectionNames[section] ?? section}</span>
+            </li>
+          )
+        )}
+      </ol>
+    </nav>
   );
 }

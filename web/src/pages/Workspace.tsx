@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { message, projectApi } from "../api";
 import { describe, engineName } from "../engines";
@@ -14,32 +14,25 @@ import { RunsPanel } from "./RunsPanel";
 import { Variables } from "./Variables";
 import { StatePanel } from "./StatePanel";
 
-const sections = [
-  { id: "runs", label: "Runs" },
-  { id: "state", label: "State" },
-  { id: "variables", label: "Variables" },
-  { id: "cloud", label: "Cloud credentials" },
-  { id: "settings", label: "Settings" },
-] as const;
+const titles = {
+  overview: "Overview",
+  state: "State",
+  variables: "Variables",
+  cloud: "Cloud credentials",
+  settings: "Settings",
+} as const;
 
-type Section = (typeof sections)[number]["id"];
+export type Section = keyof typeof titles;
 
-export function Workspace() {
+// Workspace shows one of a workspace's pages; the sidebar links them.
+export function Workspace({ section }: { section: Section }) {
   const { org, project, workspace } = useParams({ strict: false }) as { org: string; project: string; workspace: string };
-  const { tab } = useSearch({ strict: false }) as { tab?: string };
-  const section: Section = sections.find((s) => s.id === tab)?.id ?? "runs";
-  const { me, openTab, reloadProjects } = useShell();
+  const { me, reloadProjects } = useShell();
   const navigate = useNavigate();
-  const choose = (id: Section) =>
-    navigate({ to: ".", search: id === "runs" ? {} : { tab: id }, replace: true } as Parameters<typeof navigate>[0]);
   const ws = useLoad(`${org}/${project}/${workspace}`, () => projectApi.getWorkspace({ org, project, workspace }));
   const [error, setError] = useState<string>();
   const [version, setVersion] = useState("");
   const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
-
-  useEffect(() => {
-    if (ws.data) openTab({ project, workspace });
-  }, [ws.data, project, workspace, openTab]);
 
   if (ws.error) {
     return (
@@ -95,32 +88,16 @@ export function Workspace() {
   return (
     <div className="stack">
       <div>
-        <h1 className="mono" style={{ marginBottom: 4 }}>
-          {workspace}
-        </h1>
-        <span className="muted">
-          {project} · {describe(p)}
-        </span>
+        <h1 className={section === "overview" ? "mono" : undefined}>{section === "overview" ? workspace : titles[section]}</h1>
+        {section === "overview" && (
+          <span className="muted">
+            {project} · {describe(p)}
+          </span>
+        )}
       </div>
 
-      <div role="tablist" aria-label="Workspace sections" className="tabs">
-        {sections.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            id={`tab-${t.id}`}
-            aria-selected={section === t.id}
-            aria-controls={`panel-${t.id}`}
-            onClick={() => choose(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div role="tabpanel" id={`panel-${section}`} aria-labelledby={`tab-${section}`} className="stack">
-        {section === "runs" && (
+      <div className="stack">
+        {section === "overview" && (
           <RunsPanel
             org={org}
             project={project}

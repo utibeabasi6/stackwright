@@ -40,6 +40,7 @@ Each decision has a record in [adr/](adr/).
 | Applies | Start from the working tree their plan left | [0026](adr/0026-applies-start-from-the-plan-tree.md) |
 | Plan graph | A node for each resource; edges from the configuration and the executor's HCL map; ELK in the browser, under EPL-2.0; layouts kept per workspace | [0027](adr/0027-plan-graph.md) |
 | Live apply and replay | The run page shows the graph beside the timeline; one reducer folds live and replayed events; replay gaps capped at 2 s | [0028](adr/0028-live-apply-and-replay.md) |
+| Navigation | A collapsible sidebar that lists a workspace's pages inside it; breadcrumbs; the plan graph on the run page only | [0029](adr/0029-sidebar-navigation.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**
@@ -55,16 +56,19 @@ Each decision has a record in [adr/](adr/).
 There is a lot in Stackwright. A user must always know three things: where
 they are, what is happening now, and what to do next.
 
-1. **A native desktop shell, no sidebar.** A toolbar with the view switcher,
-   "Waiting on you", search and command palette (⌘K), Build servers and
-   Settings. Under it, one tab for each open workspace, with a status mark
-   when something needs the user. It follows the system's light or dark
-   setting.
+1. **A sidebar for navigation.** The org, Projects, "Waiting on you",
+   Build servers and Settings, with the theme and the user at the bottom.
+   Inside a workspace it lists the workspace's pages instead. It collapses
+   (⌘\). A slim top bar holds the sidebar button, breadcrumbs and search
+   with the command palette (⌘K). It follows the system's light or dark
+   setting, unless the person picks one in the sidebar
+   ([0029](adr/0029-sidebar-navigation.md)).
 2. **"Waiting on you".** One inbox for approvals, failed runs, new findings
    and drift. Every item has one button that does the next step.
 3. **The workspace opens on Overview.** It shows the state now, the last run,
-   and what to do next. Plan graph, Topology, Security, Editor and Run log
-   are tabs after it.
+   and what to do next. Its other pages (Runs, State, Variables, Cloud
+   credentials, Settings, and later Topology, Security and Editor) are in
+   the sidebar. A run's page shows its plan graph.
 4. **The agent lives in the inspector.** The inspector on the right has an
    Agent tab and a Resource tab, and ⌥⌘0 hides it. The Agent tab always says
    which workspace, branch and sandbox it works on.
@@ -246,7 +250,7 @@ works on every page.
 - [ ] A project with CLI workspaces `dev`, `staging` and `prod` shows three
       rows on its card
 - [ ] Every page is reachable from the command palette
-- [ ] Open workspace tabs survive a reload; ⌥T opens one and ⌥W closes one.
+- [ ] Open workspace tabs survive a reload; ⌥T opens one and ⌥W closes one. (Superseded by [0029](adr/0029-sidebar-navigation.md).)
       Browsers keep ⌘T and ⌘W for their own tabs
 - [ ] An archived project leaves every list, and its name can be used again
 

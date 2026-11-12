@@ -16,6 +16,8 @@ type Props = {
 };
 
 const typeaheadReset = 700;
+// The list's greatest height, as .select-list sets it.
+const listHeight = 280;
 
 // Select is a select-only combobox: a button that opens a listbox.
 // https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-select-only/
@@ -23,6 +25,7 @@ export function Select({ options, value, defaultValue, onChange, name, disabled,
   const [own, setOwn] = useState(defaultValue ?? options[0]?.value ?? "");
   const current = value ?? own;
   const [open, setOpen] = useState(false);
+  const [up, setUp] = useState(false);
   const [active, setActive] = useState(0);
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -44,7 +47,11 @@ export function Select({ options, value, defaultValue, onChange, name, disabled,
     if (open) list.current?.children[active]?.scrollIntoView?.({ block: "nearest" });
   }, [open, active]);
 
+  // show opens the list below the button, or above it when the window has
+  // more room there.
   const show = () => {
+    const r = button.current?.getBoundingClientRect();
+    setUp(r ? window.innerHeight - r.bottom < listHeight && r.top > window.innerHeight - r.bottom : false);
     setActive(Math.max(index, 0));
     setOpen(true);
   };
@@ -125,7 +132,7 @@ export function Select({ options, value, defaultValue, onChange, name, disabled,
       </button>
       {name && <input type="hidden" name={name} value={current} />}
       {open && (
-        <ul role="listbox" id={`${id}-list`} className="select-list" ref={list} aria-labelledby={`${id}-button`}>
+        <ul role="listbox" id={`${id}-list`} className={up ? "select-list up" : "select-list"} ref={list} aria-labelledby={`${id}-button`}>
           {options.map((o, i) => (
             <li
               key={o.value}

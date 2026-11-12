@@ -3,7 +3,6 @@ import { Shell } from "./Shell";
 import { BuildServers } from "./pages/BuildServers";
 import { EnrolServer } from "./pages/EnrolServer";
 import { Inbox } from "./pages/Inbox";
-import { Plan } from "./pages/Plan";
 import { Run } from "./pages/Run";
 import { Runs } from "./pages/Runs";
 import { NewProject } from "./pages/NewProject";
@@ -42,8 +41,11 @@ export const routeTree = root.addChildren([
       createRoute({ getParentRoute: () => org, path: "build-servers", component: BuildServers }),
       createRoute({ getParentRoute: () => org, path: "build-servers/enrol", component: EnrolServer }),
       createRoute({ getParentRoute: () => org, path: "projects/new", component: NewProject }),
-      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace", component: Workspace }),
-      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/plan", component: Plan }),
+      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace", component: () => <Workspace section="overview" /> }),
+      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/state", component: () => <Workspace section="state" /> }),
+      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/variables", component: () => <Workspace section="variables" /> }),
+      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/cloud", component: () => <Workspace section="cloud" /> }),
+      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/settings", component: () => <Workspace section="settings" /> }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/runs", component: Runs }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/runs/$number", component: Run }),
       settings.addChildren([

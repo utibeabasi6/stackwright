@@ -652,3 +652,36 @@ Decisions: [0028](adr/0028-live-apply-and-replay.md).
 **Known gaps:**
 - After a failed apply, nodes that never started stay "waiting".
 - An apply that ran twice shows only its latest attempt on the graph.
+
+## Navigation: a sidebar instead of tabs
+
+Decisions: [0029](adr/0029-sidebar-navigation.md). Asked for after phase 10,
+then changed after a first look: two rows of tabs repeated "Runs", a plan
+graph opened three ways, and plan and run pages were hard to leave.
+
+**Verified on 2026-11-12:**
+- The toolbar, the workspace tab strip, the view switcher, the section
+  tabs and the Plan tab are gone. Each workspace page has its own URL, and
+  the sidebar lists them inside a workspace, with "‹ All projects" (web
+  tests).
+- Breadcrumbs lead back from a section and from a run (web test, and
+  Playwright from a run page to its Runs list).
+- The run page's "Full screen" hides the timeline, and Escape brings it
+  back (Playwright).
+- The plan graph checks of phase 9 run on the run page now; all pass,
+  including 300 nodes in under 1 s.
+- ⌘\ (Ctrl+\) and the top bar's button hide the sidebar, and it stays
+  hidden after a reload (web test and Playwright).
+- The theme switch: Dark on a light system, and Light on a dark one, change
+  the page's colours, last after a reload, and "Same as the system" goes
+  back (web test, and Playwright in both themes). Checked on the dev stack.
+- The Select opens its list upward when the window has no room below
+  (Playwright: the theme list's last option is inside the window).
+
+- On the dev stack, in the browser pane, with the AWS lab: the Overview
+  with the workspace's pages in the sidebar and the breadcrumbs, and run
+  #3's page in light and dark, with replay controls and Full screen, which
+  fits the graph to the wider pane again.
+
+**Not verified:**
+- A sidebar narrower than its longest workspace name; long names wrap.

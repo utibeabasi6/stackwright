@@ -92,3 +92,25 @@ test("a failed node shows its diagnostic, and nodes after it stay waiting", asyn
   await page.keyboard.press("Enter");
   await expect(page.getByRole("alert").filter({ hasText: "Create local file error" })).toContainText("main.tf:10");
 });
+
+test("full screen hides the timeline, and breadcrumbs lead back to the runs", async ({ page }) => {
+  await mockApi(page, "ROLE_VIEWER", {
+    GetPlanGraph: () => ({ graph: golden("actions"), number: 5 }),
+    WatchRun: () => ({ messages: [{ run: run("RUN_STATUS_APPLIED"), events: testdata<Event[]>("actions", "apply-events.json") }] }),
+  });
+  await page.goto("/a/projects/lab/default/runs/5");
+  const timeline = page.getByRole("list", { name: "Timeline" });
+  await expect(timeline).toBeVisible();
+  const zoom = () => page.locator(".react-flow__viewport").evaluate((el: HTMLElement) => el.style.transform);
+  const before = await zoom();
+  await page.getByRole("button", { name: "Full screen" }).click();
+  await expect(timeline).toBeHidden();
+  await expect.poll(zoom).not.toBe(before);
+  await page.keyboard.press("Escape");
+  await expect(timeline).toBeVisible();
+
+  const crumbs = page.getByRole("navigation", { name: "Breadcrumbs" });
+  await expect(crumbs.getByText("Run #5")).toHaveAttribute("aria-current", "page");
+  await crumbs.getByRole("link", { name: "Runs" }).click();
+  await expect(page).toHaveURL(/\/a\/projects\/lab\/default\/runs$/);
+});
