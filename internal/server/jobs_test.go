@@ -291,6 +291,41 @@ func TestJobPlanAndApply(t *testing.T) {
 	}
 }
 
+func TestJobAppliesAPlanMadeAtAnotherAddress(t *testing.T) {
+	t.Parallel()
+	w := newJobWorld(t)
+	planOnly, err := sandbox.NewDocker(sandbox.DockerConfig{ExtraHosts: []string{"plan-only.internal:host-gateway"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for project, workspace := range map[string]string{"net": "prod", "legacy": "default"} {
+		t.Run(project, func(t *testing.T) {
+			orgID, ws := w.workspaceID(project, workspace)
+			planID, ticket := w.create(jobs.Request{OrgID: orgID, WorkspaceID: ws, Operation: v1.JobOperation_JOB_OPERATION_PLAN, Source: source(t, "ok")})
+			s, err := planOnly.Start(context.Background(), sandbox.Spec{
+				Image: executorImage,
+				Env:   map[string]string{"STACKWRIGHT_SERVER_URL": strings.Replace(w.public, "host.docker.internal", "plan-only.internal", 1)},
+				Files: map[string][]byte{"ticket": []byte(ticket)},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = s.Remove(context.Background()) })
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer cancel()
+			if code, err := s.Wait(ctx); err != nil || code != 0 {
+				b, _ := s.Logs(ctx)
+				t.Fatalf("plan exited %d, %v:\n%s", code, err, b)
+			}
+
+			applyID, code, logs := w.run(jobs.Request{OrgID: orgID, WorkspaceID: ws, Operation: v1.JobOperation_JOB_OPERATION_APPLY, PlanJobID: planID})
+			if status, msg, _ := w.status(applyID); code != 0 || status != "succeeded" {
+				t.Fatalf("apply exited %d, %s %q:\n%s", code, status, msg, logs)
+			}
+		})
+	}
+}
+
 func TestJobTerraform(t *testing.T) {
 	t.Parallel()
 	w := newJobWorld(t)

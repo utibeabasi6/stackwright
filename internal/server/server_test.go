@@ -831,7 +831,7 @@ func TestProjects(t *testing.T) {
 	}
 
 	for _, bad := range []map[string]any{
-		{"slug": "tf16", "engine": "ENGINE_TERRAFORM", "engineVersion": "1.6.0", "layout": "LAYOUT_PLAIN"},
+		{"slug": "tf015", "engine": "ENGINE_TERRAFORM", "engineVersion": "0.15.5", "layout": "LAYOUT_PLAIN"},
 		{"slug": "tofu17", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.7.9", "layout": "LAYOUT_PLAIN"},
 		{"slug": "noversion", "engine": "ENGINE_OPENTOFU", "engineVersion": "latest", "layout": "LAYOUT_PLAIN"},
 		{"slug": "escape", "path": "../etc", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"},
