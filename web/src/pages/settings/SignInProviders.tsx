@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Action, Submit, useAction } from "../../Action";
 import { instanceApi, message } from "../../api";
 import { SignInProviderKind } from "../../gen/stackwright/v1/instance_pb";
 import { useMe } from "../../me";
@@ -12,6 +13,7 @@ export function SignInProviders() {
   );
   const [kind, setKind] = useState(SignInProviderKind.OIDC);
   const [error, setError] = useState<string>();
+  const adding = useAction();
   if (!me.user?.instanceAdmin) return <p className="muted">Only an instance admin manages sign-in.</p>;
 
   const add = async (e: FormEvent<HTMLFormElement>) => {
@@ -29,17 +31,21 @@ export function SignInProviders() {
       });
       form.reset();
       providers.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
   const remove = async (id: string, name: string) => {
-    if (!window.confirm(`Remove ${name}? People who signed in only with it lose access until they get a password.`)) return;
+    if (!window.confirm(`Remove ${name}? People who signed in only with it lose access until they get a password.`)) return false;
     try {
       await instanceApi.deleteSignInProvider({ id });
       providers.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
 
@@ -53,9 +59,9 @@ export function SignInProviders() {
         <div key={p.id} className="card stack">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <strong>{p.name}</strong>
-            <button type="button" className="danger" onClick={() => remove(p.id, p.name)}>
+            <Action className="danger" run={() => remove(p.id, p.name)} busy="Removing…" done="Removed">
               Remove
-            </button>
+            </Action>
           </div>
           <dl className="facts">
             <dt>Kind</dt>
@@ -75,7 +81,7 @@ export function SignInProviders() {
       ))}
       <section className="card stack">
         <h2>Add a provider</h2>
-        <form className="stack" style={{ maxWidth: 520 }} onSubmit={add}>
+        <form className="stack" style={{ maxWidth: 520 }} onSubmit={(e) => void adding.run(() => add(e))}>
           <label className="field">
             <span>Kind</span>
             <Select
@@ -110,9 +116,9 @@ export function SignInProviders() {
             After you add it, copy its callback URL into the provider's app settings. The callback URL appears on the
             provider's card above.
           </p>
-          <button type="submit" className="primary">
+          <Submit action={adding} className="primary" busy="Adding…" done="Added">
             Add provider
-          </button>
+          </Submit>
         </form>
       </section>
     </div>

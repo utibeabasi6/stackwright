@@ -14,7 +14,8 @@ service AgentService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // StartSession starts a sandbox for the workspace and sends the first
-  // message.
+  // message. With no message, it starts a quiet session for the editor:
+  // a sandbox and a branch, and no turn.
   rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
   // SendMessage starts a turn, or answers the agent's question.
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
@@ -32,6 +33,22 @@ service AgentService {
   rpc WatchSession(WatchSessionRequest) returns (stream WatchSessionResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // ListFiles lists the files of the session's checkout, and starts its
+  // sandbox if none runs (adr/0034).
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc OpenFile(OpenFileRequest) returns (OpenFileResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // SaveFile writes a file in the session's checkout, merged with any
+  // change since base. It never commits.
+  rpc SaveFile(SaveFileRequest) returns (SaveFileResponse);
+  // PlanCheckout plans the checkout as it is, as a plan-only agent run.
+  rpc PlanCheckout(PlanCheckoutRequest) returns (PlanCheckoutResponse);
+  // OpenLanguageServer returns a one-time ticket, which the browser sends
+  // as the first message on the WebSocket /lsp/<session>.
+  rpc OpenLanguageServer(OpenLanguageServerRequest) returns (OpenLanguageServerResponse);
 }
 
 // ToolboxService is for the toolbox in an agent sandbox. It authenticates
@@ -194,6 +211,7 @@ message ToolboxMessage {
     // The first message on each stream: a Connect client sends its request
     // headers only with its first message.
     ToolboxHello hello = 3;
+    LspFrame lsp = 4;
   }
 }
 
@@ -221,6 +239,7 @@ message ToolboxOrder {
     ToolCall call = 2;
     CommitOrder commit = 3;
     DiscardOrder discard = 4;
+    LspFrame lsp = 5;
   }
 }
 
@@ -254,4 +273,75 @@ message CommitOrder {
 
 message DiscardOrder {
   string id = 1;
+}
+
+message ListFilesRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message ListFilesResponse {
+  // Slash paths from the repository's root.
+  repeated string paths = 1;
+}
+
+message OpenFileRequest {
+  string org = 1;
+  string id = 2;
+  string path = 3;
+}
+
+message OpenFileResponse {
+  string content = 1;
+}
+
+message SaveFileRequest {
+  string org = 1;
+  string id = 2;
+  string path = 3;
+  // The file as the editor opened it; empty for a new file.
+  string base = 4;
+  string content = 5;
+}
+
+enum SaveOutcome {
+  SAVE_OUTCOME_UNSPECIFIED = 0;
+  SAVE_OUTCOME_SAVED = 1;
+  // The file changed since base, and the changes merged.
+  SAVE_OUTCOME_MERGED = 2;
+  // The file changed since base, and the changes conflict; nothing was
+  // written.
+  SAVE_OUTCOME_CONFLICT = 3;
+}
+
+message SaveFileResponse {
+  SaveOutcome outcome = 1;
+  // The file as it is now in the checkout.
+  string content = 2;
+}
+
+message PlanCheckoutRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message PlanCheckoutResponse {
+  int32 number = 1;
+}
+
+message OpenLanguageServerRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message OpenLanguageServerResponse {
+  string ticket = 1;
+}
+
+// LspFrame carries one JSON-RPC message between the browser's language
+// client and a tofu-ls in the sandbox, for one WebSocket (conn).
+message LspFrame {
+  string conn = 1;
+  bytes data = 2;
+  bool close = 3;
 }

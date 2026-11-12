@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Submit, useAction } from "../Action";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { cloudApi, githubApi, message, projectApi } from "../api";
 import { Combobox } from "../Combobox";
@@ -16,14 +17,13 @@ export function NewProject() {
   const [version, setVersion] = useState("");
   const [layout, setLayout] = useState(Layout.CLI_WORKSPACES);
   const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const pending = useAction();
   const repos = useLoad(`github:${org}`, () => githubApi.getGitHub({ org }));
   const accounts = useLoad(`cloud-accounts:${org}`, () => cloudApi.listCloudAccounts({ org }).then((r) => r.accounts));
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    setBusy(true);
     try {
       const r = await projectApi.createProject({
         org,
@@ -44,14 +44,14 @@ export function NewProject() {
       navigate({ to: "/$org/projects/$project/$workspace", params: { org, project: p.slug, workspace: p.workspaces[0].name } });
     } catch (err) {
       setError(message(err));
-      setBusy(false);
+      return false;
     }
   };
 
   return (
     <>
       <h1>New project</h1>
-      <form className="stack" style={{ maxWidth: 560 }} onSubmit={submit}>
+      <form className="stack" style={{ maxWidth: 560 }} onSubmit={(e) => void pending.run(() => submit(e))}>
         <label className="field">
           <span>Short name</span>
           <input name="slug" required className="mono" pattern="[a-z0-9]([a-z0-9\-]{0,38}[a-z0-9])?" placeholder="network" />
@@ -130,9 +130,9 @@ export function NewProject() {
         )}
         {error && <p className="error">{error}</p>}
         <div className="row">
-          <button type="submit" className="primary" disabled={busy}>
+          <Submit action={pending} className="primary" busy="Creating…" done="Created">
             Create project
-          </button>
+          </Submit>
           <button type="button" onClick={() => navigate({ to: "/$org", params: { org } })}>
             Cancel
           </button>

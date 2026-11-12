@@ -45,6 +45,7 @@ Each decision has a record in [adr/](adr/).
 | Agent plans | Plan-only runs marked "agent", which the database refuses to apply; masked plan and state reads; a pull request after a person approves it | [0031](adr/0031-agent-plans-and-pull-requests.md) |
 | Grounding and evals | Provider schemas and module sources read in the sandbox after init; STACKWRIGHT.md and facts from the code in the prompt; an eval that plans the commit the agent proposes | [0032](adr/0032-grounding-and-evals.md) |
 | Agent restarts | A restarted server adopts agent sandboxes and keeps their checkouts; one job id per sandbox start | [0033](adr/0033-agent-sandboxes-outlive-a-restart.md) |
+| Editor | Edits in a session's checkout; a save writes, never commits; three-way merge with the agent; `tofu-ls` in the sandbox over a WebSocket relayed through the toolbox stream | [0034](adr/0034-editor.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**
@@ -560,7 +561,7 @@ show it.
   approval, because they spend money.
 
 **Done when.**
-- [ ] A baseline score is recorded with the default model
+- [x] A baseline score is recorded with the default model
 - [ ] The schema tool lowers invalid-argument errors against the baseline
 
 **Depends on:** 12.
@@ -573,13 +574,14 @@ branch.
 **Build.**
 - Monaco, a file tree, tabs, unsaved marks; colours from the tokens.
 - `tofu-ls` in the session's sandbox, bridged over a WebSocket.
-- Save commits as the user; "Save and plan"; format on save.
+- Save writes the session's checkout; the person tells the agent to
+  commit; "Save and plan"; format on save (adr/0034).
 - A save during an agent turn waits for the current tool call, then lands.
 
 **Done when.**
-- [ ] Completion offers `aws_nat_gateway` arguments
-- [ ] A human save during an agent turn never loses either change
-- [ ] The editor works with the keyboard only
+- [x] Completion offers `aws_nat_gateway` arguments
+- [x] A human save during an agent turn never loses either change
+- [x] The editor works with the keyboard only
 
 **Depends on:** 11.
 

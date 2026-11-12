@@ -54,6 +54,8 @@ func (s *Service) Connect(ctx context.Context, stream *connect.BidiStream[v1.Too
 				}
 				s.mu.Unlock()
 				s.changed(id)
+			case *v1.ToolboxMessage_Lsp:
+				s.lspFromToolbox(id, b.Lsp)
 			case *v1.ToolboxMessage_Result:
 				s.setDirty(ctx, orgID, id, b.Result.GetDirty())
 				s.mu.Lock()
@@ -102,6 +104,11 @@ func (s *Service) disconnected(id string) {
 	for callID, ch := range l.results {
 		ch <- &v1.ToolResult{Id: callID, Error: true, Output: "the sandbox's connection dropped while this ran"}
 		delete(l.results, callID)
+	}
+	// The toolbox stops its language servers when its stream ends.
+	for conn, out := range l.lsp {
+		close(out)
+		delete(l.lsp, conn)
 	}
 }
 

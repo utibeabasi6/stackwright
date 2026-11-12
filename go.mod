@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	connectrpc.com/connect v1.21.1
 	github.com/ProtonMail/go-crypto v1.5.2
+	github.com/coder/websocket v1.8.15
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/hcl/v2 v2.25.0

@@ -61,6 +61,18 @@ const (
 	// AgentServiceWatchSessionProcedure is the fully-qualified name of the AgentService's WatchSession
 	// RPC.
 	AgentServiceWatchSessionProcedure = "/stackwright.v1.AgentService/WatchSession"
+	// AgentServiceListFilesProcedure is the fully-qualified name of the AgentService's ListFiles RPC.
+	AgentServiceListFilesProcedure = "/stackwright.v1.AgentService/ListFiles"
+	// AgentServiceOpenFileProcedure is the fully-qualified name of the AgentService's OpenFile RPC.
+	AgentServiceOpenFileProcedure = "/stackwright.v1.AgentService/OpenFile"
+	// AgentServiceSaveFileProcedure is the fully-qualified name of the AgentService's SaveFile RPC.
+	AgentServiceSaveFileProcedure = "/stackwright.v1.AgentService/SaveFile"
+	// AgentServicePlanCheckoutProcedure is the fully-qualified name of the AgentService's PlanCheckout
+	// RPC.
+	AgentServicePlanCheckoutProcedure = "/stackwright.v1.AgentService/PlanCheckout"
+	// AgentServiceOpenLanguageServerProcedure is the fully-qualified name of the AgentService's
+	// OpenLanguageServer RPC.
+	AgentServiceOpenLanguageServerProcedure = "/stackwright.v1.AgentService/OpenLanguageServer"
 	// ToolboxServiceConnectProcedure is the fully-qualified name of the ToolboxService's Connect RPC.
 	ToolboxServiceConnectProcedure = "/stackwright.v1.ToolboxService/Connect"
 )
@@ -71,7 +83,8 @@ type AgentServiceClient interface {
 	SetAgentSettings(context.Context, *connect.Request[v1.SetAgentSettingsRequest]) (*connect.Response[v1.SetAgentSettingsResponse], error)
 	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
 	// StartSession starts a sandbox for the workspace and sends the first
-	// message.
+	// message. With no message, it starts a quiet session for the editor:
+	// a sandbox and a branch, and no turn.
 	StartSession(context.Context, *connect.Request[v1.StartSessionRequest]) (*connect.Response[v1.StartSessionResponse], error)
 	// SendMessage starts a turn, or answers the agent's question.
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
@@ -87,6 +100,18 @@ type AgentServiceClient interface {
 	// WatchSession sends every step after after_seq, then each new one, and
 	// the session again whenever it changes.
 	WatchSession(context.Context, *connect.Request[v1.WatchSessionRequest]) (*connect.ServerStreamForClient[v1.WatchSessionResponse], error)
+	// ListFiles lists the files of the session's checkout, and starts its
+	// sandbox if none runs (adr/0034).
+	ListFiles(context.Context, *connect.Request[v1.ListFilesRequest]) (*connect.Response[v1.ListFilesResponse], error)
+	OpenFile(context.Context, *connect.Request[v1.OpenFileRequest]) (*connect.Response[v1.OpenFileResponse], error)
+	// SaveFile writes a file in the session's checkout, merged with any
+	// change since base. It never commits.
+	SaveFile(context.Context, *connect.Request[v1.SaveFileRequest]) (*connect.Response[v1.SaveFileResponse], error)
+	// PlanCheckout plans the checkout as it is, as a plan-only agent run.
+	PlanCheckout(context.Context, *connect.Request[v1.PlanCheckoutRequest]) (*connect.Response[v1.PlanCheckoutResponse], error)
+	// OpenLanguageServer returns a one-time ticket, which the browser sends
+	// as the first message on the WebSocket /lsp/<session>.
+	OpenLanguageServer(context.Context, *connect.Request[v1.OpenLanguageServerRequest]) (*connect.Response[v1.OpenLanguageServerResponse], error)
 }
 
 // NewAgentServiceClient constructs a client for the stackwright.v1.AgentService service. By
@@ -157,20 +182,57 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listFiles: connect.NewClient[v1.ListFilesRequest, v1.ListFilesResponse](
+			httpClient,
+			baseURL+AgentServiceListFilesProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("ListFiles")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		openFile: connect.NewClient[v1.OpenFileRequest, v1.OpenFileResponse](
+			httpClient,
+			baseURL+AgentServiceOpenFileProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("OpenFile")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		saveFile: connect.NewClient[v1.SaveFileRequest, v1.SaveFileResponse](
+			httpClient,
+			baseURL+AgentServiceSaveFileProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("SaveFile")),
+			connect.WithClientOptions(opts...),
+		),
+		planCheckout: connect.NewClient[v1.PlanCheckoutRequest, v1.PlanCheckoutResponse](
+			httpClient,
+			baseURL+AgentServicePlanCheckoutProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("PlanCheckout")),
+			connect.WithClientOptions(opts...),
+		),
+		openLanguageServer: connect.NewClient[v1.OpenLanguageServerRequest, v1.OpenLanguageServerResponse](
+			httpClient,
+			baseURL+AgentServiceOpenLanguageServerProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("OpenLanguageServer")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // agentServiceClient implements AgentServiceClient.
 type agentServiceClient struct {
-	getAgentSettings *connect.Client[v1.GetAgentSettingsRequest, v1.GetAgentSettingsResponse]
-	setAgentSettings *connect.Client[v1.SetAgentSettingsRequest, v1.SetAgentSettingsResponse]
-	listSessions     *connect.Client[v1.ListSessionsRequest, v1.ListSessionsResponse]
-	startSession     *connect.Client[v1.StartSessionRequest, v1.StartSessionResponse]
-	sendMessage      *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
-	stopTurn         *connect.Client[v1.StopTurnRequest, v1.StopTurnResponse]
-	decideProposal   *connect.Client[v1.DecideProposalRequest, v1.DecideProposalResponse]
-	closeSession     *connect.Client[v1.CloseSessionRequest, v1.CloseSessionResponse]
-	watchSession     *connect.Client[v1.WatchSessionRequest, v1.WatchSessionResponse]
+	getAgentSettings   *connect.Client[v1.GetAgentSettingsRequest, v1.GetAgentSettingsResponse]
+	setAgentSettings   *connect.Client[v1.SetAgentSettingsRequest, v1.SetAgentSettingsResponse]
+	listSessions       *connect.Client[v1.ListSessionsRequest, v1.ListSessionsResponse]
+	startSession       *connect.Client[v1.StartSessionRequest, v1.StartSessionResponse]
+	sendMessage        *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
+	stopTurn           *connect.Client[v1.StopTurnRequest, v1.StopTurnResponse]
+	decideProposal     *connect.Client[v1.DecideProposalRequest, v1.DecideProposalResponse]
+	closeSession       *connect.Client[v1.CloseSessionRequest, v1.CloseSessionResponse]
+	watchSession       *connect.Client[v1.WatchSessionRequest, v1.WatchSessionResponse]
+	listFiles          *connect.Client[v1.ListFilesRequest, v1.ListFilesResponse]
+	openFile           *connect.Client[v1.OpenFileRequest, v1.OpenFileResponse]
+	saveFile           *connect.Client[v1.SaveFileRequest, v1.SaveFileResponse]
+	planCheckout       *connect.Client[v1.PlanCheckoutRequest, v1.PlanCheckoutResponse]
+	openLanguageServer *connect.Client[v1.OpenLanguageServerRequest, v1.OpenLanguageServerResponse]
 }
 
 // GetAgentSettings calls stackwright.v1.AgentService.GetAgentSettings.
@@ -218,13 +280,39 @@ func (c *agentServiceClient) WatchSession(ctx context.Context, req *connect.Requ
 	return c.watchSession.CallServerStream(ctx, req)
 }
 
+// ListFiles calls stackwright.v1.AgentService.ListFiles.
+func (c *agentServiceClient) ListFiles(ctx context.Context, req *connect.Request[v1.ListFilesRequest]) (*connect.Response[v1.ListFilesResponse], error) {
+	return c.listFiles.CallUnary(ctx, req)
+}
+
+// OpenFile calls stackwright.v1.AgentService.OpenFile.
+func (c *agentServiceClient) OpenFile(ctx context.Context, req *connect.Request[v1.OpenFileRequest]) (*connect.Response[v1.OpenFileResponse], error) {
+	return c.openFile.CallUnary(ctx, req)
+}
+
+// SaveFile calls stackwright.v1.AgentService.SaveFile.
+func (c *agentServiceClient) SaveFile(ctx context.Context, req *connect.Request[v1.SaveFileRequest]) (*connect.Response[v1.SaveFileResponse], error) {
+	return c.saveFile.CallUnary(ctx, req)
+}
+
+// PlanCheckout calls stackwright.v1.AgentService.PlanCheckout.
+func (c *agentServiceClient) PlanCheckout(ctx context.Context, req *connect.Request[v1.PlanCheckoutRequest]) (*connect.Response[v1.PlanCheckoutResponse], error) {
+	return c.planCheckout.CallUnary(ctx, req)
+}
+
+// OpenLanguageServer calls stackwright.v1.AgentService.OpenLanguageServer.
+func (c *agentServiceClient) OpenLanguageServer(ctx context.Context, req *connect.Request[v1.OpenLanguageServerRequest]) (*connect.Response[v1.OpenLanguageServerResponse], error) {
+	return c.openLanguageServer.CallUnary(ctx, req)
+}
+
 // AgentServiceHandler is an implementation of the stackwright.v1.AgentService service.
 type AgentServiceHandler interface {
 	GetAgentSettings(context.Context, *connect.Request[v1.GetAgentSettingsRequest]) (*connect.Response[v1.GetAgentSettingsResponse], error)
 	SetAgentSettings(context.Context, *connect.Request[v1.SetAgentSettingsRequest]) (*connect.Response[v1.SetAgentSettingsResponse], error)
 	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
 	// StartSession starts a sandbox for the workspace and sends the first
-	// message.
+	// message. With no message, it starts a quiet session for the editor:
+	// a sandbox and a branch, and no turn.
 	StartSession(context.Context, *connect.Request[v1.StartSessionRequest]) (*connect.Response[v1.StartSessionResponse], error)
 	// SendMessage starts a turn, or answers the agent's question.
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
@@ -240,6 +328,18 @@ type AgentServiceHandler interface {
 	// WatchSession sends every step after after_seq, then each new one, and
 	// the session again whenever it changes.
 	WatchSession(context.Context, *connect.Request[v1.WatchSessionRequest], *connect.ServerStream[v1.WatchSessionResponse]) error
+	// ListFiles lists the files of the session's checkout, and starts its
+	// sandbox if none runs (adr/0034).
+	ListFiles(context.Context, *connect.Request[v1.ListFilesRequest]) (*connect.Response[v1.ListFilesResponse], error)
+	OpenFile(context.Context, *connect.Request[v1.OpenFileRequest]) (*connect.Response[v1.OpenFileResponse], error)
+	// SaveFile writes a file in the session's checkout, merged with any
+	// change since base. It never commits.
+	SaveFile(context.Context, *connect.Request[v1.SaveFileRequest]) (*connect.Response[v1.SaveFileResponse], error)
+	// PlanCheckout plans the checkout as it is, as a plan-only agent run.
+	PlanCheckout(context.Context, *connect.Request[v1.PlanCheckoutRequest]) (*connect.Response[v1.PlanCheckoutResponse], error)
+	// OpenLanguageServer returns a one-time ticket, which the browser sends
+	// as the first message on the WebSocket /lsp/<session>.
+	OpenLanguageServer(context.Context, *connect.Request[v1.OpenLanguageServerRequest]) (*connect.Response[v1.OpenLanguageServerResponse], error)
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -306,6 +406,38 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentServiceListFilesHandler := connect.NewUnaryHandler(
+		AgentServiceListFilesProcedure,
+		svc.ListFiles,
+		connect.WithSchema(agentServiceMethods.ByName("ListFiles")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceOpenFileHandler := connect.NewUnaryHandler(
+		AgentServiceOpenFileProcedure,
+		svc.OpenFile,
+		connect.WithSchema(agentServiceMethods.ByName("OpenFile")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceSaveFileHandler := connect.NewUnaryHandler(
+		AgentServiceSaveFileProcedure,
+		svc.SaveFile,
+		connect.WithSchema(agentServiceMethods.ByName("SaveFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServicePlanCheckoutHandler := connect.NewUnaryHandler(
+		AgentServicePlanCheckoutProcedure,
+		svc.PlanCheckout,
+		connect.WithSchema(agentServiceMethods.ByName("PlanCheckout")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceOpenLanguageServerHandler := connect.NewUnaryHandler(
+		AgentServiceOpenLanguageServerProcedure,
+		svc.OpenLanguageServer,
+		connect.WithSchema(agentServiceMethods.ByName("OpenLanguageServer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/stackwright.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceGetAgentSettingsProcedure:
@@ -326,6 +458,16 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 			agentServiceCloseSessionHandler.ServeHTTP(w, r)
 		case AgentServiceWatchSessionProcedure:
 			agentServiceWatchSessionHandler.ServeHTTP(w, r)
+		case AgentServiceListFilesProcedure:
+			agentServiceListFilesHandler.ServeHTTP(w, r)
+		case AgentServiceOpenFileProcedure:
+			agentServiceOpenFileHandler.ServeHTTP(w, r)
+		case AgentServiceSaveFileProcedure:
+			agentServiceSaveFileHandler.ServeHTTP(w, r)
+		case AgentServicePlanCheckoutProcedure:
+			agentServicePlanCheckoutHandler.ServeHTTP(w, r)
+		case AgentServiceOpenLanguageServerProcedure:
+			agentServiceOpenLanguageServerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -369,6 +511,26 @@ func (UnimplementedAgentServiceHandler) CloseSession(context.Context, *connect.R
 
 func (UnimplementedAgentServiceHandler) WatchSession(context.Context, *connect.Request[v1.WatchSessionRequest], *connect.ServerStream[v1.WatchSessionResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AgentService.WatchSession is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) ListFiles(context.Context, *connect.Request[v1.ListFilesRequest]) (*connect.Response[v1.ListFilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AgentService.ListFiles is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) OpenFile(context.Context, *connect.Request[v1.OpenFileRequest]) (*connect.Response[v1.OpenFileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AgentService.OpenFile is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) SaveFile(context.Context, *connect.Request[v1.SaveFileRequest]) (*connect.Response[v1.SaveFileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AgentService.SaveFile is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) PlanCheckout(context.Context, *connect.Request[v1.PlanCheckoutRequest]) (*connect.Response[v1.PlanCheckoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AgentService.PlanCheckout is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) OpenLanguageServer(context.Context, *connect.Request[v1.OpenLanguageServerRequest]) (*connect.Response[v1.OpenLanguageServerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AgentService.OpenLanguageServer is not implemented"))
 }
 
 // ToolboxServiceClient is a client for the stackwright.v1.ToolboxService service.

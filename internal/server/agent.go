@@ -42,25 +42,10 @@ func (h agentHooks) inOrg(ctx context.Context, orgID string, fn func(pgx.Tx) err
 }
 
 func (h agentHooks) plan(ctx context.Context, orgID, session, userID string, source []byte) (string, error) {
-	var runID string
-	var number int32
-	err := h.inOrg(ctx, orgID, func(tx pgx.Tx) error {
-		var workspaceID, branch string
-		if err := tx.QueryRow(ctx, `SELECT workspace_id, branch FROM agent_sessions WHERE id = $1`, session).Scan(&workspaceID, &branch); err != nil {
-			return err
-		}
-		sum := sha256.Sum256(source)
-		var err error
-		runID, number, err = h.runs.Create(ctx, tx, orgID, runs.NewRun{
-			WorkspaceID: workspaceID, PlanOnly: true, Source: source, SourceName: "agent · " + branch, SourceSHA: hex.EncodeToString(sum[:]),
-			CreatedBy: userID, Trigger: "agent", AgentSessionID: session, Branch: branch,
-		})
-		return err
-	})
+	runID, number, err := h.queuePlan(ctx, orgID, session, userID, source)
 	if err != nil {
 		return "", err
 	}
-	h.runs.Wake()
 	changed, stop, err := h.runs.Subscribe(runID)
 	if err != nil {
 		return "", err
@@ -80,6 +65,26 @@ func (h agentHooks) plan(ctx context.Context, orgID, session, userID string, sou
 		case <-tick.C:
 		}
 	}
+}
+
+func (h agentHooks) queuePlan(ctx context.Context, orgID, session, userID string, source []byte) (runID string, number int32, err error) {
+	err = h.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+		var workspaceID, branch string
+		if err := tx.QueryRow(ctx, `SELECT workspace_id, branch FROM agent_sessions WHERE id = $1`, session).Scan(&workspaceID, &branch); err != nil {
+			return err
+		}
+		sum := sha256.Sum256(source)
+		var err error
+		runID, number, err = h.runs.Create(ctx, tx, orgID, runs.NewRun{
+			WorkspaceID: workspaceID, PlanOnly: true, Source: source, SourceName: "agent · " + branch, SourceSHA: hex.EncodeToString(sum[:]),
+			CreatedBy: userID, Trigger: "agent", AgentSessionID: session, Branch: branch,
+		})
+		return err
+	})
+	if err == nil {
+		h.runs.Wake()
+	}
+	return runID, number, err
 }
 
 // planReport describes a finished run for the model: its summary and

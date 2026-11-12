@@ -34,7 +34,7 @@ Stackwright is an open-source, self-hosted workspace for infrastructure code. An
 
 **Space and shape.** A 4px grid: `space-1` to `space-6`. Controls are 32px high (`control-height`) with `radius-control`. Cards, menus and sheets use `radius-card`. Count badges and status pills use `radius-pill`.
 
-**Controls.** Buttons have a `hairline` border on `window`, or an `accent` fill for the one default action. View switching uses a segmented control: the selected segment is a raised `window` chip on a `tabstrip` track. Fields are 30px with a `hairline` border.
+**Controls.** Buttons have a `hairline` border on `window`, or an `accent` fill for the one default action. View switching uses a segmented control: the selected segment is a raised `window` chip on a `tabstrip` track. Fields are 30px with a `hairline` border. A button that runs an action says what happens on the button itself: while it runs it is disabled with a small spinner and a present-tense label ("Saving…"); when it succeeds it shows a check and a past-tense label ("Saved") for two seconds; a failure shows its message beside it. Screen readers hear each state. `Action` and `Submit` in `web/src/Action.tsx` do this; use them for every action.
 
 **Focus.** Keyboard focus is a 2px `accent-ink` ring, 2px outside the control.
 

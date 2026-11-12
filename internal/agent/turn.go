@@ -142,7 +142,7 @@ Rules:
 // that has no result, because a turn stopped, gets one that says so.
 func (info sessionInfo) messages() []Message {
 	out := []Message{{Role: "system", Content: info.system()}}
-	var pending []string
+	var pending, edits []string
 	settle := func() {
 		for _, id := range pending {
 			out = append(out, Message{Role: "tool", ToolCallID: id, Content: "This did not run: the turn stopped first."})
@@ -181,9 +181,20 @@ func (info sessionInfo) messages() []Message {
 		case "decision", "notice":
 			settle()
 			out = append(out, Message{Role: "user", Content: "Stackwright: " + text(st.payload, "text")})
+		case "edit":
+			edits = append(edits, text(st.payload, "text"))
+		}
+		// A person's save waits for the open tool calls' results, which
+		// must follow their call (adr/0034).
+		if len(pending) == 0 && len(edits) > 0 {
+			out = append(out, Message{Role: "user", Content: "Stackwright: " + strings.Join(edits, " ") + " Read a file again before you change it."})
+			edits = nil
 		}
 	}
 	settle()
+	if len(edits) > 0 {
+		out = append(out, Message{Role: "user", Content: "Stackwright: " + strings.Join(edits, " ") + " Read a file again before you change it."})
+	}
 	return out
 }
 

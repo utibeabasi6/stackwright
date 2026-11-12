@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Action, Submit, useAction } from "../Action";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { message, variableApi } from "../api";
 import { VariableCategory, type Variable } from "../gen/stackwright/v1/variables_pb";
@@ -28,6 +29,7 @@ export function Variables({ org, project, workspace, admin }: Props) {
     variableApi.listVariables({ org, scope: { project, workspace }, effective }).then((r) => r.variables),
   );
   const [error, setError] = useState<string>();
+  const setting = useAction();
 
   const set = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -50,19 +52,23 @@ export function Variables({ org, project, workspace, admin }: Props) {
       });
       form.reset();
       list.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
 
   const remove = async (v: Variable) => {
-    if (!window.confirm(`Delete ${v.key}? Runs stop getting it.`)) return;
+    if (!window.confirm(`Delete ${v.key}? Runs stop getting it.`)) return false;
     setError(undefined);
     try {
       await variableApi.deleteVariable({ org, scope: v.scope ?? {}, category: v.category, key: v.key });
       list.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
   const mine = (v: Variable) => !effective || Boolean(v.scope?.project);
@@ -112,9 +118,9 @@ export function Variables({ org, project, workspace, admin }: Props) {
                   {admin && (
                     <td style={{ textAlign: "right" }}>
                       {mine(v) && (
-                        <button type="button" className="danger" onClick={() => remove(v)}>
+                        <Action className="danger" run={() => remove(v)} busy="Deleting…" done="Deleted">
                           Delete
-                        </button>
+                        </Action>
                       )}
                     </td>
                   )}
@@ -125,7 +131,7 @@ export function Variables({ org, project, workspace, admin }: Props) {
         </div>
       )}
       {admin && (
-        <form className="stack" onSubmit={set} aria-label="Set a variable">
+        <form className="stack" onSubmit={(e) => void setting.run(() => set(e))} aria-label="Set a variable">
           <div className="row">
             <label className="field">
               <span>Kind</span>
@@ -168,7 +174,9 @@ export function Variables({ org, project, workspace, admin }: Props) {
             <label className="check">
               <input name="sensitive" type="checkbox" /> Sensitive
             </label>
-            <button type="submit">Set variable</button>
+            <Submit action={setting} busy="Setting…" done="Set">
+              Set variable
+            </Submit>
           </div>
           <p className="hint">
             Setting a name that exists replaces it. For a sensitive one, leave the value empty to keep the sealed value and change only

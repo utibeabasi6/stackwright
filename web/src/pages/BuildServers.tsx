@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Action, Submit, useAction } from "../Action";
 import { Link, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { buildServerApi, message } from "../api";
@@ -28,24 +29,28 @@ export function BuildServers() {
       await fn();
       setEditing(undefined);
       reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
-  const remove = (s: BuildServer) => {
-    if (!window.confirm(`Remove ${s.name}? Its certificate stops working at once. The builder stays installed on the machine.`)) return;
-    void act(() => buildServerApi.removeBuildServer({ org, id: s.id }));
-  };
+  const saving = useAction();
+  const remove = (s: BuildServer) =>
+    window.confirm(`Remove ${s.name}? Its certificate stops working at once. The builder stays installed on the machine.`) &&
+    act(() => buildServerApi.removeBuildServer({ org, id: s.id }));
   const save = (s: BuildServer) => (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    void act(() =>
+    void saving.run(() =>
+      act(() =>
       buildServerApi.updateBuildServer({
         org,
         id: s.id,
         labels: { values: parseLabels(String(f.get("labels"))) },
         slots: Number(f.get("slots")),
       }),
+      ),
     );
   };
 
@@ -101,9 +106,9 @@ export function BuildServers() {
                         <span>Most sandboxes at once</span>
                         <input name="slots" type="number" min={1} max={64} defaultValue={s.slots} required />
                       </label>
-                      <button type="submit" className="primary">
+                      <Submit action={saving} className="primary" busy="Saving…" done="Saved">
                         Save
-                      </button>
+                      </Submit>
                       <button type="button" onClick={() => setEditing(undefined)}>
                         Cancel
                       </button>
@@ -131,22 +136,23 @@ export function BuildServers() {
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       {!s.builtIn && (
                         <>
-                          <button
-                            type="button"
-                            onClick={() =>
+                          <Action
+                            run={() =>
                               act(() =>
                                 buildServerApi.updateBuildServer({ org, id: s.id, draining: s.status !== BuildServer_Status.DRAINING }),
                               )
                             }
+                            busy={s.status === BuildServer_Status.DRAINING ? "Resuming…" : "Draining…"}
+                            done={s.status === BuildServer_Status.DRAINING ? "Draining" : "Resumed"}
                           >
                             {s.status === BuildServer_Status.DRAINING ? "Resume" : "Drain"}
-                          </button>{" "}
+                          </Action>{" "}
                           <button type="button" onClick={() => setEditing(s.id)}>
                             Edit
                           </button>{" "}
-                          <button type="button" className="danger" onClick={() => remove(s)}>
+                          <Action className="danger" run={() => remove(s)} busy="Removing…" done="Removed">
                             Remove
-                          </button>
+                          </Action>
                         </>
                       )}
                     </td>

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Submit, useAction } from "../Action";
 import { useNavigate } from "@tanstack/react-router";
 import { message, orgApi } from "../api";
 import { useMe } from "../me";
@@ -7,6 +8,7 @@ export function NewOrg() {
   const me = useMe();
   const navigate = useNavigate();
   const [error, setError] = useState<string>();
+  const pending = useAction();
   if (!me.user?.instanceAdmin) return <p className="muted">Only an instance admin can make an org.</p>;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -17,12 +19,13 @@ export function NewOrg() {
       window.location.assign(`/${r.slug}`);
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
   return (
     <>
       <h1>New org</h1>
-      <form className="stack" style={{ maxWidth: 420 }} onSubmit={submit}>
+      <form className="stack" style={{ maxWidth: 420 }} onSubmit={(e) => void pending.run(() => submit(e))}>
         <label className="field">
           <span>Name</span>
           <input name="name" required />
@@ -33,9 +36,9 @@ export function NewOrg() {
         </label>
         {error && <p className="error">{error}</p>}
         <div className="row">
-          <button type="submit" className="primary">
+          <Submit action={pending} className="primary" busy="Creating…" done="Created">
             Create org
-          </button>
+          </Submit>
           <button type="button" onClick={() => navigate({ to: "/" })}>
             Cancel
           </button>

@@ -1481,3 +1481,136 @@ button.ask-agent {
   display: block;
   margin-top: var(--space-1);
 }
+
+.page:has(> .editor-page) {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  padding: 0;
+}
+
+.editor-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.file-tree {
+  flex: none;
+  width: var(--sidebar-width);
+  margin: 0;
+  padding: var(--space-2) 0;
+  overflow: auto;
+  list-style: none;
+  border-right: 1px solid var(--hairline);
+  background: var(--chrome);
+  font: var(--type-code);
+}
+
+.file-tree [role="treeitem"] {
+  padding: 2px var(--space-3) 2px calc(var(--space-3) + var(--depth) * var(--space-3));
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.file-tree [role="treeitem"][aria-selected="true"] {
+  background: var(--selection);
+}
+
+.file-tree [role="treeitem"]:focus-visible {
+  outline-offset: -2px;
+}
+
+.editor-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.editor-tabs {
+  display: flex;
+  flex: none;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--chrome);
+}
+
+.editor-tab {
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--hairline);
+}
+
+.editor-tab button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: var(--type-code);
+}
+
+.editor-tab [aria-selected="true"] {
+  background: var(--window);
+  font-weight: 600;
+}
+
+.code {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.code-host {
+  flex: 1;
+  min-height: 0;
+}
+
+.code-status,
+.editor-empty {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  font: var(--type-label);
+}
+
+button.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.spinner {
+  width: var(--space-3);
+  height: var(--space-3);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .spinner {
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+.action-error {
+  margin-left: var(--space-2);
+  font: var(--type-label);
+}

@@ -895,9 +895,23 @@ OpenRouter; tasks 03, 19 and 24; one run of each arm):
   baseline also has few, this task set cannot show that the schema tool
   lowers them.
 
+**The full eval** (2026-11-12, Claude Opus 5.5, all 30 tasks, one run of
+each arm; `evals/results/2026-11-12-*.json`):
+
+| Arm | Passed | Argument errors | Model calls | Plans | Cost |
+| --- | --- | --- | --- | --- | --- |
+| baseline | 30 of 30 | 0 | 134 | 30 | $0.95 |
+| grounded | 30 of 30 | 0 | 133 | 30 | $1.10 |
+
+- The baseline is recorded: the first "done when" item holds.
+- The second cannot be shown with this task set. The baseline makes no
+  argument errors, so the schema tool has none to lower. The grounded arm
+  read 59 schemas and cost 16% more. Harder tasks (rarer resources, recent
+  provider changes) or a weaker model would test it; that is open.
+- The test harness, not the model, took most of the time: about 4 minutes
+  per task, mostly provider downloads in fresh test worlds.
+
 **Not verified:**
-- No full eval has run, so there is no baseline score and no comparison
-  of the arms. Both "done when" items of phase 13 are open.
 - The toolbox and solutions tests used Terraform, not OpenTofu, because
   only Terraform is installed on the Mac. The server tests use OpenTofu
   1.10.7 in the sandbox.
@@ -951,3 +965,73 @@ Found in the first live sessions on the dev stack, 2026-11-12:
   server with an older executor image answers "there is no tool". The
   dev stack's built-in builder was rebuilt; the Lima VM still has the old
   image.
+
+## Phase 14: Editor
+
+Decisions: [0034](adr/0034-editor.md). The user chose that a save only
+writes the checkout; the person tells the agent to commit.
+
+**Verified on 2026-11-12:**
+- Go tests with a real Docker sandbox and `tofu-ls` 0.5.3 in the executor
+  image:
+  - Completion inside an `aws_nat_gateway` block, through the server's
+    WebSocket and the toolbox stream, offers `subnet_id`,
+    `allocation_id` and `connectivity_type`. No frame names the sandbox's
+    path. `tofu-ls` answers from the schemas it carries; no `init` ran.
+  - A person's save while the agent's `validate` runs lands after it, and
+    merges with the agent's edit to the same file: both lines are in the
+    checkout after the turn.
+  - A save between two tool calls (the scripted model held between them)
+    merges; the agent's next `read_file` sees both changes, and its next
+    model call carries the note that the person saved the file.
+  - A quiet session starts a sandbox with no key and no model call. A
+    state file cannot be opened. A WebSocket with a made-up ticket is
+    closed with a policy violation.
+- Toolbox tests on a real checkout: a clean save, a merge, and a conflict
+  that writes nothing; state files, `.env`, binaries and paths outside the
+  checkout are refused.
+- E2e tests in Chromium with the real Monaco and a stand-in `tofu-ls`
+  over a mocked WebSocket:
+  - With the keyboard only: F6 to the file list, arrows and Enter to open
+    a file, F6 to the tabs and the text, Ctrl+Space for completion, Enter
+    to take `subnet_id`, and ⌘S to save; the save sends the completed text
+    with the file as it was opened.
+  - A conflicting save writes nothing and offers the file as it is now.
+  - With no session, "Edit files" starts a quiet one.
+  Repeated six times with no failure, after two fixes the first runs found:
+  a file opened before the language server connected got no Monaco model,
+  and text that the page passed back could overwrite newer typing.
+- The main bundle is the same size as before; Monaco loads with the
+  Editor page only. Screenshots in light and dark were checked.
+
+**Not verified:**
+- The editor on the dev stack in a browser, with a real sandbox; the
+  e2e tests use a stand-in language server.
+- A Terraform project with `tofu-ls`.
+- A screen reader. Ctrl+M, which makes Tab leave the text, is Monaco's and
+  was not tested.
+
+**Known gaps:**
+- A sandbox that is removed loses unsaved tabs.
+- The toolbox writes a frame to `tofu-ls` in its order loop; a language
+  server that stops reading would hold up tool calls.
+- A frame for a browser that reads too slowly is dropped after 256 are
+  waiting.
+
+### Phase 14, button feedback
+
+At the user's request, every button that runs an action shows its state
+on itself: disabled with a spinner and "Saving…" while it runs, "✓ Saved"
+for two seconds when it succeeds, and the error beside it when it fails.
+Screen readers hear each state. Copy buttons say "Copied". Buttons that
+only record a decision, such as "Commit and push", say "Approved", since
+the push follows on its own. The change covers the editor, the run page,
+the agent panel, state, build servers, workspace and org settings, sign-in,
+setup, invites and enrolment.
+
+**Verified:** unit tests for the states (busy, done, back; false gives no
+check; a thrown error shows); all 54 unit and 36 e2e tests pass;
+screenshots of the editor's Save button busy and done, in dark.
+
+**Not verified:** each page's buttons one by one in a browser; the tests
+cover the shared button and the pages' existing flows.

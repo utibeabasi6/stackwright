@@ -27,9 +27,18 @@ type scriptedModel struct {
 	cost     float64
 	calls    int
 	requests []agent.Request
+	// hold, when set, runs before each model call with the call's number,
+	// so a test can act between two calls.
+	hold func(call int)
 }
 
 func (m *scriptedModel) Complete(_ context.Context, key string, req agent.Request) (agent.Response, error) {
+	m.mu.Lock()
+	hold, call := m.hold, m.calls+1
+	m.mu.Unlock()
+	if hold != nil {
+		hold(call)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.requests = append(m.requests, req)

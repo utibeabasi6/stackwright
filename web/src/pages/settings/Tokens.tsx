@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Action, Submit, useAction } from "../../Action";
 import { useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { message, tokenApi } from "../../api";
@@ -11,6 +12,7 @@ export function Tokens() {
   const tokens = useLoad(`tokens:${org}`, () => tokenApi.listApiTokens({ org }));
   const [secret, setSecret] = useState<string>();
   const [error, setError] = useState<string>();
+  const making = useAction();
 
   const create = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -22,17 +24,21 @@ export function Tokens() {
       setSecret(r.secret);
       form.reset();
       tokens.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
   const revoke = async (id: string, name: string) => {
-    if (!window.confirm(`Revoke ${name}? Anything that uses it stops working.`)) return;
+    if (!window.confirm(`Revoke ${name}? Anything that uses it stops working.`)) return false;
     try {
       await tokenApi.revokeApiToken({ org, id });
       tokens.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
 
@@ -62,9 +68,9 @@ export function Tokens() {
                   <td>{t.expiresAt ? timestampDate(t.expiresAt).toLocaleDateString() : ""}</td>
                   <td>{t.lastUsedAt ? timestampDate(t.lastUsedAt).toLocaleString() : "Never"}</td>
                   <td style={{ textAlign: "right" }}>
-                    <button type="button" className="danger" onClick={() => revoke(t.id, t.name)}>
+                    <Action className="danger" run={() => revoke(t.id, t.name)} busy="Revoking…" done="Revoked">
                       Revoke
-                    </button>
+                    </Action>
                   </td>
                 </tr>
               ))}
@@ -74,7 +80,7 @@ export function Tokens() {
       )}
       <section className="card stack">
         <h2>New token</h2>
-        <form className="row" onSubmit={create}>
+        <form className="row" onSubmit={(e) => void making.run(() => create(e))}>
           <label className="field grow">
             <span>Name</span>
             <input name="name" required maxLength={60} placeholder="laptop, or ci-network" />
@@ -91,9 +97,9 @@ export function Tokens() {
               ]}
             />
           </label>
-          <button type="submit" className="primary">
+          <Submit action={making} className="primary" busy="Making…" done="Made">
             Make token
-          </button>
+          </Submit>
         </form>
         {secret && (
           <div className="notice stack">

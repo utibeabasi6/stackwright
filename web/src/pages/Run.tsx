@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Action } from "../Action";
 import { useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { graphApi, message, runApi } from "../api";
@@ -78,8 +79,10 @@ export function Run() {
       const res = await fn();
       if (res.run) setRun(res.run);
       reloadWaiting();
+      return true;
     } catch (err) {
       setActionError(message(err));
+      return false;
     }
   };
   const target = { org, project, workspace, number };
@@ -196,18 +199,18 @@ export function Run() {
           <span className="grow" />
           {run.status === RunStatus.NEEDS_APPROVAL && role >= Role.REVIEWER && (
             <>
-              <button type="button" onClick={() => act(() => runApi.rejectRun(target))}>
+              <Action run={() => act(() => runApi.rejectRun(target))} busy="Rejecting…" done="Rejected">
                 Reject
-              </button>
-              <button type="button" className="primary" onClick={() => act(() => runApi.approveRun(target))}>
+              </Action>
+              <Action className="primary" run={() => act(() => runApi.approveRun(target))} busy="Approving…" done="Approved">
                 Approve and apply
-              </button>
+              </Action>
             </>
           )}
           {!finished(run.status) && role >= Role.WRITER && (
-            <button type="button" className="danger" onClick={() => act(() => runApi.cancelRun(target))}>
+            <Action className="danger" run={() => act(() => runApi.cancelRun(target))} busy="Cancelling…" done="Cancelled">
               Cancel run
-            </button>
+            </Action>
           )}
         </div>
       )}

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -40,6 +41,8 @@ type box struct {
 	branch string
 	base   string
 	engine string
+	// servers are the tofu-ls processes, one for each editor WebSocket.
+	servers languageServers
 }
 
 // Run serves the server's orders until ctx ends or the server ends the
@@ -71,9 +74,13 @@ func (b *box) serve(ctx context.Context, client stackwrightv1connect.ToolboxServ
 	stream := client.Connect(ctx)
 	stream.RequestHeader().Set("Authorization", "Bearer "+b.token)
 	defer func() { _ = stream.CloseRequest() }()
+	defer b.stopServers()
 	// A send fails with io.EOF when the server ended the stream; the reason
-	// comes from Receive.
+	// comes from Receive. Language servers send from their own goroutines.
+	var sending sync.Mutex
 	send := func(m *v1.ToolboxMessage) error {
+		sending.Lock()
+		defer sending.Unlock()
 		err := stream.Send(m)
 		if errors.Is(err, io.EOF) {
 			_, err = stream.Receive()
@@ -101,15 +108,24 @@ func (b *box) serve(ctx context.Context, client stackwrightv1connect.ToolboxServ
 			}
 			slog.Info("checkout ready", "branch", b.branch)
 			msg = &v1.ToolboxMessage{Body: &v1.ToolboxMessage_Ready{Ready: &v1.ToolboxReady{Dirty: b.dirty(ctx)}}}
+		case *v1.ToolboxOrder_Lsp:
+			b.lsp(ctx, o.Lsp, send)
+			continue
 		case *v1.ToolboxOrder_Call:
-			if o.Call.GetName() == "pack" {
+			id := o.Call.GetId()
+			switch o.Call.GetName() {
+			case "pack":
 				data, err := b.pack()
-				msg = b.result(ctx, o.Call.GetId(), fmt.Sprintf("%d bytes", len(data)), err)
+				msg = b.result(ctx, id, fmt.Sprintf("%d bytes", len(data)), err)
 				msg.GetResult().Data = data
-				break
+			case "open_file", "save_file":
+				out, data, err := b.editorCall(ctx, o.Call.GetName(), o.Call.GetArguments())
+				msg = b.result(ctx, id, out, err)
+				msg.GetResult().Data = data
+			default:
+				out, err := b.call(ctx, o.Call.GetName(), o.Call.GetArguments())
+				msg = b.result(ctx, id, out, err)
 			}
-			out, err := b.call(ctx, o.Call.GetName(), o.Call.GetArguments())
-			msg = b.result(ctx, o.Call.GetId(), out, err)
 		case *v1.ToolboxOrder_Commit:
 			out, err := b.commit(ctx, o.Commit)
 			msg = b.result(ctx, o.Commit.GetId(), out, err)

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Submit, useAction } from "../Action";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { authApi, message } from "../api";
 import { useLoad } from "../useLoad";
@@ -16,19 +17,18 @@ export function SignIn() {
   const search = useSearch({ strict: false }) as { error?: string; next?: string };
   const providers = useLoad("providers", () => authApi.listSignInProviders({}));
   const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const pending = useAction();
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    setBusy(true);
     try {
       await authApi.signIn({ email: String(f.get("email")), password: String(f.get("password")) });
       const next = search.next?.startsWith("/") && !search.next.startsWith("//") ? search.next : "/";
       navigate({ to: next });
     } catch (err) {
       setError(message(err));
-      setBusy(false);
+      return false;
     }
   };
 
@@ -43,7 +43,7 @@ export function SignIn() {
             Sign in with {p.name}
           </a>
         ))}
-        <form className="stack" onSubmit={submit}>
+        <form className="stack" onSubmit={(e) => void pending.run(() => submit(e))}>
           <label className="field">
             <span>Email</span>
             <input name="email" type="email" required autoComplete="email" />
@@ -53,9 +53,9 @@ export function SignIn() {
             <input name="password" type="password" required autoComplete="current-password" />
           </label>
           {error && <p className="error">{error}</p>}
-          <button type="submit" className="primary" disabled={busy}>
+          <Submit action={pending} className="primary" busy="Signing in…" done="Signed in">
             Sign in
-          </button>
+          </Submit>
         </form>
         <p className="hint">Forgot your password? An admin can reset it from the server.</p>
       </div>

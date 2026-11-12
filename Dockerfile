@@ -23,10 +23,25 @@ RUN for arch in amd64 arm64; do \
     done
 RUN mkdir -p /out/files
 
+# The editor's language server (adr/0034), checked against the release's
+# checksums.
+FROM alpine:3.22.2 AS tofu-ls
+ARG TARGETARCH
+ARG TOFU_LS_VERSION=0.5.3
+RUN case "$TARGETARCH" in \
+      arm64) arch=arm64; sum=d30430f86720100e6fc6d16881fcf16bc9e4cb3c4d221fafc1aa992f01387db0 ;; \
+      amd64) arch=x86_64; sum=ccf8d85881f493483c9c20ac010d320bf455fdc9dcc39ba0af515206cb488460 ;; \
+      *) echo "no tofu-ls for $TARGETARCH"; exit 1 ;; \
+    esac && \
+    wget -q -O /tmp/tofu-ls.tar.gz "https://github.com/opentofu/tofu-ls/releases/download/v${TOFU_LS_VERSION}/tofu-ls_Linux_${arch}.tar.gz" && \
+    echo "$sum  /tmp/tofu-ls.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/tofu-ls.tar.gz -C /usr/local/bin tofu-ls
+
 # Alpine for git, which the engines use to download most modules
 # (adr/0024). The sandbox still runs as 65532 with a read-only root.
 FROM alpine:3.22.2 AS executor
 RUN apk add --no-cache git ca-certificates
+COPY --from=tofu-ls /usr/local/bin/tofu-ls /usr/local/bin/tofu-ls
 USER 65532:65532
 COPY --from=go /out/stackwright-executor /stackwright-executor
 COPY --from=go --chown=65532:65532 /out/files /run/stackwright

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Action, Submit, useAction } from "../Action";
 import { Link, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { buildServerApi, message } from "../api";
@@ -71,7 +72,7 @@ function OverSSH({ org }: { org: string }) {
   const [confirmed, setConfirmed] = useState(false);
   const [steps, setSteps] = useState<string[]>([]);
   const [done, setDone] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const installing = useAction();
   const [error, setError] = useState<string>();
   const [user, host] = address.includes("@") ? address.split("@", 2) : ["root", address];
 
@@ -89,12 +90,11 @@ function OverSSH({ org }: { org: string }) {
 
   const install = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!scan) return;
+    if (!scan) return false;
     const f = new FormData(e.currentTarget);
     setError(undefined);
     setSteps([]);
     setDone(undefined);
-    setBusy(true);
     try {
       for await (const r of buildServerApi.enrolOverSSH({
         org,
@@ -109,15 +109,15 @@ function OverSSH({ org }: { org: string }) {
         if (r.done) setDone(r.buildServer?.name);
         else setSteps((s) => [...s, r.step]);
       }
+      return true;
     } catch (err) {
       setError(message(err));
-    } finally {
-      setBusy(false);
+      return false;
     }
   };
 
   return (
-    <form className="stack grow" onSubmit={install}>
+    <form className="stack grow" onSubmit={(e) => void installing.run(() => install(e))}>
       <div className="row">
         <label className="field grow">
           <span>SSH address</span>
@@ -191,9 +191,9 @@ function OverSSH({ org }: { org: string }) {
       )}
       {!done && (
         <div className="row">
-          <button type="submit" className="primary" disabled={!scan || !confirmed || busy}>
+          <Submit action={installing} className="primary" disabled={!scan || !confirmed} busy="Installing…" done="Installed">
             Connect and install
-          </button>
+          </Submit>
           <Link className="button" to="/$org/build-servers" params={{ org }}>
             Cancel
           </Link>
@@ -204,6 +204,7 @@ function OverSSH({ org }: { org: string }) {
 }
 
 function WithCommand({ org }: { org: string }) {
+  const making = useAction();
   const [result, setResult] = useState<{ command: string; expires: string }>();
   const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string>();
@@ -221,14 +222,16 @@ function WithCommand({ org }: { org: string }) {
       });
       setResult({ command: r.command, expires: r.expiresAt ? timestampDate(r.expiresAt).toLocaleTimeString() : "" });
       setRevealed(false);
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
 
   const shown = result && (revealed ? result.command : result.command.replace(/(swe_.{4})[A-Za-z0-9_-]+/, "$1…"));
   return (
-    <form className="stack grow" onSubmit={make}>
+    <form className="stack grow" onSubmit={(e) => void making.run(() => make(e))}>
       <p className="muted">For a server that Stackwright cannot reach over SSH. You run one script as root on the server.</p>
       <ServerFields />
       {error && <p className="error">{error}</p>}
@@ -241,9 +244,9 @@ function WithCommand({ org }: { org: string }) {
           <div className="code-block">
             <pre aria-label="Join command">{shown}</pre>
             <div className="stack">
-              <button type="button" onClick={() => navigator.clipboard.writeText(result.command)}>
+              <Action run={() => navigator.clipboard.writeText(result.command)} busy="Copying…" done="Copied">
                 Copy
-              </button>
+              </Action>
               <button type="button" onClick={() => setRevealed((r) => !r)}>
                 {revealed ? "Hide" : "Reveal"}
               </button>
@@ -255,9 +258,9 @@ function WithCommand({ org }: { org: string }) {
         </section>
       ) : (
         <div className="row">
-          <button type="submit" className="primary">
+          <Submit action={making} className="primary" busy="Making…" done="Made">
             Make the command
-          </button>
+          </Submit>
           <Link className="button" to="/$org/build-servers" params={{ org }}>
             Cancel
           </Link>

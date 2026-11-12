@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Action, Submit, useAction } from "../Action";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { message, projectApi } from "../api";
@@ -33,6 +34,9 @@ export function Workspace({ section }: { section: Section }) {
   const [error, setError] = useState<string>();
   const [version, setVersion] = useState("");
   const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
+  const savingProject = useAction();
+  const savingLabels = useAction();
+  const adding = useAction();
 
   if (ws.error) {
     return (
@@ -54,14 +58,17 @@ export function Workspace({ section }: { section: Section }) {
       reloadProjects();
       ws.reload();
       after?.();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
   const save = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    act(() =>
+    void savingProject.run(() =>
+      act(() =>
       projectApi.updateProject({
         org,
         project,
@@ -70,19 +77,20 @@ export function Workspace({ section }: { section: Section }) {
         repoUrl: String(f.get("repoUrl")),
         branch: String(f.get("branch")),
       }),
+      ),
     );
   };
   const saveLabels = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const values = parseLabels(String(new FormData(e.currentTarget).get("labels")));
-    act(() => projectApi.updateWorkspace({ org, project, workspace, requiredLabels: { values } }));
+    void savingLabels.run(() => act(() => projectApi.updateWorkspace({ org, project, workspace, requiredLabels: { values } })));
   };
   const labels = formatLabels(ws.data?.workspace?.requiredLabels ?? {});
   const addWorkspace = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const name = String(new FormData(form).get("name"));
-    act(() => projectApi.createWorkspace({ org, project, name }), () => form.reset());
+    void adding.run(() => act(() => projectApi.createWorkspace({ org, project, name }), () => form.reset()));
   };
 
   return (
@@ -182,7 +190,9 @@ export function Workspace({ section }: { section: Section }) {
                     <span>Build server labels this workspace requires</span>
                     <input name="labels" defaultValue={labels} placeholder="region=eu" className="mono" />
                   </label>
-                  <button type="submit">Save labels</button>
+                  <Submit action={savingLabels} busy="Saving…" done="Saved">
+                    Save labels
+                  </Submit>
                 </form>
                 <p className="hint">Runs go only to build servers with all of these labels. Leave it empty for any build server.</p>
               </section>
@@ -210,7 +220,9 @@ export function Workspace({ section }: { section: Section }) {
                     </label>
                   </div>
                   <div className="row">
-                    <button type="submit">Save</button>
+                    <Submit action={savingProject} busy="Saving…" done="Saved">
+                      Save
+                    </Submit>
                   </div>
                 </form>
                 {p.layout === Layout.CLI_WORKSPACES && (
@@ -219,32 +231,36 @@ export function Workspace({ section }: { section: Section }) {
                       <span>New workspace</span>
                       <input name="name" required className="mono" pattern="[a-z0-9]([a-z0-9_\-]{0,38}[a-z0-9])?" />
                     </label>
-                    <button type="submit">Add workspace</button>
+                    <Submit action={adding} busy="Adding…" done="Added">
+                      Add workspace
+                    </Submit>
                   </form>
                 )}
                 <div className="row">
                   {p.workspaces.length > 1 && (
-                    <button
-                      type="button"
+                    <Action
                       className="danger"
-                      onClick={() =>
+                      run={() =>
                         window.confirm(`Archive the workspace ${workspace}? It leaves every list.`) &&
                         act(() => projectApi.archiveWorkspace({ org, project, workspace }), () => navigate({ to: "/$org", params: { org } }))
                       }
+                      busy="Archiving…"
+                      done="Archived"
                     >
                       Archive workspace {workspace}
-                    </button>
+                    </Action>
                   )}
-                  <button
-                    type="button"
+                  <Action
                     className="danger"
-                    onClick={() =>
+                    run={() =>
                       window.confirm(`Archive the project ${project} and all its workspaces?`) &&
                       act(() => projectApi.archiveProject({ org, project }), () => navigate({ to: "/$org", params: { org } }))
                     }
+                    busy="Archiving…"
+                    done="Archived"
                   >
                     Archive project {project}
-                  </button>
+                  </Action>
                 </div>
               </section>
             )}

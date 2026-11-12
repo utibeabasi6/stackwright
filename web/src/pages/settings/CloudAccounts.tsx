@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Action, Submit, useAction } from "../../Action";
 import { useParams } from "@tanstack/react-router";
 import { cloudApi, message } from "../../api";
 import { Copy } from "../../Copy";
@@ -14,6 +15,7 @@ export function CloudAccounts() {
   const accounts = useLoad(`cloud:${org}`, () => cloudApi.listCloudAccounts({ org }));
   const [setup, setSetup] = useState<{ name: string; data: GetAwsSetupResponse }>();
   const [error, setError] = useState<string>();
+  const adding = useAction();
 
   const create = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -28,27 +30,33 @@ export function CloudAccounts() {
       });
       form.reset();
       accounts.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
   const showSetup = async (name: string) => {
     setError(undefined);
     try {
       setSetup({ name, data: await cloudApi.getAwsSetup({ org, account: name }) });
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
   const remove = async (name: string) => {
-    if (!window.confirm(`Delete the cloud account ${name}? Its roles in AWS stay as they are.`)) return;
+    if (!window.confirm(`Delete the cloud account ${name}? Its roles in AWS stay as they are.`)) return false;
     setError(undefined);
     try {
       await cloudApi.deleteCloudAccount({ org, name });
       if (setup?.name === name) setSetup(undefined);
       accounts.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
 
@@ -94,12 +102,12 @@ export function CloudAccounts() {
                   <td className="mono">{a.workspaces.length ? a.workspaces.join(", ") : <span className="muted">none yet</span>}</td>
                   {admin && (
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button type="button" onClick={() => showSetup(a.name)}>
+                      <Action run={() => showSetup(a.name)} busy="Loading…" done="Shown below">
                         AWS setup
-                      </button>{" "}
-                      <button type="button" className="danger" onClick={() => remove(a.name)}>
+                      </Action>{" "}
+                      <Action className="danger" run={() => remove(a.name)} busy="Deleting…" done="Deleted">
                         Delete
-                      </button>
+                      </Action>
                     </td>
                   )}
                 </tr>
@@ -129,7 +137,7 @@ export function CloudAccounts() {
       {admin && (
         <section className="card stack" aria-labelledby="new-account-h">
           <h2 id="new-account-h">New AWS account</h2>
-          <form className="stack" onSubmit={create}>
+          <form className="stack" onSubmit={(e) => void adding.run(() => create(e))}>
             <div className="row">
               <label className="field">
                 <span>Name</span>
@@ -150,9 +158,9 @@ export function CloudAccounts() {
             </label>
             <p className="hint">The roles need not exist yet: the AWS setup makes them once a workspace uses the account.</p>
             <div className="row">
-              <button type="submit" className="primary">
+              <Submit action={adding} className="primary" busy="Adding…" done="Added">
                 Add account
-              </button>
+              </Submit>
             </div>
           </form>
         </section>

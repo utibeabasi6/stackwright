@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Action, Submit, useAction } from "../Action";
 import { Link } from "@tanstack/react-router";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -304,18 +305,21 @@ type ComposerProps = {
   disabled?: boolean;
   working?: boolean;
   onSend: (msg: string) => Promise<boolean>;
-  onStop?: () => void;
+  onStop?: () => Promise<boolean>;
 };
 
 function Composer({ placeholder, disabled, working, onSend, onStop }: ComposerProps) {
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
+  const sending = useAction();
   const send = async () => {
-    const msg = draft.trim();
-    if (!msg || sending || working || disabled) return;
-    setSending(true);
-    if (await onSend(msg)) setDraft("");
-    setSending(false);
+    if (sending.state === "busy") return;
+    await sending.run(async () => {
+      const msg = draft.trim();
+      if (!msg || working || disabled) return false;
+      const sent = await onSend(msg);
+      if (sent) setDraft("");
+      return sent;
+    });
   };
   const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -343,13 +347,13 @@ function Composer({ placeholder, disabled, working, onSend, onStop }: ComposerPr
           onKeyDown={keyDown}
         />
         {working ? (
-          <button type="button" className="danger" onClick={onStop}>
+          <Action className="danger" run={() => onStop?.()} busy="Stopping…" done="Stopped">
             ■ Stop
-          </button>
+          </Action>
         ) : (
-          <button type="submit" className="primary" disabled={!draft.trim() || sending || disabled}>
+          <Submit action={sending} className="primary" disabled={!draft.trim() || disabled} busy="Sending…" done="Sent">
             Send
-          </button>
+          </Submit>
         )}
       </div>
       <p className="hint">Enter sends · Shift+Enter starts a new line</p>
@@ -397,7 +401,7 @@ type StepProps = {
   step: AgentStep;
   results: Map<string, Payload>;
   canDecide: boolean;
-  decide: (approve: boolean) => void;
+  decide: (approve: boolean) => Promise<boolean>;
 };
 
 function Step({ step, results, canDecide, decide }: StepProps) {
@@ -464,6 +468,7 @@ function Step({ step, results, canDecide, decide }: StepProps) {
       );
     case "decision":
     case "notice":
+    case "edit":
       return <li className="note">{text(p.text)}</li>;
     case "error":
       return <li className="note bad">! {text(p.text)}</li>;
@@ -492,7 +497,7 @@ function Prose({ text: t }: { text: string }) {
   );
 }
 
-function Proposal({ message: msg, diff, canDecide, decide }: { message: string; diff: string; canDecide: boolean; decide: (approve: boolean) => void }) {
+function Proposal({ message: msg, diff, canDecide, decide }: { message: string; diff: string; canDecide: boolean; decide: (approve: boolean) => Promise<boolean> }) {
   const [shown, setShown] = useState(false);
   // git diff --stat lines look like " main.tf | 3 +++".
   const files = diff
@@ -528,19 +533,19 @@ function Proposal({ message: msg, diff, canDecide, decide }: { message: string; 
       )}
       {canDecide && (
         <div className="row">
-          <button type="button" onClick={() => decide(false)}>
+          <Action run={() => decide(false)} busy="Discarding…" done="Declined">
             Discard
-          </button>
-          <button type="button" className="primary" onClick={() => decide(true)}>
+          </Action>
+          <Action className="primary" run={() => decide(true)} busy="Approving…" done="Approved">
             Commit and push
-          </button>
+          </Action>
         </div>
       )}
     </li>
   );
 }
 
-type PullRequestProps = { title: string; body: string; canDecide: boolean; decide: (approve: boolean) => void };
+type PullRequestProps = { title: string; body: string; canDecide: boolean; decide: (approve: boolean) => Promise<boolean> };
 
 function PullRequest({ title, body, canDecide, decide }: PullRequestProps) {
   return (
@@ -555,12 +560,12 @@ function PullRequest({ title, body, canDecide, decide }: PullRequestProps) {
       <p className="hint">It opens from the session's branch, ready for review, and names you as the person who approved it.</p>
       {canDecide && (
         <div className="row">
-          <button type="button" onClick={() => decide(false)}>
+          <Action run={() => decide(false)} busy="Declining…" done="Declined">
             Decline
-          </button>
-          <button type="button" className="primary" onClick={() => decide(true)}>
+          </Action>
+          <Action className="primary" run={() => decide(true)} busy="Approving…" done="Approved">
             Open pull request
-          </button>
+          </Action>
         </div>
       )}
     </li>

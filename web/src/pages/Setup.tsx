@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Submit, useAction } from "../Action";
 import { useNavigate } from "@tanstack/react-router";
 import { authApi, message } from "../api";
 
@@ -15,12 +16,11 @@ export function Setup() {
   const [orgSlug, setOrgSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const pending = useAction();
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    setBusy(true);
     try {
       const r = await authApi.completeSetup({
         setupCode: String(f.get("code")),
@@ -33,7 +33,7 @@ export function Setup() {
       navigate({ to: "/$org", params: { org: r.orgSlug } });
     } catch (err) {
       setError(message(err));
-      setBusy(false);
+      return false;
     }
   };
 
@@ -44,7 +44,7 @@ export function Setup() {
           <h1>Set up Stackwright</h1>
           <p className="muted">You will be the first admin of this instance.</p>
         </div>
-        <form className="stack" onSubmit={submit}>
+        <form className="stack" onSubmit={(e) => void pending.run(() => submit(e))}>
           <label className="field">
             <span>Setup code</span>
             <input name="code" required autoComplete="off" className="mono" />
@@ -92,9 +92,9 @@ export function Setup() {
             <span className="hint">12 characters or more. You can add GitHub or OIDC sign-in later in Settings.</span>
           </label>
           {error && <p className="error">{error}</p>}
-          <button type="submit" className="primary" disabled={busy}>
+          <Submit action={pending} className="primary" busy="Creating…" done="Created">
             Create admin and org
-          </button>
+          </Submit>
         </form>
       </div>
     </div>

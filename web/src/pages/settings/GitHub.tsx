@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Action, Submit, useAction } from "../../Action";
 import { useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { githubApi, message } from "../../api";
@@ -28,27 +29,28 @@ export function GitHub() {
   const instanceAdmin = Boolean(me.user?.instanceAdmin);
   const gh = useLoad(`github:${org}`, () => githubApi.getGitHub({ org }));
   const [error, setError] = useState<string | undefined>(() => new URLSearchParams(window.location.search).get("error") ?? undefined);
-  const [busy, setBusy] = useState(false);
+  const creating = useAction();
 
   const act = async (fn: () => Promise<unknown>) => {
     setError(undefined);
-    setBusy(true);
     try {
       await fn();
       gh.reload();
+      return true;
     } catch (err) {
       setError(message(err));
-    } finally {
-      setBusy(false);
+      return false;
     }
   };
   const createApp = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const owner = String(new FormData(e.currentTarget).get("owner")).trim();
-    void act(async () => {
-      const r = await githubApi.startAppManifest({ githubOrganization: owner, returnTo: `/${org}/settings/github` });
-      postForm(r.url, r.manifest);
-    });
+    void creating.run(() =>
+      act(async () => {
+        const r = await githubApi.startAppManifest({ githubOrganization: owner, returnTo: `/${org}/settings/github` });
+        postForm(r.url, r.manifest);
+      }),
+    );
   };
   const install = () =>
     act(async () => {
@@ -78,9 +80,9 @@ export function GitHub() {
                 <input name="owner" placeholder="Empty: your own GitHub account" />
               </label>
               <div className="row">
-                <button type="submit" className="primary" disabled={busy}>
+                <Submit action={creating} className="primary" busy="Opening GitHub…" done="Opening GitHub…">
                   Create the GitHub App
-                </button>
+                </Submit>
               </div>
             </form>
           ) : (
@@ -104,26 +106,27 @@ export function GitHub() {
           </dl>
           <div className="row">
             {admin && (
-              <button type="button" className="primary" onClick={install} disabled={busy}>
+              <Action className="primary" run={install} busy="Opening GitHub…" done="Opening GitHub…">
                 Install on GitHub
-              </button>
+              </Action>
             )}
             {admin && (gh.data?.installations.length ?? 0) > 0 && (
-              <button type="button" onClick={() => act(() => githubApi.refreshRepos({ org }))} disabled={busy}>
+              <Action run={() => act(() => githubApi.refreshRepos({ org }))} busy="Refreshing…" done="Refreshed">
                 Refresh repositories
-              </button>
+              </Action>
             )}
             {instanceAdmin && (
-              <button
-                type="button"
+              <Action
                 className="danger"
-                onClick={() =>
+                run={() =>
                   window.confirm("Forget the GitHub App? Every org's links to it go. The App stays on GitHub until you delete it there.") &&
                   act(() => githubApi.deleteGitHubApp({}))
                 }
+                busy="Forgetting…"
+                done="Forgotten"
               >
                 Forget the App
-              </button>
+              </Action>
             )}
           </div>
           {admin && (
@@ -144,16 +147,17 @@ export function GitHub() {
               {i.linkedBy && ` by ${i.linkedBy}`}
             </span>
             {admin && (
-              <button
-                type="button"
+              <Action
                 className="danger"
-                onClick={() =>
+                run={() =>
                   window.confirm(`Unlink ${i.account}? Its pull requests and pushes stop starting runs.`) &&
                   act(() => githubApi.unlinkInstallation({ org, installationId: i.installationId }))
                 }
+                busy="Unlinking…"
+                done="Unlinked"
               >
                 Unlink
-              </button>
+              </Action>
             )}
           </div>
           {i.repos.length === 0 ? (

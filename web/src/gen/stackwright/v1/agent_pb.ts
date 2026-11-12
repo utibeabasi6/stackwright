@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stackwright/v1/agent.proto.
  */
 export const file_stackwright_v1_agent: GenFile = /*@__PURE__*/
-  fileDesc("ChpzdGFja3dyaWdodC92MS9hZ2VudC5wcm90bxIOc3RhY2t3cmlnaHQudjEieAoNQWdlbnRTZXR0aW5ncxIPCgdoYXNfa2V5GAEgASgIEhIKCnR1cm5fbW9kZWwYAiABKAkSEwoLc2hvcnRfbW9kZWwYAyABKAkSEwoLbW9udGhseV9jYXAYBCABKAESGAoQc3BlbnRfdGhpc19tb250aBgFIAEoASImChdHZXRBZ2VudFNldHRpbmdzUmVxdWVzdBILCgNvcmcYASABKAkiSwoYR2V0QWdlbnRTZXR0aW5nc1Jlc3BvbnNlEi8KCHNldHRpbmdzGAEgASgLMh0uc3RhY2t3cmlnaHQudjEuQWdlbnRTZXR0aW5ncyKIAQoXU2V0QWdlbnRTZXR0aW5nc1JlcXVlc3QSCwoDb3JnGAEgASgJEg8KB2FwaV9rZXkYAiABKAkSEQoJY2xlYXJfa2V5GAMgASgIEhIKCnR1cm5fbW9kZWwYBCABKAkSEwoLc2hvcnRfbW9kZWwYBSABKAkSEwoLbW9udGhseV9jYXAYBiABKAEiSwoYU2V0QWdlbnRTZXR0aW5nc1Jlc3BvbnNlEi8KCHNldHRpbmdzGAEgASgLMh0uc3RhY2t3cmlnaHQudjEuQWdlbnRTZXR0aW5ncyLnAgoMQWdlbnRTZXNzaW9uEgoKAmlkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJEg4KBmJyYW5jaBgEIAEoCRIyCgZzdGF0dXMYBSABKA4yIi5zdGFja3dyaWdodC52MS5BZ2VudFNlc3Npb25TdGF0dXMSDQoFdGl0bGUYBiABKAkSEgoKY3JlYXRlZF9ieRgHIAEoCRIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVkaXJ0eRgKIAEoCBINCgVzcGVudBgLIAEoARINCgVlcnJvchgMIAEoCRIQCghsYXN0X3NlcRgNIAEoAxIRCglwcl9udW1iZXIYDiABKAUSDgoGcHJfdXJsGA8gASgJIm4KCUFnZW50U3RlcBILCgNzZXEYASABKAMSDAoEa2luZBgCIAEoCRIPCgdwYXlsb2FkGAMgASgJEiYKAmF0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVhY3RvchgFIAEoCSJGChNMaXN0U2Vzc2lvbnNSZXF1ZXN0EgsKA29yZxgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEhEKCXdvcmtzcGFjZRgDIAEoCSJGChRMaXN0U2Vzc2lvbnNSZXNwb25zZRIuCghzZXNzaW9ucxgBIAMoCzIcLnN0YWNrd3JpZ2h0LnYxLkFnZW50U2Vzc2lvbiJXChNTdGFydFNlc3Npb25SZXF1ZXN0EgsKA29yZxgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEhEKCXdvcmtzcGFjZRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJIkUKFFN0YXJ0U2Vzc2lvblJlc3BvbnNlEi0KB3Nlc3Npb24YASABKAsyHC5zdGFja3dyaWdodC52MS5BZ2VudFNlc3Npb24iPgoSU2VuZE1lc3NhZ2VSZXF1ZXN0EgsKA29yZxgBIAEoCRIKCgJpZBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJIkQKE1NlbmRNZXNzYWdlUmVzcG9uc2USLQoHc2Vzc2lvbhgBIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLkFnZW50U2Vzc2lvbiIqCg9TdG9wVHVyblJlcXVlc3QSCwoDb3JnGAEgASgJEgoKAmlkGAIgASgJIhIKEFN0b3BUdXJuUmVzcG9uc2UiUwoVRGVjaWRlUHJvcG9zYWxSZXF1ZXN0EgsKA29yZxgBIAEoCRIKCgJpZBgCIAEoCRIQCghwcm9wb3NhbBgDIAEoAxIPCgdhcHByb3ZlGAQgASgIIkcKFkRlY2lkZVByb3Bvc2FsUmVzcG9uc2USLQoHc2Vzc2lvbhgBIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLkFnZW50U2Vzc2lvbiI/ChNDbG9zZVNlc3Npb25SZXF1ZXN0EgsKA29yZxgBIAEoCRIKCgJpZBgCIAEoCRIPCgdkaXNjYXJkGAMgASgIIhYKFENsb3NlU2Vzc2lvblJlc3BvbnNlIkEKE1dhdGNoU2Vzc2lvblJlcXVlc3QSCwoDb3JnGAEgASgJEgoKAmlkGAIgASgJEhEKCWFmdGVyX3NlcRgDIAEoAyJvChRXYXRjaFNlc3Npb25SZXNwb25zZRIoCgVzdGVwcxgBIAMoCzIZLnN0YWNrd3JpZ2h0LnYxLkFnZW50U3RlcBItCgdzZXNzaW9uGAIgASgLMhwuc3RhY2t3cmlnaHQudjEuQWdlbnRTZXNzaW9uIqQBCg5Ub29sYm94TWVzc2FnZRItCgVyZWFkeRgBIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLlRvb2xib3hSZWFkeUgAEiwKBnJlc3VsdBgCIAEoCzIaLnN0YWNrd3JpZ2h0LnYxLlRvb2xSZXN1bHRIABItCgVoZWxsbxgDIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLlRvb2xib3hIZWxsb0gAQgYKBGJvZHkiDgoMVG9vbGJveEhlbGxvIh0KDFRvb2xib3hSZWFkeRINCgVkaXJ0eRgBIAEoCCJUCgpUb29sUmVzdWx0EgoKAmlkGAEgASgJEg4KBm91dHB1dBgCIAEoCRINCgVlcnJvchgDIAEoCBINCgVkaXJ0eRgEIAEoCBIMCgRkYXRhGAUgASgMIs4BCgxUb29sYm94T3JkZXISLAoIY2hlY2tvdXQYASABKAsyGC5zdGFja3dyaWdodC52MS5DaGVja291dEgAEigKBGNhbGwYAiABKAsyGC5zdGFja3dyaWdodC52MS5Ub29sQ2FsbEgAEi0KBmNvbW1pdBgDIAEoCzIbLnN0YWNrd3JpZ2h0LnYxLkNvbW1pdE9yZGVySAASLwoHZGlzY2FyZBgEIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLkRpc2NhcmRPcmRlckgAQgYKBGJvZHkihgEKCENoZWNrb3V0Eg8KB2dpdF91cmwYASABKAkSDgoGYnJhbmNoGAIgASgJEgwKBGJhc2UYAyABKAkSDAoEcGF0aBgEIAEoCRIoCgZlbmdpbmUYBSABKAsyGC5zdGFja3dyaWdodC52MS5Eb3dubG9hZBITCgtlbmdpbmVfbmFtZRgGIAEoCSI3CghUb29sQ2FsbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhEKCWFyZ3VtZW50cxgDIAEoCSJVCgtDb21taXRPcmRlchIKCgJpZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhMKC2F1dGhvcl9uYW1lGAMgASgJEhQKDGF1dGhvcl9lbWFpbBgEIAEoCSIaCgxEaXNjYXJkT3JkZXISCgoCaWQYASABKAkq3gIKEkFnZW50U2Vzc2lvblN0YXR1cxIkCiBBR0VOVF9TRVNTSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEiEKHUFHRU5UX1NFU1NJT05fU1RBVFVTX1NUQVJUSU5HEAESHgoaQUdFTlRfU0VTU0lPTl9TVEFUVVNfUkVBRFkQAhIgChxBR0VOVF9TRVNTSU9OX1NUQVRVU19XT1JLSU5HEAMSKwonQUdFTlRfU0VTU0lPTl9TVEFUVVNfV0FJVElOR19GT1JfQU5TV0VSEAQSLQopQUdFTlRfU0VTU0lPTl9TVEFUVVNfV0FJVElOR19GT1JfQVBQUk9WQUwQBRIfChtBR0VOVF9TRVNTSU9OX1NUQVRVU19BU0xFRVAQBhIfChtBR0VOVF9TRVNTSU9OX1NUQVRVU19DTE9TRUQQBxIfChtBR0VOVF9TRVNTSU9OX1NUQVRVU19GQUlMRUQQCDLhBgoMQWdlbnRTZXJ2aWNlEmoKEEdldEFnZW50U2V0dGluZ3MSJy5zdGFja3dyaWdodC52MS5HZXRBZ2VudFNldHRpbmdzUmVxdWVzdBooLnN0YWNrd3JpZ2h0LnYxLkdldEFnZW50U2V0dGluZ3NSZXNwb25zZSIDkAIBEmUKEFNldEFnZW50U2V0dGluZ3MSJy5zdGFja3dyaWdodC52MS5TZXRBZ2VudFNldHRpbmdzUmVxdWVzdBooLnN0YWNrd3JpZ2h0LnYxLlNldEFnZW50U2V0dGluZ3NSZXNwb25zZRJeCgxMaXN0U2Vzc2lvbnMSIy5zdGFja3dyaWdodC52MS5MaXN0U2Vzc2lvbnNSZXF1ZXN0GiQuc3RhY2t3cmlnaHQudjEuTGlzdFNlc3Npb25zUmVzcG9uc2UiA5ACARJZCgxTdGFydFNlc3Npb24SIy5zdGFja3dyaWdodC52MS5TdGFydFNlc3Npb25SZXF1ZXN0GiQuc3RhY2t3cmlnaHQudjEuU3RhcnRTZXNzaW9uUmVzcG9uc2USVgoLU2VuZE1lc3NhZ2USIi5zdGFja3dyaWdodC52MS5TZW5kTWVzc2FnZVJlcXVlc3QaIy5zdGFja3dyaWdodC52MS5TZW5kTWVzc2FnZVJlc3BvbnNlEk0KCFN0b3BUdXJuEh8uc3RhY2t3cmlnaHQudjEuU3RvcFR1cm5SZXF1ZXN0GiAuc3RhY2t3cmlnaHQudjEuU3RvcFR1cm5SZXNwb25zZRJfCg5EZWNpZGVQcm9wb3NhbBIlLnN0YWNrd3JpZ2h0LnYxLkRlY2lkZVByb3Bvc2FsUmVxdWVzdBomLnN0YWNrd3JpZ2h0LnYxLkRlY2lkZVByb3Bvc2FsUmVzcG9uc2USWQoMQ2xvc2VTZXNzaW9uEiMuc3RhY2t3cmlnaHQudjEuQ2xvc2VTZXNzaW9uUmVxdWVzdBokLnN0YWNrd3JpZ2h0LnYxLkNsb3NlU2Vzc2lvblJlc3BvbnNlEmAKDFdhdGNoU2Vzc2lvbhIjLnN0YWNrd3JpZ2h0LnYxLldhdGNoU2Vzc2lvblJlcXVlc3QaJC5zdGFja3dyaWdodC52MS5XYXRjaFNlc3Npb25SZXNwb25zZSIDkAIBMAEyXQoOVG9vbGJveFNlcnZpY2USSwoHQ29ubmVjdBIeLnN0YWNrd3JpZ2h0LnYxLlRvb2xib3hNZXNzYWdlGhwuc3RhY2t3cmlnaHQudjEuVG9vbGJveE9yZGVyKAEwAUK+AQoSY29tLnN0YWNrd3JpZ2h0LnYxQgpBZ2VudFByb3RvUAFaQ2dpdGh1Yi5jb20vc3RhY2t3cmlnaHQvc3RhY2t3cmlnaHQvZ2VuL3N0YWNrd3JpZ2h0L3YxO3N0YWNrd3JpZ2h0djGiAgNTWFiqAg5TdGFja3dyaWdodC5WMcoCDlN0YWNrd3JpZ2h0XFYx4gIaU3RhY2t3cmlnaHRcVjFcR1BCTWV0YWRhdGHqAg9TdGFja3dyaWdodDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stackwright_v1_executor]);
+  fileDesc("ChpzdGFja3dyaWdodC92MS9hZ2VudC5wcm90bxIOc3RhY2t3cmlnaHQudjEieAoNQWdlbnRTZXR0aW5ncxIPCgdoYXNfa2V5GAEgASgIEhIKCnR1cm5fbW9kZWwYAiABKAkSEwoLc2hvcnRfbW9kZWwYAyABKAkSEwoLbW9udGhseV9jYXAYBCABKAESGAoQc3BlbnRfdGhpc19tb250aBgFIAEoASImChdHZXRBZ2VudFNldHRpbmdzUmVxdWVzdBILCgNvcmcYASABKAkiSwoYR2V0QWdlbnRTZXR0aW5nc1Jlc3BvbnNlEi8KCHNldHRpbmdzGAEgASgLMh0uc3RhY2t3cmlnaHQudjEuQWdlbnRTZXR0aW5ncyKIAQoXU2V0QWdlbnRTZXR0aW5nc1JlcXVlc3QSCwoDb3JnGAEgASgJEg8KB2FwaV9rZXkYAiABKAkSEQoJY2xlYXJfa2V5GAMgASgIEhIKCnR1cm5fbW9kZWwYBCABKAkSEwoLc2hvcnRfbW9kZWwYBSABKAkSEwoLbW9udGhseV9jYXAYBiABKAEiSwoYU2V0QWdlbnRTZXR0aW5nc1Jlc3BvbnNlEi8KCHNldHRpbmdzGAEgASgLMh0uc3RhY2t3cmlnaHQudjEuQWdlbnRTZXR0aW5ncyLnAgoMQWdlbnRTZXNzaW9uEgoKAmlkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJEg4KBmJyYW5jaBgEIAEoCRIyCgZzdGF0dXMYBSABKA4yIi5zdGFja3dyaWdodC52MS5BZ2VudFNlc3Npb25TdGF0dXMSDQoFdGl0bGUYBiABKAkSEgoKY3JlYXRlZF9ieRgHIAEoCRIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVkaXJ0eRgKIAEoCBINCgVzcGVudBgLIAEoARINCgVlcnJvchgMIAEoCRIQCghsYXN0X3NlcRgNIAEoAxIRCglwcl9udW1iZXIYDiABKAUSDgoGcHJfdXJsGA8gASgJIm4KCUFnZW50U3RlcBILCgNzZXEYASABKAMSDAoEa2luZBgCIAEoCRIPCgdwYXlsb2FkGAMgASgJEiYKAmF0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVhY3RvchgFIAEoCSJGChNMaXN0U2Vzc2lvbnNSZXF1ZXN0EgsKA29yZxgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEhEKCXdvcmtzcGFjZRgDIAEoCSJGChRMaXN0U2Vzc2lvbnNSZXNwb25zZRIuCghzZXNzaW9ucxgBIAMoCzIcLnN0YWNrd3JpZ2h0LnYxLkFnZW50U2Vzc2lvbiJXChNTdGFydFNlc3Npb25SZXF1ZXN0EgsKA29yZxgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEhEKCXdvcmtzcGFjZRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJIkUKFFN0YXJ0U2Vzc2lvblJlc3BvbnNlEi0KB3Nlc3Npb24YASABKAsyHC5zdGFja3dyaWdodC52MS5BZ2VudFNlc3Npb24iPgoSU2VuZE1lc3NhZ2VSZXF1ZXN0EgsKA29yZxgBIAEoCRIKCgJpZBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJIkQKE1NlbmRNZXNzYWdlUmVzcG9uc2USLQoHc2Vzc2lvbhgBIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLkFnZW50U2Vzc2lvbiIqCg9TdG9wVHVyblJlcXVlc3QSCwoDb3JnGAEgASgJEgoKAmlkGAIgASgJIhIKEFN0b3BUdXJuUmVzcG9uc2UiUwoVRGVjaWRlUHJvcG9zYWxSZXF1ZXN0EgsKA29yZxgBIAEoCRIKCgJpZBgCIAEoCRIQCghwcm9wb3NhbBgDIAEoAxIPCgdhcHByb3ZlGAQgASgIIkcKFkRlY2lkZVByb3Bvc2FsUmVzcG9uc2USLQoHc2Vzc2lvbhgBIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLkFnZW50U2Vzc2lvbiI/ChNDbG9zZVNlc3Npb25SZXF1ZXN0EgsKA29yZxgBIAEoCRIKCgJpZBgCIAEoCRIPCgdkaXNjYXJkGAMgASgIIhYKFENsb3NlU2Vzc2lvblJlc3BvbnNlIkEKE1dhdGNoU2Vzc2lvblJlcXVlc3QSCwoDb3JnGAEgASgJEgoKAmlkGAIgASgJEhEKCWFmdGVyX3NlcRgDIAEoAyJvChRXYXRjaFNlc3Npb25SZXNwb25zZRIoCgVzdGVwcxgBIAMoCzIZLnN0YWNrd3JpZ2h0LnYxLkFnZW50U3RlcBItCgdzZXNzaW9uGAIgASgLMhwuc3RhY2t3cmlnaHQudjEuQWdlbnRTZXNzaW9uIs0BCg5Ub29sYm94TWVzc2FnZRItCgVyZWFkeRgBIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLlRvb2xib3hSZWFkeUgAEiwKBnJlc3VsdBgCIAEoCzIaLnN0YWNrd3JpZ2h0LnYxLlRvb2xSZXN1bHRIABItCgVoZWxsbxgDIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLlRvb2xib3hIZWxsb0gAEicKA2xzcBgEIAEoCzIYLnN0YWNrd3JpZ2h0LnYxLkxzcEZyYW1lSABCBgoEYm9keSIOCgxUb29sYm94SGVsbG8iHQoMVG9vbGJveFJlYWR5Eg0KBWRpcnR5GAEgASgIIlQKClRvb2xSZXN1bHQSCgoCaWQYASABKAkSDgoGb3V0cHV0GAIgASgJEg0KBWVycm9yGAMgASgIEg0KBWRpcnR5GAQgASgIEgwKBGRhdGEYBSABKAwi9wEKDFRvb2xib3hPcmRlchIsCghjaGVja291dBgBIAEoCzIYLnN0YWNrd3JpZ2h0LnYxLkNoZWNrb3V0SAASKAoEY2FsbBgCIAEoCzIYLnN0YWNrd3JpZ2h0LnYxLlRvb2xDYWxsSAASLQoGY29tbWl0GAMgASgLMhsuc3RhY2t3cmlnaHQudjEuQ29tbWl0T3JkZXJIABIvCgdkaXNjYXJkGAQgASgLMhwuc3RhY2t3cmlnaHQudjEuRGlzY2FyZE9yZGVySAASJwoDbHNwGAUgASgLMhguc3RhY2t3cmlnaHQudjEuTHNwRnJhbWVIAEIGCgRib2R5IoYBCghDaGVja291dBIPCgdnaXRfdXJsGAEgASgJEg4KBmJyYW5jaBgCIAEoCRIMCgRiYXNlGAMgASgJEgwKBHBhdGgYBCABKAkSKAoGZW5naW5lGAUgASgLMhguc3RhY2t3cmlnaHQudjEuRG93bmxvYWQSEwoLZW5naW5lX25hbWUYBiABKAkiNwoIVG9vbENhbGwSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIRCglhcmd1bWVudHMYAyABKAkiVQoLQ29tbWl0T3JkZXISCgoCaWQYASABKAkSDwoHbWVzc2FnZRgCIAEoCRITCgthdXRob3JfbmFtZRgDIAEoCRIUCgxhdXRob3JfZW1haWwYBCABKAkiGgoMRGlzY2FyZE9yZGVyEgoKAmlkGAEgASgJIisKEExpc3RGaWxlc1JlcXVlc3QSCwoDb3JnGAEgASgJEgoKAmlkGAIgASgJIiIKEUxpc3RGaWxlc1Jlc3BvbnNlEg0KBXBhdGhzGAEgAygJIjgKD09wZW5GaWxlUmVxdWVzdBILCgNvcmcYASABKAkSCgoCaWQYAiABKAkSDAoEcGF0aBgDIAEoCSIjChBPcGVuRmlsZVJlc3BvbnNlEg8KB2NvbnRlbnQYASABKAkiVwoPU2F2ZUZpbGVSZXF1ZXN0EgsKA29yZxgBIAEoCRIKCgJpZBgCIAEoCRIMCgRwYXRoGAMgASgJEgwKBGJhc2UYBCABKAkSDwoHY29udGVudBgFIAEoCSJRChBTYXZlRmlsZVJlc3BvbnNlEiwKB291dGNvbWUYASABKA4yGy5zdGFja3dyaWdodC52MS5TYXZlT3V0Y29tZRIPCgdjb250ZW50GAIgASgJIi4KE1BsYW5DaGVja291dFJlcXVlc3QSCwoDb3JnGAEgASgJEgoKAmlkGAIgASgJIiYKFFBsYW5DaGVja291dFJlc3BvbnNlEg4KBm51bWJlchgBIAEoBSI0ChlPcGVuTGFuZ3VhZ2VTZXJ2ZXJSZXF1ZXN0EgsKA29yZxgBIAEoCRIKCgJpZBgCIAEoCSIsChpPcGVuTGFuZ3VhZ2VTZXJ2ZXJSZXNwb25zZRIOCgZ0aWNrZXQYASABKAkiNQoITHNwRnJhbWUSDAoEY29ubhgBIAEoCRIMCgRkYXRhGAIgASgMEg0KBWNsb3NlGAMgASgIKt4CChJBZ2VudFNlc3Npb25TdGF0dXMSJAogQUdFTlRfU0VTU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIhCh1BR0VOVF9TRVNTSU9OX1NUQVRVU19TVEFSVElORxABEh4KGkFHRU5UX1NFU1NJT05fU1RBVFVTX1JFQURZEAISIAocQUdFTlRfU0VTU0lPTl9TVEFUVVNfV09SS0lORxADEisKJ0FHRU5UX1NFU1NJT05fU1RBVFVTX1dBSVRJTkdfRk9SX0FOU1dFUhAEEi0KKUFHRU5UX1NFU1NJT05fU1RBVFVTX1dBSVRJTkdfRk9SX0FQUFJPVkFMEAUSHwobQUdFTlRfU0VTU0lPTl9TVEFUVVNfQVNMRUVQEAYSHwobQUdFTlRfU0VTU0lPTl9TVEFUVVNfQ0xPU0VEEAcSHwobQUdFTlRfU0VTU0lPTl9TVEFUVVNfRkFJTEVEEAgqdwoLU2F2ZU91dGNvbWUSHAoYU0FWRV9PVVRDT01FX1VOU1BFQ0lGSUVEEAASFgoSU0FWRV9PVVRDT01FX1NBVkVEEAESFwoTU0FWRV9PVVRDT01FX01FUkdFRBACEhkKFVNBVkVfT1VUQ09NRV9DT05GTElDVBADMqMKCgxBZ2VudFNlcnZpY2USagoQR2V0QWdlbnRTZXR0aW5ncxInLnN0YWNrd3JpZ2h0LnYxLkdldEFnZW50U2V0dGluZ3NSZXF1ZXN0Giguc3RhY2t3cmlnaHQudjEuR2V0QWdlbnRTZXR0aW5nc1Jlc3BvbnNlIgOQAgESZQoQU2V0QWdlbnRTZXR0aW5ncxInLnN0YWNrd3JpZ2h0LnYxLlNldEFnZW50U2V0dGluZ3NSZXF1ZXN0Giguc3RhY2t3cmlnaHQudjEuU2V0QWdlbnRTZXR0aW5nc1Jlc3BvbnNlEl4KDExpc3RTZXNzaW9ucxIjLnN0YWNrd3JpZ2h0LnYxLkxpc3RTZXNzaW9uc1JlcXVlc3QaJC5zdGFja3dyaWdodC52MS5MaXN0U2Vzc2lvbnNSZXNwb25zZSIDkAIBElkKDFN0YXJ0U2Vzc2lvbhIjLnN0YWNrd3JpZ2h0LnYxLlN0YXJ0U2Vzc2lvblJlcXVlc3QaJC5zdGFja3dyaWdodC52MS5TdGFydFNlc3Npb25SZXNwb25zZRJWCgtTZW5kTWVzc2FnZRIiLnN0YWNrd3JpZ2h0LnYxLlNlbmRNZXNzYWdlUmVxdWVzdBojLnN0YWNrd3JpZ2h0LnYxLlNlbmRNZXNzYWdlUmVzcG9uc2USTQoIU3RvcFR1cm4SHy5zdGFja3dyaWdodC52MS5TdG9wVHVyblJlcXVlc3QaIC5zdGFja3dyaWdodC52MS5TdG9wVHVyblJlc3BvbnNlEl8KDkRlY2lkZVByb3Bvc2FsEiUuc3RhY2t3cmlnaHQudjEuRGVjaWRlUHJvcG9zYWxSZXF1ZXN0GiYuc3RhY2t3cmlnaHQudjEuRGVjaWRlUHJvcG9zYWxSZXNwb25zZRJZCgxDbG9zZVNlc3Npb24SIy5zdGFja3dyaWdodC52MS5DbG9zZVNlc3Npb25SZXF1ZXN0GiQuc3RhY2t3cmlnaHQudjEuQ2xvc2VTZXNzaW9uUmVzcG9uc2USYAoMV2F0Y2hTZXNzaW9uEiMuc3RhY2t3cmlnaHQudjEuV2F0Y2hTZXNzaW9uUmVxdWVzdBokLnN0YWNrd3JpZ2h0LnYxLldhdGNoU2Vzc2lvblJlc3BvbnNlIgOQAgEwARJVCglMaXN0RmlsZXMSIC5zdGFja3dyaWdodC52MS5MaXN0RmlsZXNSZXF1ZXN0GiEuc3RhY2t3cmlnaHQudjEuTGlzdEZpbGVzUmVzcG9uc2UiA5ACARJSCghPcGVuRmlsZRIfLnN0YWNrd3JpZ2h0LnYxLk9wZW5GaWxlUmVxdWVzdBogLnN0YWNrd3JpZ2h0LnYxLk9wZW5GaWxlUmVzcG9uc2UiA5ACARJNCghTYXZlRmlsZRIfLnN0YWNrd3JpZ2h0LnYxLlNhdmVGaWxlUmVxdWVzdBogLnN0YWNrd3JpZ2h0LnYxLlNhdmVGaWxlUmVzcG9uc2USWQoMUGxhbkNoZWNrb3V0EiMuc3RhY2t3cmlnaHQudjEuUGxhbkNoZWNrb3V0UmVxdWVzdBokLnN0YWNrd3JpZ2h0LnYxLlBsYW5DaGVja291dFJlc3BvbnNlEmsKEk9wZW5MYW5ndWFnZVNlcnZlchIpLnN0YWNrd3JpZ2h0LnYxLk9wZW5MYW5ndWFnZVNlcnZlclJlcXVlc3QaKi5zdGFja3dyaWdodC52MS5PcGVuTGFuZ3VhZ2VTZXJ2ZXJSZXNwb25zZTJdCg5Ub29sYm94U2VydmljZRJLCgdDb25uZWN0Eh4uc3RhY2t3cmlnaHQudjEuVG9vbGJveE1lc3NhZ2UaHC5zdGFja3dyaWdodC52MS5Ub29sYm94T3JkZXIoATABQr4BChJjb20uc3RhY2t3cmlnaHQudjFCCkFnZW50UHJvdG9QAVpDZ2l0aHViLmNvbS9zdGFja3dyaWdodC9zdGFja3dyaWdodC9nZW4vc3RhY2t3cmlnaHQvdjE7c3RhY2t3cmlnaHR2MaICA1NYWKoCDlN0YWNrd3JpZ2h0LlYxygIOU3RhY2t3cmlnaHRcVjHiAhpTdGFja3dyaWdodFxWMVxHUEJNZXRhZGF0YeoCD1N0YWNrd3JpZ2h0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stackwright_v1_executor]);
 
 /**
  * @generated from message stackwright.v1.AgentSettings
@@ -627,6 +627,12 @@ export type ToolboxMessage = Message<"stackwright.v1.ToolboxMessage"> & {
      */
     value: ToolboxHello;
     case: "hello";
+  } | {
+    /**
+     * @generated from field: stackwright.v1.LspFrame lsp = 4;
+     */
+    value: LspFrame;
+    case: "lsp";
   } | { case: undefined; value?: undefined };
 };
 
@@ -742,6 +748,12 @@ export type ToolboxOrder = Message<"stackwright.v1.ToolboxOrder"> & {
      */
     value: DiscardOrder;
     case: "discard";
+  } | {
+    /**
+     * @generated from field: stackwright.v1.LspFrame lsp = 5;
+     */
+    value: LspFrame;
+    case: "lsp";
   } | { case: undefined; value?: undefined };
 };
 
@@ -882,6 +894,262 @@ export const DiscardOrderSchema: GenMessage<DiscardOrder> = /*@__PURE__*/
   messageDesc(file_stackwright_v1_agent, 29);
 
 /**
+ * @generated from message stackwright.v1.ListFilesRequest
+ */
+export type ListFilesRequest = Message<"stackwright.v1.ListFilesRequest"> & {
+  /**
+   * @generated from field: string org = 1;
+   */
+  org: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message stackwright.v1.ListFilesRequest.
+ * Use `create(ListFilesRequestSchema)` to create a new message.
+ */
+export const ListFilesRequestSchema: GenMessage<ListFilesRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 30);
+
+/**
+ * @generated from message stackwright.v1.ListFilesResponse
+ */
+export type ListFilesResponse = Message<"stackwright.v1.ListFilesResponse"> & {
+  /**
+   * Slash paths from the repository's root.
+   *
+   * @generated from field: repeated string paths = 1;
+   */
+  paths: string[];
+};
+
+/**
+ * Describes the message stackwright.v1.ListFilesResponse.
+ * Use `create(ListFilesResponseSchema)` to create a new message.
+ */
+export const ListFilesResponseSchema: GenMessage<ListFilesResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 31);
+
+/**
+ * @generated from message stackwright.v1.OpenFileRequest
+ */
+export type OpenFileRequest = Message<"stackwright.v1.OpenFileRequest"> & {
+  /**
+   * @generated from field: string org = 1;
+   */
+  org: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string path = 3;
+   */
+  path: string;
+};
+
+/**
+ * Describes the message stackwright.v1.OpenFileRequest.
+ * Use `create(OpenFileRequestSchema)` to create a new message.
+ */
+export const OpenFileRequestSchema: GenMessage<OpenFileRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 32);
+
+/**
+ * @generated from message stackwright.v1.OpenFileResponse
+ */
+export type OpenFileResponse = Message<"stackwright.v1.OpenFileResponse"> & {
+  /**
+   * @generated from field: string content = 1;
+   */
+  content: string;
+};
+
+/**
+ * Describes the message stackwright.v1.OpenFileResponse.
+ * Use `create(OpenFileResponseSchema)` to create a new message.
+ */
+export const OpenFileResponseSchema: GenMessage<OpenFileResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 33);
+
+/**
+ * @generated from message stackwright.v1.SaveFileRequest
+ */
+export type SaveFileRequest = Message<"stackwright.v1.SaveFileRequest"> & {
+  /**
+   * @generated from field: string org = 1;
+   */
+  org: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string path = 3;
+   */
+  path: string;
+
+  /**
+   * The file as the editor opened it; empty for a new file.
+   *
+   * @generated from field: string base = 4;
+   */
+  base: string;
+
+  /**
+   * @generated from field: string content = 5;
+   */
+  content: string;
+};
+
+/**
+ * Describes the message stackwright.v1.SaveFileRequest.
+ * Use `create(SaveFileRequestSchema)` to create a new message.
+ */
+export const SaveFileRequestSchema: GenMessage<SaveFileRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 34);
+
+/**
+ * @generated from message stackwright.v1.SaveFileResponse
+ */
+export type SaveFileResponse = Message<"stackwright.v1.SaveFileResponse"> & {
+  /**
+   * @generated from field: stackwright.v1.SaveOutcome outcome = 1;
+   */
+  outcome: SaveOutcome;
+
+  /**
+   * The file as it is now in the checkout.
+   *
+   * @generated from field: string content = 2;
+   */
+  content: string;
+};
+
+/**
+ * Describes the message stackwright.v1.SaveFileResponse.
+ * Use `create(SaveFileResponseSchema)` to create a new message.
+ */
+export const SaveFileResponseSchema: GenMessage<SaveFileResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 35);
+
+/**
+ * @generated from message stackwright.v1.PlanCheckoutRequest
+ */
+export type PlanCheckoutRequest = Message<"stackwright.v1.PlanCheckoutRequest"> & {
+  /**
+   * @generated from field: string org = 1;
+   */
+  org: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message stackwright.v1.PlanCheckoutRequest.
+ * Use `create(PlanCheckoutRequestSchema)` to create a new message.
+ */
+export const PlanCheckoutRequestSchema: GenMessage<PlanCheckoutRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 36);
+
+/**
+ * @generated from message stackwright.v1.PlanCheckoutResponse
+ */
+export type PlanCheckoutResponse = Message<"stackwright.v1.PlanCheckoutResponse"> & {
+  /**
+   * @generated from field: int32 number = 1;
+   */
+  number: number;
+};
+
+/**
+ * Describes the message stackwright.v1.PlanCheckoutResponse.
+ * Use `create(PlanCheckoutResponseSchema)` to create a new message.
+ */
+export const PlanCheckoutResponseSchema: GenMessage<PlanCheckoutResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 37);
+
+/**
+ * @generated from message stackwright.v1.OpenLanguageServerRequest
+ */
+export type OpenLanguageServerRequest = Message<"stackwright.v1.OpenLanguageServerRequest"> & {
+  /**
+   * @generated from field: string org = 1;
+   */
+  org: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message stackwright.v1.OpenLanguageServerRequest.
+ * Use `create(OpenLanguageServerRequestSchema)` to create a new message.
+ */
+export const OpenLanguageServerRequestSchema: GenMessage<OpenLanguageServerRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 38);
+
+/**
+ * @generated from message stackwright.v1.OpenLanguageServerResponse
+ */
+export type OpenLanguageServerResponse = Message<"stackwright.v1.OpenLanguageServerResponse"> & {
+  /**
+   * @generated from field: string ticket = 1;
+   */
+  ticket: string;
+};
+
+/**
+ * Describes the message stackwright.v1.OpenLanguageServerResponse.
+ * Use `create(OpenLanguageServerResponseSchema)` to create a new message.
+ */
+export const OpenLanguageServerResponseSchema: GenMessage<OpenLanguageServerResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 39);
+
+/**
+ * LspFrame carries one JSON-RPC message between the browser's language
+ * client and a tofu-ls in the sandbox, for one WebSocket (conn).
+ *
+ * @generated from message stackwright.v1.LspFrame
+ */
+export type LspFrame = Message<"stackwright.v1.LspFrame"> & {
+  /**
+   * @generated from field: string conn = 1;
+   */
+  conn: string;
+
+  /**
+   * @generated from field: bytes data = 2;
+   */
+  data: Uint8Array;
+
+  /**
+   * @generated from field: bool close = 3;
+   */
+  close: boolean;
+};
+
+/**
+ * Describes the message stackwright.v1.LspFrame.
+ * Use `create(LspFrameSchema)` to create a new message.
+ */
+export const LspFrameSchema: GenMessage<LspFrame> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_agent, 40);
+
+/**
  * @generated from enum stackwright.v1.AgentSessionStatus
  */
 export enum AgentSessionStatus {
@@ -942,6 +1210,42 @@ export const AgentSessionStatusSchema: GenEnum<AgentSessionStatus> = /*@__PURE__
   enumDesc(file_stackwright_v1_agent, 0);
 
 /**
+ * @generated from enum stackwright.v1.SaveOutcome
+ */
+export enum SaveOutcome {
+  /**
+   * @generated from enum value: SAVE_OUTCOME_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SAVE_OUTCOME_SAVED = 1;
+   */
+  SAVED = 1,
+
+  /**
+   * The file changed since base, and the changes merged.
+   *
+   * @generated from enum value: SAVE_OUTCOME_MERGED = 2;
+   */
+  MERGED = 2,
+
+  /**
+   * The file changed since base, and the changes conflict; nothing was
+   * written.
+   *
+   * @generated from enum value: SAVE_OUTCOME_CONFLICT = 3;
+   */
+  CONFLICT = 3,
+}
+
+/**
+ * Describes the enum stackwright.v1.SaveOutcome.
+ */
+export const SaveOutcomeSchema: GenEnum<SaveOutcome> = /*@__PURE__*/
+  enumDesc(file_stackwright_v1_agent, 1);
+
+/**
  * @generated from service stackwright.v1.AgentService
  */
 export const AgentService: GenService<{
@@ -971,7 +1275,8 @@ export const AgentService: GenService<{
   },
   /**
    * StartSession starts a sandbox for the workspace and sends the first
-   * message.
+   * message. With no message, it starts a quiet session for the editor:
+   * a sandbox and a branch, and no turn.
    *
    * @generated from rpc stackwright.v1.AgentService.StartSession
    */
@@ -1033,6 +1338,57 @@ export const AgentService: GenService<{
     methodKind: "server_streaming";
     input: typeof WatchSessionRequestSchema;
     output: typeof WatchSessionResponseSchema;
+  },
+  /**
+   * ListFiles lists the files of the session's checkout, and starts its
+   * sandbox if none runs (adr/0034).
+   *
+   * @generated from rpc stackwright.v1.AgentService.ListFiles
+   */
+  listFiles: {
+    methodKind: "unary";
+    input: typeof ListFilesRequestSchema;
+    output: typeof ListFilesResponseSchema;
+  },
+  /**
+   * @generated from rpc stackwright.v1.AgentService.OpenFile
+   */
+  openFile: {
+    methodKind: "unary";
+    input: typeof OpenFileRequestSchema;
+    output: typeof OpenFileResponseSchema;
+  },
+  /**
+   * SaveFile writes a file in the session's checkout, merged with any
+   * change since base. It never commits.
+   *
+   * @generated from rpc stackwright.v1.AgentService.SaveFile
+   */
+  saveFile: {
+    methodKind: "unary";
+    input: typeof SaveFileRequestSchema;
+    output: typeof SaveFileResponseSchema;
+  },
+  /**
+   * PlanCheckout plans the checkout as it is, as a plan-only agent run.
+   *
+   * @generated from rpc stackwright.v1.AgentService.PlanCheckout
+   */
+  planCheckout: {
+    methodKind: "unary";
+    input: typeof PlanCheckoutRequestSchema;
+    output: typeof PlanCheckoutResponseSchema;
+  },
+  /**
+   * OpenLanguageServer returns a one-time ticket, which the browser sends
+   * as the first message on the WebSocket /lsp/<session>.
+   *
+   * @generated from rpc stackwright.v1.AgentService.OpenLanguageServer
+   */
+  openLanguageServer: {
+    methodKind: "unary";
+    input: typeof OpenLanguageServerRequestSchema;
+    output: typeof OpenLanguageServerResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_stackwright_v1_agent, 0);

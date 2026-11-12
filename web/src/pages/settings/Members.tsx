@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Action, Submit, useAction } from "../../Action";
 import { useParams } from "@tanstack/react-router";
 import { message, orgApi } from "../../api";
 import { Role } from "../../gen/stackwright/v1/orgs_pb";
@@ -18,6 +19,7 @@ export function Members() {
   );
   const [error, setError] = useState<string>();
   const [link, setLink] = useState<string>();
+  const inviting = useAction();
 
   const act = async (fn: () => Promise<unknown>) => {
     setError(undefined);
@@ -25,8 +27,10 @@ export function Members() {
       await fn();
       members.reload();
       invites.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
   const offered = roles.filter((r) => r.role !== Role.OWNER || myRole === Role.OWNER);
@@ -35,11 +39,13 @@ export function Members() {
     e.preventDefault();
     const form = e.currentTarget;
     const f = new FormData(form);
-    await act(async () => {
-      const r = await orgApi.createInvite({ org, email: String(f.get("email")), role: Number(f.get("role")) as Role });
-      setLink(r.url);
-      form.reset();
-    });
+    await inviting.run(() =>
+      act(async () => {
+        const r = await orgApi.createInvite({ org, email: String(f.get("email")), role: Number(f.get("role")) as Role });
+        setLink(r.url);
+        form.reset();
+      }),
+    );
   };
 
   return (
@@ -82,16 +88,14 @@ export function Members() {
                 </td>
                 {admin && (
                   <td style={{ textAlign: "right" }}>
-                    <button
-                      type="button"
+                    <Action
                       className="danger"
-                      onClick={() =>
-                        window.confirm(`Remove ${m.email} from this org?`) &&
-                        act(() => orgApi.removeMember({ org, userId: m.userId }))
-                      }
+                      run={() => window.confirm(`Remove ${m.email} from this org?`) && act(() => orgApi.removeMember({ org, userId: m.userId }))}
+                      busy={m.userId === me.user?.id ? "Leaving…" : "Removing…"}
+                      done={m.userId === me.user?.id ? "Left" : "Removed"}
                     >
                       {m.userId === me.user?.id ? "Leave" : "Remove"}
-                    </button>
+                    </Action>
                   </td>
                 )}
               </tr>
@@ -112,9 +116,9 @@ export function Members() {
               <span>Role</span>
               <Select name="role" defaultValue={String(Role.WRITER)} options={offered.map((r) => ({ value: String(r.role), label: r.name }))} />
             </label>
-            <button type="submit" className="primary">
+            <Submit action={inviting} className="primary" busy="Making the link…" done="Link made">
               Make invite link
-            </button>
+            </Submit>
           </form>
           <p className="hint">{roles.map((r) => `${r.name}: ${r.about}`).join(" ")}</p>
           {link && (
@@ -122,9 +126,9 @@ export function Members() {
               <span>Send this link to them. It works once, for 7 days, and is not shown again.</span>
               <div className="copy">
                 <input readOnly value={link} aria-label="Invite link" onFocus={(e) => e.currentTarget.select()} />
-                <button type="button" onClick={() => navigator.clipboard.writeText(link)}>
+                <Action run={() => navigator.clipboard.writeText(link)} busy="Copying…" done="Copied">
                   Copy
-                </button>
+                </Action>
               </div>
             </div>
           )}
@@ -147,9 +151,9 @@ export function Members() {
                     <td>{roleName(i.role)}</td>
                     <td>{i.invitedBy}</td>
                     <td style={{ textAlign: "right" }}>
-                      <button type="button" onClick={() => act(() => orgApi.revokeInvite({ org, id: i.id }))}>
+                      <Action run={() => act(() => orgApi.revokeInvite({ org, id: i.id }))} busy="Revoking…" done="Revoked">
                         Revoke
-                      </button>
+                      </Action>
                     </td>
                   </tr>
                 ))}

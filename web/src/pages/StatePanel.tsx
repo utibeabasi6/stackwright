@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Action } from "../Action";
 import { Link } from "@tanstack/react-router";
 import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
 import { message, stateApi } from "../api";
@@ -22,8 +23,10 @@ export function StatePanel(props: { org: string; project: string; workspace: str
       await fn();
       st.reload();
       history.reload();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
   const download = async (id: string, serial: bigint) => {
@@ -34,8 +37,10 @@ export function StatePanel(props: { org: string; project: string; workspace: str
       a.download = `${project}-${workspace}-${serial}.tfstate`;
       a.click();
       URL.revokeObjectURL(a.href);
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
 
@@ -69,16 +74,17 @@ export function StatePanel(props: { org: string; project: string; workspace: str
           </dd>
         </dl>
         {lock && admin && (
-          <button
-            type="button"
+          <Action
             className="danger"
-            onClick={() =>
+            run={() =>
               window.confirm("Force-unlock this state? Only do it when the run that holds the lock has stopped.") &&
               act(() => stateApi.forceUnlockState({ org, project, workspace }))
             }
+            busy="Unlocking…"
+            done="Unlocked"
           >
             Force unlock
-          </button>
+          </Action>
         )}
       </section>
 
@@ -139,21 +145,22 @@ export function StatePanel(props: { org: string; project: string; workspace: str
                     <td>{v.createdBy}</td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       {admin && (
-                        <button type="button" onClick={() => download(v.id, v.serial)}>
+                        <Action run={() => download(v.id, v.serial)} busy="Downloading…" done="Downloaded">
                           Download
-                        </button>
+                        </Action>
                       )}{" "}
                       {admin && i > 0 && (
-                        <button
-                          type="button"
-                          onClick={() =>
+                        <Action
+                          run={() =>
                             window.confirm(
                               `Make serial ${v.serial} the current state again? The next plan compares your code against it.`,
                             ) && act(() => stateApi.rollbackState({ org, project, workspace, id: v.id }))
                           }
+                          busy="Rolling back…"
+                          done="Rolled back"
                         >
                           Roll back to this
-                        </button>
+                        </Action>
                       )}
                     </td>
                   </tr>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ActionButton, Submit, useAction } from "../../Action";
 import { useParams } from "@tanstack/react-router";
 import { agentApi, message } from "../../api";
 import { Role } from "../../gen/stackwright/v1/orgs_pb";
@@ -15,12 +16,12 @@ export function AgentSettings() {
   const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
   const settings = useLoad(`agent-settings:${org}`, () => agentApi.getAgentSettings({ org }).then((r) => r.settings));
   const [error, setError] = useState<string>();
-  const [saved, setSaved] = useState(false);
+  const saving = useAction();
+  const removing = useAction();
 
   const save = async (form: HTMLFormElement, clearKey = false) => {
     const f = new FormData(form);
     setError(undefined);
-    setSaved(false);
     try {
       await agentApi.setAgentSettings({
         org,
@@ -32,9 +33,10 @@ export function AgentSettings() {
       });
       form.reset();
       settings.reload();
-      setSaved(true);
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
 
@@ -57,13 +59,13 @@ export function AgentSettings() {
         </dd>
       </dl>
       {error && <p className="error">{error}</p>}
-      {saved && <p className="ok">✓ Saved.</p>}
       {admin && (
         <form
           className="stack"
           onSubmit={(e) => {
             e.preventDefault();
-            void save(e.currentTarget);
+            const form = e.currentTarget;
+            void saving.run(() => save(form));
           }}
           key={`${s.turnModel}|${s.shortModel}|${s.monthlyCap}`}
         >
@@ -86,13 +88,23 @@ export function AgentSettings() {
             <input name="monthlyCap" type="number" min={0} step="0.01" required defaultValue={s.monthlyCap} />
           </label>
           <div className="row">
-            <button type="submit" className="primary">
+            <Submit action={saving} className="primary" busy="Saving…" done="Saved">
               Save
-            </button>
+            </Submit>
             {s.hasKey && (
-              <button type="button" className="danger" onClick={(e) => void save(e.currentTarget.form!, true)}>
+              <ActionButton
+                action={removing}
+                type="button"
+                className="danger"
+                onClick={(e) => {
+                  const form = e.currentTarget.form!;
+                  void removing.run(() => save(form, true));
+                }}
+                busy="Removing…"
+                done="Removed"
+              >
                 Remove the key
-              </button>
+              </ActionButton>
             )}
           </div>
         </form>

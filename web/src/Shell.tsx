@@ -25,6 +25,7 @@ function savedAgent() {
 
 const sectionNames: Record<string, string> = {
   runs: "Runs",
+  editor: "Editor",
   state: "State",
   variables: "Variables",
   cloud: "Cloud credentials",
@@ -218,6 +219,9 @@ export function Shell() {
                 </Link>
                 <Link to="/$org/projects/$project/$workspace/runs" params={ws}>
                   Runs
+                </Link>
+                <Link to="/$org/projects/$project/$workspace/editor" params={ws}>
+                  Editor
                 </Link>
                 <Link to="/$org/projects/$project/$workspace/state" params={ws}>
                   State

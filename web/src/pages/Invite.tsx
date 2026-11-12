@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { ActionButton, Submit, useAction } from "../Action";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { authApi, message } from "../api";
 import { roleName } from "../roles";
@@ -11,7 +12,7 @@ export function Invite() {
   const providers = useLoad("providers", () => authApi.listSignInProviders({}));
   const [signedIn, setSignedIn] = useState<string>();
   const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const pending = useAction();
 
   useEffect(() => {
     authApi.getMe({}).then(
@@ -21,19 +22,18 @@ export function Invite() {
   }, []);
 
   const accept = async (body: { name?: string; password?: string }) => {
-    setBusy(true);
     try {
       const r = await authApi.acceptInvite({ token, ...body });
       navigate({ to: "/$org", params: { org: r.orgSlug } });
     } catch (err) {
       setError(message(err));
-      setBusy(false);
+      return false;
     }
   };
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    accept({ name: String(f.get("name")), password: String(f.get("password")) });
+    return accept({ name: String(f.get("name")), password: String(f.get("password")) });
   };
 
   if (invite.error) {
@@ -62,9 +62,9 @@ export function Invite() {
         {signedIn ? (
           <>
             <p>You are signed in as {signedIn}.</p>
-            <button type="button" className="primary" disabled={busy} onClick={() => accept({})}>
+            <ActionButton action={pending} type="button" className="primary" onClick={() => void pending.run(() => accept({}))} busy="Joining…" done="Joined">
               Join {inv.orgName}
-            </button>
+            </ActionButton>
           </>
         ) : inv.hasAccount ? (
           <p className="notice">
@@ -78,7 +78,7 @@ export function Invite() {
                 Join with {p.name}
               </a>
             ))}
-            <form className="stack" onSubmit={submit}>
+            <form className="stack" onSubmit={(e) => void pending.run(() => submit(e))}>
               <label className="field">
                 <span>Your name</span>
                 <input name="name" autoComplete="name" />
@@ -88,9 +88,9 @@ export function Invite() {
                 <input name="password" type="password" required minLength={12} autoComplete="new-password" />
                 <span className="hint">12 characters or more.</span>
               </label>
-              <button type="submit" className="primary" disabled={busy}>
+              <Submit action={pending} className="primary" busy="Joining…" done="Joined">
                 Create account and join
-              </button>
+              </Submit>
             </form>
           </>
         )}

@@ -91,6 +91,61 @@ func (AgentSessionStatus) EnumDescriptor() ([]byte, []int) {
 	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{0}
 }
 
+type SaveOutcome int32
+
+const (
+	SaveOutcome_SAVE_OUTCOME_UNSPECIFIED SaveOutcome = 0
+	SaveOutcome_SAVE_OUTCOME_SAVED       SaveOutcome = 1
+	// The file changed since base, and the changes merged.
+	SaveOutcome_SAVE_OUTCOME_MERGED SaveOutcome = 2
+	// The file changed since base, and the changes conflict; nothing was
+	// written.
+	SaveOutcome_SAVE_OUTCOME_CONFLICT SaveOutcome = 3
+)
+
+// Enum value maps for SaveOutcome.
+var (
+	SaveOutcome_name = map[int32]string{
+		0: "SAVE_OUTCOME_UNSPECIFIED",
+		1: "SAVE_OUTCOME_SAVED",
+		2: "SAVE_OUTCOME_MERGED",
+		3: "SAVE_OUTCOME_CONFLICT",
+	}
+	SaveOutcome_value = map[string]int32{
+		"SAVE_OUTCOME_UNSPECIFIED": 0,
+		"SAVE_OUTCOME_SAVED":       1,
+		"SAVE_OUTCOME_MERGED":      2,
+		"SAVE_OUTCOME_CONFLICT":    3,
+	}
+)
+
+func (x SaveOutcome) Enum() *SaveOutcome {
+	p := new(SaveOutcome)
+	*p = x
+	return p
+}
+
+func (x SaveOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SaveOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_stackwright_v1_agent_proto_enumTypes[1].Descriptor()
+}
+
+func (SaveOutcome) Type() protoreflect.EnumType {
+	return &file_stackwright_v1_agent_proto_enumTypes[1]
+}
+
+func (x SaveOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SaveOutcome.Descriptor instead.
+func (SaveOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{1}
+}
+
 type AgentSettings struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	HasKey bool                   `protobuf:"varint,1,opt,name=has_key,json=hasKey,proto3" json:"has_key,omitempty"`
@@ -1360,6 +1415,7 @@ type ToolboxMessage struct {
 	//	*ToolboxMessage_Ready
 	//	*ToolboxMessage_Result
 	//	*ToolboxMessage_Hello
+	//	*ToolboxMessage_Lsp
 	Body          isToolboxMessage_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1429,6 +1485,15 @@ func (x *ToolboxMessage) GetHello() *ToolboxHello {
 	return nil
 }
 
+func (x *ToolboxMessage) GetLsp() *LspFrame {
+	if x != nil {
+		if x, ok := x.Body.(*ToolboxMessage_Lsp); ok {
+			return x.Lsp
+		}
+	}
+	return nil
+}
+
 type isToolboxMessage_Body interface {
 	isToolboxMessage_Body()
 }
@@ -1447,11 +1512,17 @@ type ToolboxMessage_Hello struct {
 	Hello *ToolboxHello `protobuf:"bytes,3,opt,name=hello,proto3,oneof"`
 }
 
+type ToolboxMessage_Lsp struct {
+	Lsp *LspFrame `protobuf:"bytes,4,opt,name=lsp,proto3,oneof"`
+}
+
 func (*ToolboxMessage_Ready) isToolboxMessage_Body() {}
 
 func (*ToolboxMessage_Result) isToolboxMessage_Body() {}
 
 func (*ToolboxMessage_Hello) isToolboxMessage_Body() {}
+
+func (*ToolboxMessage_Lsp) isToolboxMessage_Body() {}
 
 type ToolboxHello struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1621,6 +1692,7 @@ type ToolboxOrder struct {
 	//	*ToolboxOrder_Call
 	//	*ToolboxOrder_Commit
 	//	*ToolboxOrder_Discard
+	//	*ToolboxOrder_Lsp
 	Body          isToolboxOrder_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1699,6 +1771,15 @@ func (x *ToolboxOrder) GetDiscard() *DiscardOrder {
 	return nil
 }
 
+func (x *ToolboxOrder) GetLsp() *LspFrame {
+	if x != nil {
+		if x, ok := x.Body.(*ToolboxOrder_Lsp); ok {
+			return x.Lsp
+		}
+	}
+	return nil
+}
+
 type isToolboxOrder_Body interface {
 	isToolboxOrder_Body()
 }
@@ -1719,6 +1800,10 @@ type ToolboxOrder_Discard struct {
 	Discard *DiscardOrder `protobuf:"bytes,4,opt,name=discard,proto3,oneof"`
 }
 
+type ToolboxOrder_Lsp struct {
+	Lsp *LspFrame `protobuf:"bytes,5,opt,name=lsp,proto3,oneof"`
+}
+
 func (*ToolboxOrder_Checkout) isToolboxOrder_Body() {}
 
 func (*ToolboxOrder_Call) isToolboxOrder_Body() {}
@@ -1726,6 +1811,8 @@ func (*ToolboxOrder_Call) isToolboxOrder_Body() {}
 func (*ToolboxOrder_Commit) isToolboxOrder_Body() {}
 
 func (*ToolboxOrder_Discard) isToolboxOrder_Body() {}
+
+func (*ToolboxOrder_Lsp) isToolboxOrder_Body() {}
 
 // Checkout is the first order: clone the repository through the Git proxy
 // and check out the session's branch.
@@ -1989,6 +2076,591 @@ func (x *DiscardOrder) GetId() string {
 	return ""
 }
 
+type ListFilesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFilesRequest) Reset() {
+	*x = ListFilesRequest{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFilesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFilesRequest) ProtoMessage() {}
+
+func (x *ListFilesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFilesRequest.ProtoReflect.Descriptor instead.
+func (*ListFilesRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ListFilesRequest) GetOrg() string {
+	if x != nil {
+		return x.Org
+	}
+	return ""
+}
+
+func (x *ListFilesRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ListFilesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Slash paths from the repository's root.
+	Paths         []string `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFilesResponse) Reset() {
+	*x = ListFilesResponse{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFilesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFilesResponse) ProtoMessage() {}
+
+func (x *ListFilesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFilesResponse.ProtoReflect.Descriptor instead.
+func (*ListFilesResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *ListFilesResponse) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+type OpenFileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenFileRequest) Reset() {
+	*x = OpenFileRequest{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenFileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenFileRequest) ProtoMessage() {}
+
+func (x *OpenFileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenFileRequest.ProtoReflect.Descriptor instead.
+func (*OpenFileRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *OpenFileRequest) GetOrg() string {
+	if x != nil {
+		return x.Org
+	}
+	return ""
+}
+
+func (x *OpenFileRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *OpenFileRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type OpenFileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenFileResponse) Reset() {
+	*x = OpenFileResponse{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenFileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenFileResponse) ProtoMessage() {}
+
+func (x *OpenFileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenFileResponse.ProtoReflect.Descriptor instead.
+func (*OpenFileResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *OpenFileResponse) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+type SaveFileRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Org   string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Id    string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Path  string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	// The file as the editor opened it; empty for a new file.
+	Base          string `protobuf:"bytes,4,opt,name=base,proto3" json:"base,omitempty"`
+	Content       string `protobuf:"bytes,5,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveFileRequest) Reset() {
+	*x = SaveFileRequest{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveFileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveFileRequest) ProtoMessage() {}
+
+func (x *SaveFileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveFileRequest.ProtoReflect.Descriptor instead.
+func (*SaveFileRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *SaveFileRequest) GetOrg() string {
+	if x != nil {
+		return x.Org
+	}
+	return ""
+}
+
+func (x *SaveFileRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SaveFileRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SaveFileRequest) GetBase() string {
+	if x != nil {
+		return x.Base
+	}
+	return ""
+}
+
+func (x *SaveFileRequest) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+type SaveFileResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Outcome SaveOutcome            `protobuf:"varint,1,opt,name=outcome,proto3,enum=stackwright.v1.SaveOutcome" json:"outcome,omitempty"`
+	// The file as it is now in the checkout.
+	Content       string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveFileResponse) Reset() {
+	*x = SaveFileResponse{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveFileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveFileResponse) ProtoMessage() {}
+
+func (x *SaveFileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveFileResponse.ProtoReflect.Descriptor instead.
+func (*SaveFileResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *SaveFileResponse) GetOutcome() SaveOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return SaveOutcome_SAVE_OUTCOME_UNSPECIFIED
+}
+
+func (x *SaveFileResponse) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+type PlanCheckoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlanCheckoutRequest) Reset() {
+	*x = PlanCheckoutRequest{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlanCheckoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlanCheckoutRequest) ProtoMessage() {}
+
+func (x *PlanCheckoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlanCheckoutRequest.ProtoReflect.Descriptor instead.
+func (*PlanCheckoutRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *PlanCheckoutRequest) GetOrg() string {
+	if x != nil {
+		return x.Org
+	}
+	return ""
+}
+
+func (x *PlanCheckoutRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type PlanCheckoutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Number        int32                  `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlanCheckoutResponse) Reset() {
+	*x = PlanCheckoutResponse{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlanCheckoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlanCheckoutResponse) ProtoMessage() {}
+
+func (x *PlanCheckoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlanCheckoutResponse.ProtoReflect.Descriptor instead.
+func (*PlanCheckoutResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *PlanCheckoutResponse) GetNumber() int32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+type OpenLanguageServerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenLanguageServerRequest) Reset() {
+	*x = OpenLanguageServerRequest{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenLanguageServerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenLanguageServerRequest) ProtoMessage() {}
+
+func (x *OpenLanguageServerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenLanguageServerRequest.ProtoReflect.Descriptor instead.
+func (*OpenLanguageServerRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *OpenLanguageServerRequest) GetOrg() string {
+	if x != nil {
+		return x.Org
+	}
+	return ""
+}
+
+func (x *OpenLanguageServerRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type OpenLanguageServerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ticket        string                 `protobuf:"bytes,1,opt,name=ticket,proto3" json:"ticket,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenLanguageServerResponse) Reset() {
+	*x = OpenLanguageServerResponse{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenLanguageServerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenLanguageServerResponse) ProtoMessage() {}
+
+func (x *OpenLanguageServerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenLanguageServerResponse.ProtoReflect.Descriptor instead.
+func (*OpenLanguageServerResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *OpenLanguageServerResponse) GetTicket() string {
+	if x != nil {
+		return x.Ticket
+	}
+	return ""
+}
+
+// LspFrame carries one JSON-RPC message between the browser's language
+// client and a tofu-ls in the sandbox, for one WebSocket (conn).
+type LspFrame struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Conn          string                 `protobuf:"bytes,1,opt,name=conn,proto3" json:"conn,omitempty"`
+	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	Close         bool                   `protobuf:"varint,3,opt,name=close,proto3" json:"close,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LspFrame) Reset() {
+	*x = LspFrame{}
+	mi := &file_stackwright_v1_agent_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LspFrame) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LspFrame) ProtoMessage() {}
+
+func (x *LspFrame) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_agent_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LspFrame.ProtoReflect.Descriptor instead.
+func (*LspFrame) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_agent_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *LspFrame) GetConn() string {
+	if x != nil {
+		return x.Conn
+	}
+	return ""
+}
+
+func (x *LspFrame) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *LspFrame) GetClose() bool {
+	if x != nil {
+		return x.Close
+	}
+	return false
+}
+
 var File_stackwright_v1_agent_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_agent_proto_rawDesc = "" +
@@ -2086,11 +2758,12 @@ const file_stackwright_v1_agent_proto_rawDesc = "" +
 	"\tafter_seq\x18\x03 \x01(\x03R\bafterSeq\"\x7f\n" +
 	"\x14WatchSessionResponse\x12/\n" +
 	"\x05steps\x18\x01 \x03(\v2\x19.stackwright.v1.AgentStepR\x05steps\x126\n" +
-	"\asession\x18\x02 \x01(\v2\x1c.stackwright.v1.AgentSessionR\asession\"\xba\x01\n" +
+	"\asession\x18\x02 \x01(\v2\x1c.stackwright.v1.AgentSessionR\asession\"\xe8\x01\n" +
 	"\x0eToolboxMessage\x124\n" +
 	"\x05ready\x18\x01 \x01(\v2\x1c.stackwright.v1.ToolboxReadyH\x00R\x05ready\x124\n" +
 	"\x06result\x18\x02 \x01(\v2\x1a.stackwright.v1.ToolResultH\x00R\x06result\x124\n" +
-	"\x05hello\x18\x03 \x01(\v2\x1c.stackwright.v1.ToolboxHelloH\x00R\x05helloB\x06\n" +
+	"\x05hello\x18\x03 \x01(\v2\x1c.stackwright.v1.ToolboxHelloH\x00R\x05hello\x12,\n" +
+	"\x03lsp\x18\x04 \x01(\v2\x18.stackwright.v1.LspFrameH\x00R\x03lspB\x06\n" +
 	"\x04body\"\x0e\n" +
 	"\fToolboxHello\"$\n" +
 	"\fToolboxReady\x12\x14\n" +
@@ -2101,12 +2774,13 @@ const file_stackwright_v1_agent_proto_rawDesc = "" +
 	"\x06output\x18\x02 \x01(\tR\x06output\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\bR\x05error\x12\x14\n" +
 	"\x05dirty\x18\x04 \x01(\bR\x05dirty\x12\x12\n" +
-	"\x04data\x18\x05 \x01(\fR\x04data\"\xef\x01\n" +
+	"\x04data\x18\x05 \x01(\fR\x04data\"\x9d\x02\n" +
 	"\fToolboxOrder\x126\n" +
 	"\bcheckout\x18\x01 \x01(\v2\x18.stackwright.v1.CheckoutH\x00R\bcheckout\x12.\n" +
 	"\x04call\x18\x02 \x01(\v2\x18.stackwright.v1.ToolCallH\x00R\x04call\x125\n" +
 	"\x06commit\x18\x03 \x01(\v2\x1b.stackwright.v1.CommitOrderH\x00R\x06commit\x128\n" +
-	"\adiscard\x18\x04 \x01(\v2\x1c.stackwright.v1.DiscardOrderH\x00R\adiscardB\x06\n" +
+	"\adiscard\x18\x04 \x01(\v2\x1c.stackwright.v1.DiscardOrderH\x00R\adiscard\x12,\n" +
+	"\x03lsp\x18\x05 \x01(\v2\x18.stackwright.v1.LspFrameH\x00R\x03lspB\x06\n" +
 	"\x04body\"\xb6\x01\n" +
 	"\bCheckout\x12\x17\n" +
 	"\agit_url\x18\x01 \x01(\tR\x06gitUrl\x12\x16\n" +
@@ -2127,7 +2801,41 @@ const file_stackwright_v1_agent_proto_rawDesc = "" +
 	"authorName\x12!\n" +
 	"\fauthor_email\x18\x04 \x01(\tR\vauthorEmail\"\x1e\n" +
 	"\fDiscardOrder\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id*\xde\x02\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"4\n" +
+	"\x10ListFilesRequest\x12\x10\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\")\n" +
+	"\x11ListFilesResponse\x12\x14\n" +
+	"\x05paths\x18\x01 \x03(\tR\x05paths\"G\n" +
+	"\x0fOpenFileRequest\x12\x10\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\",\n" +
+	"\x10OpenFileResponse\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\"u\n" +
+	"\x0fSaveFileRequest\x12\x10\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x12\n" +
+	"\x04base\x18\x04 \x01(\tR\x04base\x12\x18\n" +
+	"\acontent\x18\x05 \x01(\tR\acontent\"c\n" +
+	"\x10SaveFileResponse\x125\n" +
+	"\aoutcome\x18\x01 \x01(\x0e2\x1b.stackwright.v1.SaveOutcomeR\aoutcome\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"7\n" +
+	"\x13PlanCheckoutRequest\x12\x10\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\".\n" +
+	"\x14PlanCheckoutResponse\x12\x16\n" +
+	"\x06number\x18\x01 \x01(\x05R\x06number\"=\n" +
+	"\x19OpenLanguageServerRequest\x12\x10\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"4\n" +
+	"\x1aOpenLanguageServerResponse\x12\x16\n" +
+	"\x06ticket\x18\x01 \x01(\tR\x06ticket\"H\n" +
+	"\bLspFrame\x12\x12\n" +
+	"\x04conn\x18\x01 \x01(\tR\x04conn\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\x12\x14\n" +
+	"\x05close\x18\x03 \x01(\bR\x05close*\xde\x02\n" +
 	"\x12AgentSessionStatus\x12$\n" +
 	" AGENT_SESSION_STATUS_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dAGENT_SESSION_STATUS_STARTING\x10\x01\x12\x1e\n" +
@@ -2137,7 +2845,13 @@ const file_stackwright_v1_agent_proto_rawDesc = "" +
 	")AGENT_SESSION_STATUS_WAITING_FOR_APPROVAL\x10\x05\x12\x1f\n" +
 	"\x1bAGENT_SESSION_STATUS_ASLEEP\x10\x06\x12\x1f\n" +
 	"\x1bAGENT_SESSION_STATUS_CLOSED\x10\a\x12\x1f\n" +
-	"\x1bAGENT_SESSION_STATUS_FAILED\x10\b2\xe1\x06\n" +
+	"\x1bAGENT_SESSION_STATUS_FAILED\x10\b*w\n" +
+	"\vSaveOutcome\x12\x1c\n" +
+	"\x18SAVE_OUTCOME_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12SAVE_OUTCOME_SAVED\x10\x01\x12\x17\n" +
+	"\x13SAVE_OUTCOME_MERGED\x10\x02\x12\x19\n" +
+	"\x15SAVE_OUTCOME_CONFLICT\x10\x032\xa3\n" +
+	"\n" +
 	"\fAgentService\x12j\n" +
 	"\x10GetAgentSettings\x12'.stackwright.v1.GetAgentSettingsRequest\x1a(.stackwright.v1.GetAgentSettingsResponse\"\x03\x90\x02\x01\x12e\n" +
 	"\x10SetAgentSettings\x12'.stackwright.v1.SetAgentSettingsRequest\x1a(.stackwright.v1.SetAgentSettingsResponse\x12^\n" +
@@ -2147,7 +2861,12 @@ const file_stackwright_v1_agent_proto_rawDesc = "" +
 	"\bStopTurn\x12\x1f.stackwright.v1.StopTurnRequest\x1a .stackwright.v1.StopTurnResponse\x12_\n" +
 	"\x0eDecideProposal\x12%.stackwright.v1.DecideProposalRequest\x1a&.stackwright.v1.DecideProposalResponse\x12Y\n" +
 	"\fCloseSession\x12#.stackwright.v1.CloseSessionRequest\x1a$.stackwright.v1.CloseSessionResponse\x12`\n" +
-	"\fWatchSession\x12#.stackwright.v1.WatchSessionRequest\x1a$.stackwright.v1.WatchSessionResponse\"\x03\x90\x02\x010\x012]\n" +
+	"\fWatchSession\x12#.stackwright.v1.WatchSessionRequest\x1a$.stackwright.v1.WatchSessionResponse\"\x03\x90\x02\x010\x01\x12U\n" +
+	"\tListFiles\x12 .stackwright.v1.ListFilesRequest\x1a!.stackwright.v1.ListFilesResponse\"\x03\x90\x02\x01\x12R\n" +
+	"\bOpenFile\x12\x1f.stackwright.v1.OpenFileRequest\x1a .stackwright.v1.OpenFileResponse\"\x03\x90\x02\x01\x12M\n" +
+	"\bSaveFile\x12\x1f.stackwright.v1.SaveFileRequest\x1a .stackwright.v1.SaveFileResponse\x12Y\n" +
+	"\fPlanCheckout\x12#.stackwright.v1.PlanCheckoutRequest\x1a$.stackwright.v1.PlanCheckoutResponse\x12k\n" +
+	"\x12OpenLanguageServer\x12).stackwright.v1.OpenLanguageServerRequest\x1a*.stackwright.v1.OpenLanguageServerResponse2]\n" +
 	"\x0eToolboxService\x12K\n" +
 	"\aConnect\x12\x1e.stackwright.v1.ToolboxMessage\x1a\x1c.stackwright.v1.ToolboxOrder(\x010\x01B\xbe\x01\n" +
 	"\x12com.stackwright.v1B\n" +
@@ -2165,89 +2884,114 @@ func file_stackwright_v1_agent_proto_rawDescGZIP() []byte {
 	return file_stackwright_v1_agent_proto_rawDescData
 }
 
-var file_stackwright_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_stackwright_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_stackwright_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_stackwright_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_stackwright_v1_agent_proto_goTypes = []any{
-	(AgentSessionStatus)(0),          // 0: stackwright.v1.AgentSessionStatus
-	(*AgentSettings)(nil),            // 1: stackwright.v1.AgentSettings
-	(*GetAgentSettingsRequest)(nil),  // 2: stackwright.v1.GetAgentSettingsRequest
-	(*GetAgentSettingsResponse)(nil), // 3: stackwright.v1.GetAgentSettingsResponse
-	(*SetAgentSettingsRequest)(nil),  // 4: stackwright.v1.SetAgentSettingsRequest
-	(*SetAgentSettingsResponse)(nil), // 5: stackwright.v1.SetAgentSettingsResponse
-	(*AgentSession)(nil),             // 6: stackwright.v1.AgentSession
-	(*AgentStep)(nil),                // 7: stackwright.v1.AgentStep
-	(*ListSessionsRequest)(nil),      // 8: stackwright.v1.ListSessionsRequest
-	(*ListSessionsResponse)(nil),     // 9: stackwright.v1.ListSessionsResponse
-	(*StartSessionRequest)(nil),      // 10: stackwright.v1.StartSessionRequest
-	(*StartSessionResponse)(nil),     // 11: stackwright.v1.StartSessionResponse
-	(*SendMessageRequest)(nil),       // 12: stackwright.v1.SendMessageRequest
-	(*SendMessageResponse)(nil),      // 13: stackwright.v1.SendMessageResponse
-	(*StopTurnRequest)(nil),          // 14: stackwright.v1.StopTurnRequest
-	(*StopTurnResponse)(nil),         // 15: stackwright.v1.StopTurnResponse
-	(*DecideProposalRequest)(nil),    // 16: stackwright.v1.DecideProposalRequest
-	(*DecideProposalResponse)(nil),   // 17: stackwright.v1.DecideProposalResponse
-	(*CloseSessionRequest)(nil),      // 18: stackwright.v1.CloseSessionRequest
-	(*CloseSessionResponse)(nil),     // 19: stackwright.v1.CloseSessionResponse
-	(*WatchSessionRequest)(nil),      // 20: stackwright.v1.WatchSessionRequest
-	(*WatchSessionResponse)(nil),     // 21: stackwright.v1.WatchSessionResponse
-	(*ToolboxMessage)(nil),           // 22: stackwright.v1.ToolboxMessage
-	(*ToolboxHello)(nil),             // 23: stackwright.v1.ToolboxHello
-	(*ToolboxReady)(nil),             // 24: stackwright.v1.ToolboxReady
-	(*ToolResult)(nil),               // 25: stackwright.v1.ToolResult
-	(*ToolboxOrder)(nil),             // 26: stackwright.v1.ToolboxOrder
-	(*Checkout)(nil),                 // 27: stackwright.v1.Checkout
-	(*ToolCall)(nil),                 // 28: stackwright.v1.ToolCall
-	(*CommitOrder)(nil),              // 29: stackwright.v1.CommitOrder
-	(*DiscardOrder)(nil),             // 30: stackwright.v1.DiscardOrder
-	(*timestamppb.Timestamp)(nil),    // 31: google.protobuf.Timestamp
-	(*Download)(nil),                 // 32: stackwright.v1.Download
+	(AgentSessionStatus)(0),            // 0: stackwright.v1.AgentSessionStatus
+	(SaveOutcome)(0),                   // 1: stackwright.v1.SaveOutcome
+	(*AgentSettings)(nil),              // 2: stackwright.v1.AgentSettings
+	(*GetAgentSettingsRequest)(nil),    // 3: stackwright.v1.GetAgentSettingsRequest
+	(*GetAgentSettingsResponse)(nil),   // 4: stackwright.v1.GetAgentSettingsResponse
+	(*SetAgentSettingsRequest)(nil),    // 5: stackwright.v1.SetAgentSettingsRequest
+	(*SetAgentSettingsResponse)(nil),   // 6: stackwright.v1.SetAgentSettingsResponse
+	(*AgentSession)(nil),               // 7: stackwright.v1.AgentSession
+	(*AgentStep)(nil),                  // 8: stackwright.v1.AgentStep
+	(*ListSessionsRequest)(nil),        // 9: stackwright.v1.ListSessionsRequest
+	(*ListSessionsResponse)(nil),       // 10: stackwright.v1.ListSessionsResponse
+	(*StartSessionRequest)(nil),        // 11: stackwright.v1.StartSessionRequest
+	(*StartSessionResponse)(nil),       // 12: stackwright.v1.StartSessionResponse
+	(*SendMessageRequest)(nil),         // 13: stackwright.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),        // 14: stackwright.v1.SendMessageResponse
+	(*StopTurnRequest)(nil),            // 15: stackwright.v1.StopTurnRequest
+	(*StopTurnResponse)(nil),           // 16: stackwright.v1.StopTurnResponse
+	(*DecideProposalRequest)(nil),      // 17: stackwright.v1.DecideProposalRequest
+	(*DecideProposalResponse)(nil),     // 18: stackwright.v1.DecideProposalResponse
+	(*CloseSessionRequest)(nil),        // 19: stackwright.v1.CloseSessionRequest
+	(*CloseSessionResponse)(nil),       // 20: stackwright.v1.CloseSessionResponse
+	(*WatchSessionRequest)(nil),        // 21: stackwright.v1.WatchSessionRequest
+	(*WatchSessionResponse)(nil),       // 22: stackwright.v1.WatchSessionResponse
+	(*ToolboxMessage)(nil),             // 23: stackwright.v1.ToolboxMessage
+	(*ToolboxHello)(nil),               // 24: stackwright.v1.ToolboxHello
+	(*ToolboxReady)(nil),               // 25: stackwright.v1.ToolboxReady
+	(*ToolResult)(nil),                 // 26: stackwright.v1.ToolResult
+	(*ToolboxOrder)(nil),               // 27: stackwright.v1.ToolboxOrder
+	(*Checkout)(nil),                   // 28: stackwright.v1.Checkout
+	(*ToolCall)(nil),                   // 29: stackwright.v1.ToolCall
+	(*CommitOrder)(nil),                // 30: stackwright.v1.CommitOrder
+	(*DiscardOrder)(nil),               // 31: stackwright.v1.DiscardOrder
+	(*ListFilesRequest)(nil),           // 32: stackwright.v1.ListFilesRequest
+	(*ListFilesResponse)(nil),          // 33: stackwright.v1.ListFilesResponse
+	(*OpenFileRequest)(nil),            // 34: stackwright.v1.OpenFileRequest
+	(*OpenFileResponse)(nil),           // 35: stackwright.v1.OpenFileResponse
+	(*SaveFileRequest)(nil),            // 36: stackwright.v1.SaveFileRequest
+	(*SaveFileResponse)(nil),           // 37: stackwright.v1.SaveFileResponse
+	(*PlanCheckoutRequest)(nil),        // 38: stackwright.v1.PlanCheckoutRequest
+	(*PlanCheckoutResponse)(nil),       // 39: stackwright.v1.PlanCheckoutResponse
+	(*OpenLanguageServerRequest)(nil),  // 40: stackwright.v1.OpenLanguageServerRequest
+	(*OpenLanguageServerResponse)(nil), // 41: stackwright.v1.OpenLanguageServerResponse
+	(*LspFrame)(nil),                   // 42: stackwright.v1.LspFrame
+	(*timestamppb.Timestamp)(nil),      // 43: google.protobuf.Timestamp
+	(*Download)(nil),                   // 44: stackwright.v1.Download
 }
 var file_stackwright_v1_agent_proto_depIdxs = []int32{
-	1,  // 0: stackwright.v1.GetAgentSettingsResponse.settings:type_name -> stackwright.v1.AgentSettings
-	1,  // 1: stackwright.v1.SetAgentSettingsResponse.settings:type_name -> stackwright.v1.AgentSettings
+	2,  // 0: stackwright.v1.GetAgentSettingsResponse.settings:type_name -> stackwright.v1.AgentSettings
+	2,  // 1: stackwright.v1.SetAgentSettingsResponse.settings:type_name -> stackwright.v1.AgentSettings
 	0,  // 2: stackwright.v1.AgentSession.status:type_name -> stackwright.v1.AgentSessionStatus
-	31, // 3: stackwright.v1.AgentSession.created_at:type_name -> google.protobuf.Timestamp
-	31, // 4: stackwright.v1.AgentSession.updated_at:type_name -> google.protobuf.Timestamp
-	31, // 5: stackwright.v1.AgentStep.at:type_name -> google.protobuf.Timestamp
-	6,  // 6: stackwright.v1.ListSessionsResponse.sessions:type_name -> stackwright.v1.AgentSession
-	6,  // 7: stackwright.v1.StartSessionResponse.session:type_name -> stackwright.v1.AgentSession
-	6,  // 8: stackwright.v1.SendMessageResponse.session:type_name -> stackwright.v1.AgentSession
-	6,  // 9: stackwright.v1.DecideProposalResponse.session:type_name -> stackwright.v1.AgentSession
-	7,  // 10: stackwright.v1.WatchSessionResponse.steps:type_name -> stackwright.v1.AgentStep
-	6,  // 11: stackwright.v1.WatchSessionResponse.session:type_name -> stackwright.v1.AgentSession
-	24, // 12: stackwright.v1.ToolboxMessage.ready:type_name -> stackwright.v1.ToolboxReady
-	25, // 13: stackwright.v1.ToolboxMessage.result:type_name -> stackwright.v1.ToolResult
-	23, // 14: stackwright.v1.ToolboxMessage.hello:type_name -> stackwright.v1.ToolboxHello
-	27, // 15: stackwright.v1.ToolboxOrder.checkout:type_name -> stackwright.v1.Checkout
-	28, // 16: stackwright.v1.ToolboxOrder.call:type_name -> stackwright.v1.ToolCall
-	29, // 17: stackwright.v1.ToolboxOrder.commit:type_name -> stackwright.v1.CommitOrder
-	30, // 18: stackwright.v1.ToolboxOrder.discard:type_name -> stackwright.v1.DiscardOrder
-	32, // 19: stackwright.v1.Checkout.engine:type_name -> stackwright.v1.Download
-	2,  // 20: stackwright.v1.AgentService.GetAgentSettings:input_type -> stackwright.v1.GetAgentSettingsRequest
-	4,  // 21: stackwright.v1.AgentService.SetAgentSettings:input_type -> stackwright.v1.SetAgentSettingsRequest
-	8,  // 22: stackwright.v1.AgentService.ListSessions:input_type -> stackwright.v1.ListSessionsRequest
-	10, // 23: stackwright.v1.AgentService.StartSession:input_type -> stackwright.v1.StartSessionRequest
-	12, // 24: stackwright.v1.AgentService.SendMessage:input_type -> stackwright.v1.SendMessageRequest
-	14, // 25: stackwright.v1.AgentService.StopTurn:input_type -> stackwright.v1.StopTurnRequest
-	16, // 26: stackwright.v1.AgentService.DecideProposal:input_type -> stackwright.v1.DecideProposalRequest
-	18, // 27: stackwright.v1.AgentService.CloseSession:input_type -> stackwright.v1.CloseSessionRequest
-	20, // 28: stackwright.v1.AgentService.WatchSession:input_type -> stackwright.v1.WatchSessionRequest
-	22, // 29: stackwright.v1.ToolboxService.Connect:input_type -> stackwright.v1.ToolboxMessage
-	3,  // 30: stackwright.v1.AgentService.GetAgentSettings:output_type -> stackwright.v1.GetAgentSettingsResponse
-	5,  // 31: stackwright.v1.AgentService.SetAgentSettings:output_type -> stackwright.v1.SetAgentSettingsResponse
-	9,  // 32: stackwright.v1.AgentService.ListSessions:output_type -> stackwright.v1.ListSessionsResponse
-	11, // 33: stackwright.v1.AgentService.StartSession:output_type -> stackwright.v1.StartSessionResponse
-	13, // 34: stackwright.v1.AgentService.SendMessage:output_type -> stackwright.v1.SendMessageResponse
-	15, // 35: stackwright.v1.AgentService.StopTurn:output_type -> stackwright.v1.StopTurnResponse
-	17, // 36: stackwright.v1.AgentService.DecideProposal:output_type -> stackwright.v1.DecideProposalResponse
-	19, // 37: stackwright.v1.AgentService.CloseSession:output_type -> stackwright.v1.CloseSessionResponse
-	21, // 38: stackwright.v1.AgentService.WatchSession:output_type -> stackwright.v1.WatchSessionResponse
-	26, // 39: stackwright.v1.ToolboxService.Connect:output_type -> stackwright.v1.ToolboxOrder
-	30, // [30:40] is the sub-list for method output_type
-	20, // [20:30] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	43, // 3: stackwright.v1.AgentSession.created_at:type_name -> google.protobuf.Timestamp
+	43, // 4: stackwright.v1.AgentSession.updated_at:type_name -> google.protobuf.Timestamp
+	43, // 5: stackwright.v1.AgentStep.at:type_name -> google.protobuf.Timestamp
+	7,  // 6: stackwright.v1.ListSessionsResponse.sessions:type_name -> stackwright.v1.AgentSession
+	7,  // 7: stackwright.v1.StartSessionResponse.session:type_name -> stackwright.v1.AgentSession
+	7,  // 8: stackwright.v1.SendMessageResponse.session:type_name -> stackwright.v1.AgentSession
+	7,  // 9: stackwright.v1.DecideProposalResponse.session:type_name -> stackwright.v1.AgentSession
+	8,  // 10: stackwright.v1.WatchSessionResponse.steps:type_name -> stackwright.v1.AgentStep
+	7,  // 11: stackwright.v1.WatchSessionResponse.session:type_name -> stackwright.v1.AgentSession
+	25, // 12: stackwright.v1.ToolboxMessage.ready:type_name -> stackwright.v1.ToolboxReady
+	26, // 13: stackwright.v1.ToolboxMessage.result:type_name -> stackwright.v1.ToolResult
+	24, // 14: stackwright.v1.ToolboxMessage.hello:type_name -> stackwright.v1.ToolboxHello
+	42, // 15: stackwright.v1.ToolboxMessage.lsp:type_name -> stackwright.v1.LspFrame
+	28, // 16: stackwright.v1.ToolboxOrder.checkout:type_name -> stackwright.v1.Checkout
+	29, // 17: stackwright.v1.ToolboxOrder.call:type_name -> stackwright.v1.ToolCall
+	30, // 18: stackwright.v1.ToolboxOrder.commit:type_name -> stackwright.v1.CommitOrder
+	31, // 19: stackwright.v1.ToolboxOrder.discard:type_name -> stackwright.v1.DiscardOrder
+	42, // 20: stackwright.v1.ToolboxOrder.lsp:type_name -> stackwright.v1.LspFrame
+	44, // 21: stackwright.v1.Checkout.engine:type_name -> stackwright.v1.Download
+	1,  // 22: stackwright.v1.SaveFileResponse.outcome:type_name -> stackwright.v1.SaveOutcome
+	3,  // 23: stackwright.v1.AgentService.GetAgentSettings:input_type -> stackwright.v1.GetAgentSettingsRequest
+	5,  // 24: stackwright.v1.AgentService.SetAgentSettings:input_type -> stackwright.v1.SetAgentSettingsRequest
+	9,  // 25: stackwright.v1.AgentService.ListSessions:input_type -> stackwright.v1.ListSessionsRequest
+	11, // 26: stackwright.v1.AgentService.StartSession:input_type -> stackwright.v1.StartSessionRequest
+	13, // 27: stackwright.v1.AgentService.SendMessage:input_type -> stackwright.v1.SendMessageRequest
+	15, // 28: stackwright.v1.AgentService.StopTurn:input_type -> stackwright.v1.StopTurnRequest
+	17, // 29: stackwright.v1.AgentService.DecideProposal:input_type -> stackwright.v1.DecideProposalRequest
+	19, // 30: stackwright.v1.AgentService.CloseSession:input_type -> stackwright.v1.CloseSessionRequest
+	21, // 31: stackwright.v1.AgentService.WatchSession:input_type -> stackwright.v1.WatchSessionRequest
+	32, // 32: stackwright.v1.AgentService.ListFiles:input_type -> stackwright.v1.ListFilesRequest
+	34, // 33: stackwright.v1.AgentService.OpenFile:input_type -> stackwright.v1.OpenFileRequest
+	36, // 34: stackwright.v1.AgentService.SaveFile:input_type -> stackwright.v1.SaveFileRequest
+	38, // 35: stackwright.v1.AgentService.PlanCheckout:input_type -> stackwright.v1.PlanCheckoutRequest
+	40, // 36: stackwright.v1.AgentService.OpenLanguageServer:input_type -> stackwright.v1.OpenLanguageServerRequest
+	23, // 37: stackwright.v1.ToolboxService.Connect:input_type -> stackwright.v1.ToolboxMessage
+	4,  // 38: stackwright.v1.AgentService.GetAgentSettings:output_type -> stackwright.v1.GetAgentSettingsResponse
+	6,  // 39: stackwright.v1.AgentService.SetAgentSettings:output_type -> stackwright.v1.SetAgentSettingsResponse
+	10, // 40: stackwright.v1.AgentService.ListSessions:output_type -> stackwright.v1.ListSessionsResponse
+	12, // 41: stackwright.v1.AgentService.StartSession:output_type -> stackwright.v1.StartSessionResponse
+	14, // 42: stackwright.v1.AgentService.SendMessage:output_type -> stackwright.v1.SendMessageResponse
+	16, // 43: stackwright.v1.AgentService.StopTurn:output_type -> stackwright.v1.StopTurnResponse
+	18, // 44: stackwright.v1.AgentService.DecideProposal:output_type -> stackwright.v1.DecideProposalResponse
+	20, // 45: stackwright.v1.AgentService.CloseSession:output_type -> stackwright.v1.CloseSessionResponse
+	22, // 46: stackwright.v1.AgentService.WatchSession:output_type -> stackwright.v1.WatchSessionResponse
+	33, // 47: stackwright.v1.AgentService.ListFiles:output_type -> stackwright.v1.ListFilesResponse
+	35, // 48: stackwright.v1.AgentService.OpenFile:output_type -> stackwright.v1.OpenFileResponse
+	37, // 49: stackwright.v1.AgentService.SaveFile:output_type -> stackwright.v1.SaveFileResponse
+	39, // 50: stackwright.v1.AgentService.PlanCheckout:output_type -> stackwright.v1.PlanCheckoutResponse
+	41, // 51: stackwright.v1.AgentService.OpenLanguageServer:output_type -> stackwright.v1.OpenLanguageServerResponse
+	27, // 52: stackwright.v1.ToolboxService.Connect:output_type -> stackwright.v1.ToolboxOrder
+	38, // [38:53] is the sub-list for method output_type
+	23, // [23:38] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_stackwright_v1_agent_proto_init() }
@@ -2260,20 +3004,22 @@ func file_stackwright_v1_agent_proto_init() {
 		(*ToolboxMessage_Ready)(nil),
 		(*ToolboxMessage_Result)(nil),
 		(*ToolboxMessage_Hello)(nil),
+		(*ToolboxMessage_Lsp)(nil),
 	}
 	file_stackwright_v1_agent_proto_msgTypes[25].OneofWrappers = []any{
 		(*ToolboxOrder_Checkout)(nil),
 		(*ToolboxOrder_Call)(nil),
 		(*ToolboxOrder_Commit)(nil),
 		(*ToolboxOrder_Discard)(nil),
+		(*ToolboxOrder_Lsp)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stackwright_v1_agent_proto_rawDesc), len(file_stackwright_v1_agent_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   30,
+			NumEnums:      2,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

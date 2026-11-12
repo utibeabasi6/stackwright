@@ -61,8 +61,9 @@ type Service struct {
 	// eval uses it to compare runs with and without a tool.
 	HiddenTools []string
 
-	mu   sync.Mutex
-	live map[string]*live
+	mu      sync.Mutex
+	live    map[string]*live
+	tickets map[string]ticket
 }
 
 // Hooks reach jobs, runs, state and GitHub. The agent package imports none
@@ -79,6 +80,9 @@ type Hooks struct {
 	// StateLookup reports one resource in the state that the workspace's
 	// newest plan read, masked.
 	StateLookup func(ctx context.Context, orgID, session, address string) (string, error)
+	// QueuePlan queues a plan-only agent run of source, a .tar.gz of the
+	// checkout, and returns its number without waiting.
+	QueuePlan func(ctx context.Context, orgID, session, userID string, source []byte) (int32, error)
 	// OpenPullRequest opens the session's branch against its base, and
 	// returns the pull request's number and web address.
 	OpenPullRequest func(ctx context.Context, orgID, session, title, body string) (int, string, error)
@@ -96,6 +100,8 @@ type live struct {
 	job string
 	// adopted marks a sandbox that an earlier server process started.
 	adopted bool
+	// lsp holds the editor WebSockets' outgoing frames, by conn.
+	lsp map[string]chan []byte
 	// conn counts toolbox streams, so an old stream that ends late does not
 	// undo a newer one.
 	conn  int
@@ -295,18 +301,22 @@ func (s *Service) StartSession(ctx context.Context, req *connect.Request[v1.Star
 	sc := authz.ScopeFrom(ctx)
 	m := req.Msg
 	text := strings.TrimSpace(m.Message)
-	if text == "" || len(text) > 20000 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a message needs 1 to 20,000 characters"))
+	if len(text) > 20000 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a message has at most 20,000 characters"))
 	}
-	st, err := s.loadSettings(ctx, sc.Tx, sc.OrgID, false)
-	if err != nil {
-		return nil, authz.Internal(err)
-	}
-	if err := allowed(st); err != nil {
-		return nil, connectErr(err)
+	// With no message the session is quiet, for the editor: no turn and
+	// no model call, so it needs no key (adr/0034).
+	if text != "" {
+		st, err := s.loadSettings(ctx, sc.Tx, sc.OrgID, false)
+		if err != nil {
+			return nil, authz.Internal(err)
+		}
+		if err := allowed(st); err != nil {
+			return nil, connectErr(err)
+		}
 	}
 	var workspaceID, repoID, base string
-	err = sc.Tx.QueryRow(ctx, `SELECT w.id, rp.id, coalesce(nullif(p.branch, ''), rp.default_branch)
+	err := sc.Tx.QueryRow(ctx, `SELECT w.id, rp.id, coalesce(nullif(p.branch, ''), rp.default_branch)
 		FROM workspaces w JOIN projects p ON p.id = w.project_id
 		JOIN repos rp ON rp.org_id = p.org_id AND lower(rp.full_name) = lower(p.repo)
 		WHERE p.slug = $1 AND w.name = $2 AND p.archived_at IS NULL AND w.archived_at IS NULL`, m.Project, m.Workspace).
@@ -318,13 +328,19 @@ func (s *Service) StartSession(ctx context.Context, req *connect.Request[v1.Star
 		return nil, authz.Internal(err)
 	}
 	id := uuid.NewString()
-	branch := "agent/" + slugOf(text) + "-" + id[:4]
+	slug, title, status := slugOf(text), titleOf(text), "starting"
+	if text == "" {
+		slug, title, status = "edit", "Edited by hand", "ready"
+	}
+	branch := "agent/" + slug + "-" + id[:4]
 	if _, err := sc.Tx.Exec(ctx, `INSERT INTO agent_sessions (id, org_id, workspace_id, repo_id, branch, base, status, title, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, 'starting', $7, $8)`, id, sc.OrgID, workspaceID, repoID, branch, base, titleOf(text), sc.UserID); err != nil {
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, id, sc.OrgID, workspaceID, repoID, branch, base, status, title, sc.UserID); err != nil {
 		return nil, authz.Internal(err)
 	}
-	if err := appendStep(ctx, sc.Tx, sc.OrgID, id, "user", map[string]any{"text": text}, 0, sc.UserID); err != nil {
-		return nil, authz.Internal(err)
+	if text != "" {
+		if err := appendStep(ctx, sc.Tx, sc.OrgID, id, "user", map[string]any{"text": text}, 0, sc.UserID); err != nil {
+			return nil, authz.Internal(err)
+		}
 	}
 	session, err := oneSession(ctx, sc.Tx, id)
 	if err != nil {
@@ -332,7 +348,9 @@ func (s *Service) StartSession(ctx context.Context, req *connect.Request[v1.Star
 	}
 	sc.Target(fmt.Sprintf("agent session %s on %s/%s branch %s", id, m.Project, m.Workspace, branch))
 	orgID, userID := sc.OrgID, sc.UserID
-	authz.AfterCommit(ctx, func() { s.startTurn(id, orgID, userID) })
+	if text != "" {
+		authz.AfterCommit(ctx, func() { s.startTurn(id, orgID, userID) })
+	}
 	return connect.NewResponse(&v1.StartSessionResponse{Session: session}), nil
 }
 

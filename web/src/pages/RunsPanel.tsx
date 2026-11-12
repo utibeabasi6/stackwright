@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Submit, useAction } from "../Action";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { message, runApi } from "../api";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
@@ -24,7 +25,7 @@ export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBran
   const navigate = useNavigate();
   const runs = useLoad(`runs:${org}/${project}/${workspace}`, () => runApi.listRuns({ org, project, workspace }).then((r) => r.runs));
   const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const starting = useAction();
   const role = me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
   const latest = runs.data?.[0];
   const urgent = latest?.status === RunStatus.NEEDS_APPROVAL || latest?.status === RunStatus.FAILED;
@@ -34,7 +35,6 @@ export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBran
     const f = new FormData(e.currentTarget);
     const file = f.get("source");
     setError(undefined);
-    setBusy(true);
     try {
       const upload = file instanceof File && file.size > 0 ? file : undefined;
       const { run } = await runApi.createRun({
@@ -47,10 +47,10 @@ export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBran
       });
       reloadWaiting();
       if (run) navigate({ to: "/$org/projects/$project/$workspace/runs/$number", params: { org, project, workspace, number: String(run.number) } });
+      return true;
     } catch (err) {
       setError(message(err));
-    } finally {
-      setBusy(false);
+      return false;
     }
   };
 
@@ -84,7 +84,7 @@ export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBran
 
         {role >= Role.WRITER && (
           <section className="card" aria-labelledby="start-h">
-            <form className="stack" onSubmit={start}>
+            <form className="stack" onSubmit={(e) => void starting.run(() => start(e))}>
               <h2 id="start-h">Start a run</h2>
               {linkedRepo && (
                 <p className="muted">
@@ -114,9 +114,9 @@ export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBran
               </p>
               {error && <p className="error">{error}</p>}
               <div className="row">
-                <button type="submit" className={urgent ? undefined : "primary"} disabled={busy}>
+                <Submit action={starting} className={urgent ? undefined : "primary"} busy="Starting…" done="Started">
                   Start plan
-                </button>
+                </Submit>
               </div>
             </form>
           </section>
