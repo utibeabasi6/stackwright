@@ -255,7 +255,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	if eng == "terraform" {
 		job.Engine = v1.Engine_ENGINE_TERRAFORM
 	}
-	sourceJob, inputs, outputs := jobID, []string{"source.tar.gz"}, []string{"plan.bin", "plan.json", "lock.hcl", "workdir.tar.gz", "log.jsonl"}
+	sourceJob, inputs, outputs := jobID, []string{"source.tar.gz"}, []string{"plan.bin", "plan.json", "lock.hcl", "sources.json", "workdir.tar.gz", "log.jsonl"}
 	if operation == "apply" {
 		job.Operation = v1.JobOperation_JOB_OPERATION_APPLY
 		sourceJob, inputs, outputs = *planJobID, []string{"source.tar.gz", "workdir.tar.gz", "plan.bin", "lock.hcl"}, []string{"log.jsonl"}

@@ -259,7 +259,7 @@ func methods() []method {
 		v1.File_stackwright_v1_projects_proto, v1.File_stackwright_v1_state_proto,
 		v1.File_stackwright_v1_executor_proto, v1.File_stackwright_v1_runs_proto, v1.File_stackwright_v1_builder_proto,
 		v1.File_stackwright_v1_build_servers_proto, v1.File_stackwright_v1_variables_proto, v1.File_stackwright_v1_cloud_proto,
-		v1.File_stackwright_v1_github_proto,
+		v1.File_stackwright_v1_github_proto, v1.File_stackwright_v1_graph_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -619,6 +619,10 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 		owner.must("GitHubService/UnlinkInstallation", map[string]any{"org": "a", "installationId": 7})
 	})
 	step("GitHubService/DeleteGitHubApp", func() { owner.must("GitHubService/DeleteGitHubApp", map[string]any{}) })
+	step("GraphService/SaveGraphLayout", func() {
+		owner.must("GraphService/SaveGraphLayout", map[string]any{"org": "a", "project": "web", "workspace": "prod",
+			"positions": []map[string]any{{"id": "terraform_data.a", "x": 1, "y": 2}}})
+	})
 	variable := map[string]any{"org": "a", "scope": map[string]any{"project": "web"}, "category": "VARIABLE_CATEGORY_TERRAFORM", "key": "region"}
 	step("VariableService/SetVariable", func() { owner.must("VariableService/SetVariable", merge(variable, map[string]any{"value": "eu"})) })
 	step("VariableService/DeleteVariable", func() { owner.must("VariableService/DeleteVariable", variable) })

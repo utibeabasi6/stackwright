@@ -32,3 +32,4 @@ line to the old one that points to the new one.
 | [0024](0024-git-in-sandboxes-and-linked-runs.md) | git in the sandbox image, and linked projects run from their branch |
 | [0025](0025-newer-terraform.md) | Newer Terraform, and engine versions from the release lists |
 | [0026](0026-applies-start-from-the-plan-tree.md) | Applies start from the plan's working tree |
+| [0027](0027-plan-graph.md) | The plan graph: a node for each resource, edges from the configuration, ELK in the browser |

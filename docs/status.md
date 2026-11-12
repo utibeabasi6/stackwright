@@ -571,3 +571,53 @@ Decisions: [0026](adr/0026-applies-start-from-the-plan-tree.md).
 
 **Not verified:**
 - The lab's apply on AWS with this change.
+
+## Phase 9: Plan graph
+
+Decisions: [0027](adr/0027-plan-graph.md).
+
+**Verified on 2026-11-12:**
+- Golden graphs from real plans, in Docker, with OpenTofu 1.10.7: the
+  sample project, an `actions` fixture applied then changed, and a
+  `modules` fixture. The `actions` plan from Terraform 1.5.7 gives the same
+  graph as OpenTofu's.
+- Every action: create, update, replace, replace with
+  `create_before_destroy`, destroy, read (a data source that waits for a
+  resource) and no change, each in the `actions` golden graph.
+- Edges follow module outputs, module arguments (`var`), locals, `for_each`
+  and `count`; `depends_on` edges are marked explicit; `depends_on` on a
+  module joins its group. Nested modules are nested groups, and a module
+  with `count` is one group.
+- Diffs: a change, an unknown value, a sensitive value shown as
+  "(sensitive)", a path that forces replacement, a create without its null
+  attributes, and a destroy (graph unit tests on the stored plans).
+- The executor maps resources, module calls and locals to files with the
+  HCL parser, for the root module and every module in `modules.json`.
+- `GetPlanGraph` with action and module filters, `GetPlanNode`, and
+  `SaveGraphLayout` (merge and replace, writers only, audited), through a
+  real run on the sample project.
+- Playwright, in light and dark, with the API mocked by the golden graphs:
+  each node is reached with Tab and is announced with its action ("…,
+  destroy, 1 instance"); arrow keys move between nodes; Enter shows the
+  diff and a GitHub link to the file and line; a 300-node plan draws in
+  about 220 ms (limit 1 s); a 400-node plan opens as 4 closed modules, and
+  Enter opens one; a writer's browser saves a new layout once, and a stored
+  position is kept; a viewer's browser saves nothing.
+- On the dev stack, in the browser pane in both themes, with the AWS lab's
+  real plans (#3 and #4, 28 resources in 2 modules): the summary line,
+  search, Enter on the Lambda function and its create diff, and a node with
+  2 instances.
+
+**Not verified:**
+- File links on a real run: plans #3 and #4 were made before the executor
+  wrote `sources.json`. The Lima VM needs the new executor image for it.
+- The `aws-bucket` fixture has no golden graph: it plans only with AWS
+  credentials.
+- A plan with thousands of resources. The closed view was measured with 400.
+- Screen reader output. The checks read the accessible names, not speech.
+
+**Known gaps:**
+- Edges are drawn by React Flow, not along ELK's routes, so on a large
+  graph some cross nodes.
+- A stored layout keeps positions for resources that later leave the plan.
+- `.tf.json` files are not parsed, so their resources have no links.

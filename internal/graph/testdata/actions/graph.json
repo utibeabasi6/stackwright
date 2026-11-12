@@ -1,0 +1,173 @@
+{
+  "edges": [
+    {
+      "explicit": true,
+      "from": "local_file.out",
+      "to": "data.local_file.back"
+    },
+    {
+      "from": "terraform_data.keep",
+      "to": "terraform_data.added"
+    }
+  ],
+  "nodes": [
+    {
+      "action": "PLAN_ACTION_READ",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_READ",
+          "count": 1
+        }
+      ],
+      "data": true,
+      "id": "data.local_file.back",
+      "instances": 1,
+      "name": "back",
+      "source": {
+        "file": "main.tf",
+        "line": 37
+      },
+      "type": "local_file"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "local_file.out",
+      "instances": 1,
+      "name": "out",
+      "source": {
+        "file": "main.tf",
+        "line": 32
+      },
+      "type": "local_file"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.added",
+      "instances": 1,
+      "name": "added",
+      "source": {
+        "file": "main.tf",
+        "line": 28
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_UPDATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_UPDATE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.change",
+      "instances": 1,
+      "name": "change",
+      "source": {
+        "file": "main.tf",
+        "line": 9
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_DELETE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_DELETE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.gone",
+      "instances": 1,
+      "name": "gone",
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_NO_OP",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.keep",
+      "instances": 1,
+      "name": "keep",
+      "source": {
+        "file": "main.tf",
+        "line": 5
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_REPLACE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_REPLACE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.recreate",
+      "instances": 1,
+      "name": "recreate",
+      "source": {
+        "file": "main.tf",
+        "line": 13
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_REPLACE_CREATE_FIRST",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_REPLACE_CREATE_FIRST",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.recreate_first",
+      "instances": 1,
+      "name": "recreate_first",
+      "source": {
+        "file": "main.tf",
+        "line": 17
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_UPDATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_UPDATE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.secret",
+      "instances": 1,
+      "name": "secret",
+      "source": {
+        "file": "main.tf",
+        "line": 24
+      },
+      "type": "terraform_data"
+    }
+  ],
+  "summary": {
+    "creates": 2,
+    "deletes": 1,
+    "reads": 1,
+    "replaces": 2,
+    "unchanged": 1,
+    "updates": 2
+  }
+}

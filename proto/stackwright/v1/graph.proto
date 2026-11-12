@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+service GraphService {
+  // GetPlanGraph returns the graph of a run's plan, with the workspace's
+  // stored layout.
+  rpc GetPlanGraph(GetPlanGraphRequest) returns (GetPlanGraphResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // GetPlanNode returns one node's instances and their attribute diffs.
+  rpc GetPlanNode(GetPlanNodeRequest) returns (GetPlanNodeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // SaveGraphLayout stores node positions for the workspace. With replace,
+  // the stored positions are dropped first.
+  rpc SaveGraphLayout(SaveGraphLayoutRequest) returns (SaveGraphLayoutResponse);
+}
+
+enum PlanAction {
+  PLAN_ACTION_UNSPECIFIED = 0;
+  PLAN_ACTION_NO_OP = 1;
+  PLAN_ACTION_READ = 2;
+  PLAN_ACTION_CREATE = 3;
+  PLAN_ACTION_UPDATE = 4;
+  // Destroy the old object, then create the new one.
+  PLAN_ACTION_REPLACE = 5;
+  // create_before_destroy: create the new object, then destroy the old one.
+  PLAN_ACTION_REPLACE_CREATE_FIRST = 6;
+  PLAN_ACTION_DELETE = 7;
+}
+
+message SourceLocation {
+  // Relative to the repository root, with forward slashes.
+  string file = 1;
+  int32 line = 2;
+  // A module that init downloaded: there is no file in the repository.
+  bool remote = 3;
+}
+
+message ActionCount {
+  PlanAction action = 1;
+  int32 count = 2;
+}
+
+message PlanNode {
+  // The resource's address without instance keys, such as
+  // "module.vpc.aws_subnet.private" or "data.aws_region.current".
+  string id = 1;
+  // The module's id, or empty for the root module.
+  string module = 2;
+  string type = 3;
+  string name = 4;
+  bool data = 5;
+  // The most significant action of the node's instances.
+  PlanAction action = 6;
+  repeated ActionCount counts = 7;
+  int32 instances = 8;
+  SourceLocation source = 9;
+}
+
+message PlanEdge {
+  // A node or group id. The edge runs from what is referred to, to what
+  // refers to it.
+  string from = 1;
+  string to = 2;
+  // From depends_on.
+  bool explicit = 3;
+}
+
+message PlanGroup {
+  // Such as "module.vpc" or "module.vpc.module.subnets".
+  string id = 1;
+  // The parent group's id, or empty under the root module.
+  string parent = 2;
+  string name = 3;
+  // The module call.
+  SourceLocation source = 4;
+}
+
+// Instance counts by action.
+message PlanSummary {
+  int32 creates = 1;
+  int32 updates = 2;
+  int32 replaces = 3;
+  int32 deletes = 4;
+  int32 reads = 5;
+  int32 unchanged = 6;
+}
+
+message NodePosition {
+  string id = 1;
+  double x = 2;
+  double y = 3;
+}
+
+message PlanGraph {
+  repeated PlanNode nodes = 1;
+  repeated PlanEdge edges = 2;
+  repeated PlanGroup groups = 3;
+  PlanSummary summary = 4;
+}
+
+message GetPlanGraphRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  // The run's number; 0 means the newest run that has a plan.
+  int32 number = 4;
+  // Only nodes with these actions, and the edges between them. Empty means
+  // every action.
+  repeated PlanAction actions = 5;
+  // Only nodes in this module and the modules under it.
+  string module = 6;
+}
+
+message GetPlanGraphResponse {
+  PlanGraph graph = 1;
+  int32 number = 2;
+  repeated NodePosition layout = 3;
+  // For a linked project, such as
+  // "https://github.com/acme/infra/blob/<commit>/". Empty otherwise.
+  string source_base_url = 4;
+}
+
+message AttributeChange {
+  // Such as "tags.Name" or "ingress[0].from_port".
+  string path = 1;
+  // JSON, "(sensitive)" or "(known after apply)". Empty when the attribute
+  // is absent on that side.
+  string before = 2;
+  string after = 3;
+  bool forces_replacement = 4;
+}
+
+message PlanInstance {
+  string address = 1;
+  PlanAction action = 2;
+  repeated AttributeChange changes = 3;
+  // Set when the attribute list was cut short.
+  bool truncated = 4;
+}
+
+message GetPlanNodeRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  int32 number = 4;
+  string id = 5;
+}
+
+message GetPlanNodeResponse {
+  PlanNode node = 1;
+  repeated PlanInstance instances = 2;
+}
+
+message SaveGraphLayoutRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  repeated NodePosition positions = 4;
+  bool replace = 5;
+}
+
+message SaveGraphLayoutResponse {}

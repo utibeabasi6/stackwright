@@ -6,7 +6,7 @@ export GOTOOLCHAIN := local
 -include .env
 export STACKWRIGHT_POSTGRES_PASSWORD STACKWRIGHT_APP_DB_PASSWORD STACKWRIGHT_NATS_PASSWORD STACKWRIGHT_S3_ACCESS_KEY STACKWRIGHT_S3_SECRET_KEY STACKWRIGHT_KEK STACKWRIGHT_BUILDER_TOKEN
 
-.PHONY: init up down dev test test-go test-web lint lint-go lint-web lint-proto generate build images secrets vuln licenses smoke
+.PHONY: init up down dev test test-go test-web e2e lint lint-go lint-web lint-proto generate build images secrets vuln licenses smoke
 
 init:
 	docker build -q --target binary -t stackwright/stackwright:init . >/dev/null
@@ -21,13 +21,16 @@ down:
 dev: up
 	cd web && $(PNPM) dev
 
-test: test-go test-web
+test: test-go test-web e2e
 
 test-go:
 	STACKWRIGHT_TEST_INFRA=1 STACKWRIGHT_TEST_ENGINES=1 go test -race -count=1 ./...
 
 test-web:
 	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) test
+
+e2e:
+	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) exec playwright install chromium && $(PNPM) exec playwright test
 
 lint: lint-go lint-web lint-proto
 

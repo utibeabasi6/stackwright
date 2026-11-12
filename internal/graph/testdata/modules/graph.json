@@ -1,0 +1,213 @@
+{
+  "edges": [
+    {
+      "from": "module.app.data.local_file.config",
+      "to": "module.app.terraform_data.uses_config"
+    },
+    {
+      "from": "module.app.terraform_data.server",
+      "to": "terraform_data.after"
+    },
+    {
+      "explicit": true,
+      "from": "module.net",
+      "to": "module.app"
+    },
+    {
+      "from": "module.net.module.sub.terraform_data.leaf",
+      "to": "module.app.terraform_data.server"
+    },
+    {
+      "from": "module.net.terraform_data.subnet",
+      "to": "module.net.module.sub.terraform_data.leaf"
+    },
+    {
+      "from": "terraform_data.base",
+      "to": "module.net.terraform_data.subnet"
+    },
+    {
+      "from": "terraform_data.base",
+      "to": "terraform_data.each"
+    },
+    {
+      "explicit": true,
+      "from": "terraform_data.each",
+      "to": "terraform_data.after"
+    }
+  ],
+  "groups": [
+    {
+      "id": "module.app",
+      "name": "app",
+      "source": {
+        "file": "live/main.tf",
+        "line": 25
+      }
+    },
+    {
+      "id": "module.net",
+      "name": "net",
+      "source": {
+        "file": "live/main.tf",
+        "line": 19
+      }
+    },
+    {
+      "id": "module.net.module.sub",
+      "name": "sub",
+      "parent": "module.net",
+      "source": {
+        "file": "modules/net/main.tf",
+        "line": 9
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "action": "PLAN_ACTION_READ",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_READ",
+          "count": 1
+        }
+      ],
+      "data": true,
+      "id": "module.app.data.local_file.config",
+      "instances": 1,
+      "module": "module.app",
+      "name": "config",
+      "source": {
+        "file": "modules/app/main.tf",
+        "line": 13
+      },
+      "type": "local_file"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "module.app.terraform_data.server",
+      "instances": 1,
+      "module": "module.app",
+      "name": "server",
+      "source": {
+        "file": "modules/app/main.tf",
+        "line": 9
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "module.app.terraform_data.uses_config",
+      "instances": 1,
+      "module": "module.app",
+      "name": "uses_config",
+      "source": {
+        "file": "modules/app/main.tf",
+        "line": 17
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 2
+        }
+      ],
+      "id": "module.net.module.sub.terraform_data.leaf",
+      "instances": 2,
+      "module": "module.net.module.sub",
+      "name": "leaf",
+      "source": {
+        "file": "modules/net/sub/main.tf",
+        "line": 5
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 2
+        }
+      ],
+      "id": "module.net.terraform_data.subnet",
+      "instances": 2,
+      "module": "module.net",
+      "name": "subnet",
+      "source": {
+        "file": "modules/net/main.tf",
+        "line": 5
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.after",
+      "instances": 1,
+      "name": "after",
+      "source": {
+        "file": "live/main.tf",
+        "line": 31
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.base",
+      "instances": 1,
+      "name": "base",
+      "source": {
+        "file": "live/main.tf",
+        "line": 10
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 2
+        }
+      ],
+      "id": "terraform_data.each",
+      "instances": 2,
+      "name": "each",
+      "source": {
+        "file": "live/main.tf",
+        "line": 14
+      },
+      "type": "terraform_data"
+    }
+  ],
+  "summary": {
+    "creates": 10,
+    "reads": 1
+  }
+}

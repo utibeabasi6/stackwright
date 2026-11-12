@@ -37,6 +37,8 @@ Each decision has a record in [adr/](adr/).
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; every Terraform from 1.0.0, downloaded from HashiCorp at run time | [0025](adr/0025-newer-terraform.md) |
+| Applies | Start from the working tree their plan left | [0026](adr/0026-applies-start-from-the-plan-tree.md) |
+| Plan graph | A node for each resource; edges from the configuration and the executor's HCL map; ELK in the browser, under EPL-2.0; layouts kept per workspace | [0027](adr/0027-plan-graph.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**

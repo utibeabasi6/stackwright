@@ -91,9 +91,23 @@ You also need Go 1.26 and Node 22.
 ```bash
 make up      # the stack, with Postgres, NATS and RustFS on local ports
 make dev     # the web app with live reload on :5173
-make test
+make test    # Go and web tests, then the browser checks (make e2e)
 make lint
 ```
+
+`make e2e` downloads Playwright's Chromium the first time.
+
+The plan graph's golden files in `internal/graph/testdata` come from real
+plans. After a change to the graph model, `go test ./internal/graph -update`
+writes `graph.json` again from the stored plans. After a change to the
+fixtures in `internal/server/testdata/graph`, plan them again in Docker,
+with the variables from `.env` set as `make` sets them:
+
+```bash
+STACKWRIGHT_TEST_INFRA=1 STACKWRIGHT_TEST_ENGINES=1 go test ./internal/server -run TestPlanGraphGolden -update
+```
+
+Then check the diff.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request.
 

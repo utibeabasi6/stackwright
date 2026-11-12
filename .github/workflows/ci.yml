@@ -44,6 +44,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: make init
       - run: make up
+      - run: cd web && npx --yes pnpm@10.34.7 install --frozen-lockfile && npx --yes pnpm@10.34.7 exec playwright install-deps chromium
       - run: make test
       - run: make smoke
       - if: failure()

@@ -27,6 +27,7 @@ const executorImage = "stackwright/executor:test"
 
 type jobWorld struct {
 	*world
+	api       *client
 	docker    *sandbox.Docker
 	platform  string
 	orgID     string
@@ -71,7 +72,7 @@ func newJobWorld(t *testing.T) *jobWorld {
 	if err != nil {
 		t.Fatal(err)
 	}
-	jw := &jobWorld{world: w, docker: d, platform: platform}
+	jw := &jobWorld{world: w, api: owner, docker: d, platform: platform}
 	jw.orgID, jw.workspace = jw.workspaceID("net", "prod")
 	return jw
 }

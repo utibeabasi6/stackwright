@@ -75,6 +75,10 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.RunServiceCancelRunProcedure:   org(v1.Role_ROLE_WRITER),
 	stackwrightv1connect.RunServiceListWaitingProcedure: org(v1.Role_ROLE_VIEWER),
 
+	stackwrightv1connect.GraphServiceGetPlanGraphProcedure:    org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.GraphServiceGetPlanNodeProcedure:     org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.GraphServiceSaveGraphLayoutProcedure: org(v1.Role_ROLE_WRITER),
+
 	stackwrightv1connect.StateServiceGetStateProcedure:          org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.StateServiceListStateVersionsProcedure: org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.StateServiceGetStateVersionProcedure:   org(v1.Role_ROLE_ADMIN),

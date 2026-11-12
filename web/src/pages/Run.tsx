@@ -93,6 +93,11 @@ export function Run() {
           </>
         )}
         <span className="grow" />
+        {run && run.status !== RunStatus.QUEUED && run.status !== RunStatus.PLANNING && (
+          <Link to="/$org/projects/$project/$workspace/plan" params={{ org, project, workspace }} search={{ run: String(number) }}>
+            Open the plan graph
+          </Link>
+        )}
         <Link to="/$org/projects/$project/$workspace/runs" params={{ org, project, workspace }}>
           All runs
         </Link>

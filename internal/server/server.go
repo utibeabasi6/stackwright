@@ -65,6 +65,7 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewVariableServiceHandler(api.Variables{KEK: c.KEK}, opts))
 	serve(stackwrightv1connect.NewCloudAccountServiceHandler(api.CloudAccounts{Issuer: c.Issuer}, opts))
 	serve(stackwrightv1connect.NewGitHubServiceHandler(api.GitHub{GitHub: c.GitHub}, opts))
+	serve(stackwrightv1connect.NewGraphServiceHandler(api.Graph{Jobs: c.Jobs, GitHubURL: c.GitHub.WebURL}, opts))
 	mux.Handle("/github/", c.GitHub.Callbacks())
 	mux.HandleFunc("POST /webhooks/github", c.GitHub.Webhook)
 	mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {

@@ -28,6 +28,7 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/artifact"
+	"github.com/stackwright/stackwright/internal/graph"
 	"github.com/stackwright/stackwright/internal/redact"
 	"github.com/stackwright/stackwright/internal/sts"
 )
@@ -270,6 +271,16 @@ func (r *runner) run(ctx context.Context) (err error) {
 		}
 	}
 	if err := r.upload(ctx, "plan.json", planJSON); err != nil {
+		return &stageError{"artifacts", err}
+	}
+	// A file that does not parse only costs the graph its links, so the plan
+	// goes on without it.
+	sources, err := graph.ReadSources(root, dir)
+	if err != nil {
+		r.emit("executor.sources_failed", map[string]any{"error": string(r.redact([]byte(err.Error())))})
+	}
+	b, _ := json.Marshal(sources)
+	if err := r.upload(ctx, "sources.json", b); err != nil {
 		return &stageError{"artifacts", err}
 	}
 	workdir, err := tarTree(root, plan)

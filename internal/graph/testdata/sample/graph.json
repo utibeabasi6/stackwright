@@ -1,0 +1,24 @@
+{
+  "nodes": [
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.greeting",
+      "instances": 1,
+      "name": "greeting",
+      "source": {
+        "file": "sample/main.tf",
+        "line": 10
+      },
+      "type": "terraform_data"
+    }
+  ],
+  "summary": {
+    "creates": 1
+  }
+}

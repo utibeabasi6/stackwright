@@ -4,6 +4,7 @@ import { AuthService } from "./gen/stackwright/v1/auth_pb";
 import { BuildServerService } from "./gen/stackwright/v1/build_servers_pb";
 import { CloudAccountService } from "./gen/stackwright/v1/cloud_pb";
 import { GitHubService } from "./gen/stackwright/v1/github_pb";
+import { GraphService } from "./gen/stackwright/v1/graph_pb";
 import { VariableService } from "./gen/stackwright/v1/variables_pb";
 import { InstanceService } from "./gen/stackwright/v1/instance_pb";
 import { MetaService } from "./gen/stackwright/v1/meta_pb";
@@ -32,6 +33,7 @@ export const buildServerApi = createClient(BuildServerService, transport);
 export const variableApi = createClient(VariableService, transport);
 export const cloudApi = createClient(CloudAccountService, transport);
 export const githubApi = createClient(GitHubService, transport);
+export const graphApi = createClient(GraphService, transport);
 
 export function message(err: unknown): string {
   return err instanceof ConnectError ? err.rawMessage : "Something went wrong. Try again.";

@@ -164,6 +164,9 @@ export function Shell() {
               >
                 Overview
               </Link>
+              <Link to="/$org/projects/$project/$workspace/plan" params={{ org, project: current.project, workspace: current.workspace }}>
+                Plan
+              </Link>
               <Link to="/$org/projects/$project/$workspace/runs" params={{ org, project: current.project, workspace: current.workspace }}>
                 Runs
               </Link>
