@@ -150,7 +150,7 @@ func (r *runner) run(ctx context.Context) (err error) {
 	}()
 	job := r.job
 
-	binPath, cached, err := r.engine(ctx)
+	binPath, cached, err := FetchEngine(ctx, r.job.GetEngineBinary(), r.cache, r.work)
 	if err != nil {
 		return &stageError{"engine", err}
 	}
@@ -159,7 +159,7 @@ func (r *runner) run(ctx context.Context) (err error) {
 	root := filepath.Join(r.work, "src")
 	inputs := map[string][]byte{}
 	for _, in := range job.GetInputs() {
-		sealed, err := r.download(ctx, in.GetUrl())
+		sealed, err := download(ctx, in.GetUrl())
 		if errors.Is(err, errNotFound) && (in.GetName() == "lock.hcl" || in.GetName() == "workdir.tar.gz") {
 			continue
 		}
@@ -331,26 +331,25 @@ func isDir(path string) bool {
 	return err == nil && fi.IsDir()
 }
 
-// engine returns the engine's path: the builder's cached copy when its
-// SHA-256 matches, or else a download.
-func (r *runner) engine(ctx context.Context) (path string, cached bool, err error) {
-	d := r.job.GetEngineBinary()
-	if r.cache != "" {
-		path := filepath.Join(r.cache, "engines", d.GetSha256(), filepath.Base(d.GetName()))
+// FetchEngine returns the engine's path: the builder's cached copy when its
+// SHA-256 matches, or else a download into work.
+func FetchEngine(ctx context.Context, d *v1.Download, cache, work string) (path string, cached bool, err error) {
+	if cache != "" {
+		path := filepath.Join(cache, "engines", d.GetSha256(), filepath.Base(d.GetName()))
 		if b, err := os.ReadFile(path); err == nil { //nolint:gosec // a path under the read-only cache
 			if sum := sha256.Sum256(b); hex.EncodeToString(sum[:]) == d.GetSha256() {
 				return path, true, nil
 			}
 		}
 	}
-	bin, err := r.download(ctx, d.GetUrl())
+	bin, err := download(ctx, d.GetUrl())
 	if err != nil {
 		return "", false, err
 	}
 	if sum := sha256.Sum256(bin); hex.EncodeToString(sum[:]) != d.GetSha256() {
 		return "", false, ErrEngineChecksum
 	}
-	path = filepath.Join(r.work, "bin", filepath.Base(d.GetName()))
+	path = filepath.Join(work, "bin", filepath.Base(d.GetName()))
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return "", false, err
 	}
@@ -384,7 +383,7 @@ func (r *runner) upload(ctx context.Context, name string, data []byte) error {
 	return nil
 }
 
-func (r *runner) download(ctx context.Context, url string) ([]byte, error) {
+func download(ctx context.Context, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

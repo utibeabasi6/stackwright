@@ -27,6 +27,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	"github.com/stackwright/stackwright/internal/agent"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builder"
@@ -66,6 +67,8 @@ type world struct {
 	builderLocal string
 	sts          *fakeSTS
 	github       *fakeGitHub
+	agent        *agent.Service
+	model        *scriptedModel
 }
 
 func newWorld(t *testing.T, web fstest.MapFS) *world {
@@ -138,7 +141,16 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 		BuilderURL: fmt.Sprintf("https://host.docker.internal:%d", builderPort),
 		Images:     map[string]string{"docker": executorImage}, ServerURL: public, BuiltInServerURL: public}
 	orch := &runs.Orchestrator{Pool: d.App, KEK: kek, S3: s3, Bucket: bucket, Jobs: js, Hub: hub, NATS: testenv.NATS(t)}
-	js.OnEnd, hub.OnExit = orch.JobEnded, orch.SandboxExited
+	model := &scriptedModel{}
+	ag := &agent.Service{Pool: d.App, KEK: kek, Hub: hub, Jobs: js, Model: model, IdleAfter: time.Hour}
+	js.OnEnd = orch.JobEnded
+	hub.OnExit = func(jobID string, st *v1.SandboxStatus) {
+		if agent.IsSandbox(jobID) {
+			ag.SandboxExited(jobID, st)
+			return
+		}
+		orch.SandboxExited(jobID, st)
+	}
 	fake := newFakeGitHub(t)
 	gh := &github.GitHub{Pool: d.App, KEK: kek, WebURL: fake.srv.URL, APIURL: fake.srv.URL, PublicURL: public, HTTP: http.DefaultClient,
 		Runs: orch, S3: s3, Bucket: bucket}
@@ -148,7 +160,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	go gh.RunWebhooks(ctx, 200*time.Millisecond)
 	go gh.RunChecks(ctx, 200*time.Millisecond)
 	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
-		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries, Issuer: issuer, GitHub: gh}
+		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries, Issuer: issuer, GitHub: gh, Agent: ag}
 	if web != nil {
 		cfg.Web = web
 	}
@@ -159,7 +171,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	}()
 	t.Cleanup(func() { _ = bsrv.Close() })
 	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public, jobs: js, runs: orch, hub: hub,
-		builderLocal: fmt.Sprintf("https://127.0.0.1:%d", builderPort), sts: sts, github: fake}
+		builderLocal: fmt.Sprintf("https://127.0.0.1:%d", builderPort), sts: sts, github: fake, agent: ag, model: model}
 }
 
 type client struct {
@@ -259,7 +271,7 @@ func methods() []method {
 		v1.File_stackwright_v1_projects_proto, v1.File_stackwright_v1_state_proto,
 		v1.File_stackwright_v1_executor_proto, v1.File_stackwright_v1_runs_proto, v1.File_stackwright_v1_builder_proto,
 		v1.File_stackwright_v1_build_servers_proto, v1.File_stackwright_v1_variables_proto, v1.File_stackwright_v1_cloud_proto,
-		v1.File_stackwright_v1_github_proto, v1.File_stackwright_v1_graph_proto,
+		v1.File_stackwright_v1_github_proto, v1.File_stackwright_v1_graph_proto, v1.File_stackwright_v1_agent_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -615,6 +627,55 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 	step("GitHubService/StartInstall", func() { owner.must("GitHubService/StartInstall", org) })
 	w.link(owner)
 	step("GitHubService/RefreshRepos", func() { owner.must("GitHubService/RefreshRepos", org) })
+	agentSettings := map[string]any{"org": "a", "apiKey": "k", "turnModel": "anthropic/claude-opus-5.5", "shortModel": "anthropic/claude-haiku-5.5", "monthlyCap": 5}
+	step("AgentService/SetAgentSettings", func() { owner.must("AgentService/SetAgentSettings", agentSettings) })
+	owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "agent-lab", "engine": "ENGINE_OPENTOFU",
+		"engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN", "repoUrl": "https://github.com/acme/infra"})
+	lab := map[string]any{"org": "a", "project": "agent-lab", "workspace": "default"}
+	// With no build server, each turn ends at once with an error step.
+	idle := func(id string) {
+		t.Helper()
+		deadline := time.Now().Add(30 * time.Second)
+		for {
+			var status string
+			if err := w.owner.QueryRow(context.Background(), `SELECT status FROM agent_sessions WHERE id = $1`, id).Scan(&status); err != nil {
+				t.Fatal(err)
+			}
+			if status != "starting" && status != "working" {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("the session stays %s", status)
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+	var sessionID string
+	step("AgentService/StartSession", func() {
+		sessionID = owner.must("AgentService/StartSession", merge(lab, map[string]any{"message": "hi"}))["session"].(map[string]any)["id"].(string)
+	})
+	idle(sessionID)
+	step("AgentService/SendMessage", func() {
+		owner.must("AgentService/SendMessage", map[string]any{"org": "a", "id": sessionID, "message": "again"})
+	})
+	idle(sessionID)
+	step("AgentService/StopTurn", func() { owner.must("AgentService/StopTurn", map[string]any{"org": "a", "id": sessionID}) })
+	if _, err := w.owner.Exec(context.Background(), `WITH s AS (UPDATE agent_sessions SET last_seq = last_seq + 1, status = 'waiting_for_approval'
+		WHERE id = $1 RETURNING org_id, last_seq) INSERT INTO agent_steps (session_id, org_id, seq, kind, payload) SELECT $1, org_id, last_seq, 'proposal',
+		'{"message": "m", "diff": "d"}' FROM s`, sessionID); err != nil {
+		t.Fatal(err)
+	}
+	var proposal int64
+	if err := w.owner.QueryRow(context.Background(), `SELECT last_seq FROM agent_sessions WHERE id = $1`, sessionID).Scan(&proposal); err != nil {
+		t.Fatal(err)
+	}
+	step("AgentService/DecideProposal", func() {
+		owner.must("AgentService/DecideProposal", map[string]any{"org": "a", "id": sessionID, "proposal": proposal, "approve": false})
+	})
+	idle(sessionID)
+	step("AgentService/CloseSession", func() {
+		owner.must("AgentService/CloseSession", map[string]any{"org": "a", "id": sessionID, "discard": true})
+	})
 	step("GitHubService/UnlinkInstallation", func() {
 		owner.must("GitHubService/UnlinkInstallation", map[string]any{"org": "a", "installationId": 7})
 	})
@@ -681,7 +742,7 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 
 	for _, m := range methods() {
 		access := authz.Policy[m.procedure].Access
-		if m.write && !covered[m.procedure] && access != authz.JobTicket && access != authz.Job && access != authz.Builder {
+		if m.write && !covered[m.procedure] && access != authz.JobTicket && access != authz.Job && access != authz.Builder && access != authz.Toolbox {
 			t.Errorf("%s writes, but this test does not check its audit row", m.procedure)
 		}
 	}

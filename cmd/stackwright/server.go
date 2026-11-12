@@ -24,6 +24,8 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
+	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	"github.com/stackwright/stackwright/internal/agent"
 	"github.com/stackwright/stackwright/internal/builders"
 	"github.com/stackwright/stackwright/internal/config"
 	"github.com/stackwright/stackwright/internal/db"
@@ -137,7 +139,16 @@ func runServer(args []string) error {
 	}
 	orchestrator := &runs.Orchestrator{Pool: pool, KEK: kek, S3: s3, Bucket: bucket, Jobs: jobService, Hub: hub, NATS: nc}
 	jobService.OnEnd = orchestrator.JobEnded
-	hub.OnExit = orchestrator.SandboxExited
+	agentService := &agent.Service{Pool: pool, KEK: kek, Hub: hub, Jobs: jobService, IdleAfter: 30 * time.Minute,
+		Model: agent.OpenRouter{URL: strings.TrimRight(config.Env("STACKWRIGHT_OPENROUTER_URL", "https://openrouter.ai/api/v1"), "/"),
+			HTTP: &http.Client{Timeout: 10 * time.Minute}}}
+	hub.OnExit = func(jobID string, st *v1.SandboxStatus) {
+		if agent.IsSandbox(jobID) {
+			agentService.SandboxExited(jobID, st)
+			return
+		}
+		orchestrator.SandboxExited(jobID, st)
+	}
 	gh := &github.GitHub{
 		Pool: pool, KEK: kek, PublicURL: publicURL, Runs: orchestrator, S3: s3, Bucket: bucket,
 		WebURL: strings.TrimRight(config.Env("STACKWRIGHT_GITHUB_URL", "https://github.com"), "/"),
@@ -148,6 +159,7 @@ func runServer(args []string) error {
 	go gh.RunChecks(ctx, 2*time.Second)
 	go jobService.RunReaper(ctx, 5*time.Second)
 	go orchestrator.Run(ctx)
+	go agentService.RunReaper(ctx, time.Minute)
 
 	var web fs.FS
 	if *webDir != "" {
@@ -166,6 +178,7 @@ func runServer(args []string) error {
 		Binaries:  binaries,
 		Issuer:    issuer,
 		GitHub:    gh,
+		Agent:     agentService,
 	}
 	handler := server.New(srvCfg)
 

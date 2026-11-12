@@ -673,7 +673,10 @@ type StartSandbox struct {
 	// after the sandbox starts.
 	Providers []string `protobuf:"bytes,6,rep,name=providers,proto3" json:"providers,omitempty"`
 	// A test sandbox runs the image's version command and reports its exit.
-	Test          bool `protobuf:"varint,7,opt,name=test,proto3" json:"test,omitempty"`
+	Test bool `protobuf:"varint,7,opt,name=test,proto3" json:"test,omitempty"`
+	// A toolbox sandbox serves an agent session until it is stopped; its
+	// ticket is the session's sandbox token.
+	Toolbox       bool `protobuf:"varint,8,opt,name=toolbox,proto3" json:"toolbox,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -753,6 +756,13 @@ func (x *StartSandbox) GetProviders() []string {
 func (x *StartSandbox) GetTest() bool {
 	if x != nil {
 		return x.Test
+	}
+	return false
+}
+
+func (x *StartSandbox) GetToolbox() bool {
+	if x != nil {
+		return x.Toolbox
 	}
 	return false
 }
@@ -850,7 +860,7 @@ const file_stackwright_v1_builder_proto_rawDesc = "" +
 	"\x05start\x18\x01 \x01(\v2\x1c.stackwright.v1.StartSandboxH\x00R\x05start\x121\n" +
 	"\x04stop\x18\x02 \x01(\v2\x1b.stackwright.v1.StopSandboxH\x00R\x04stop\x12\"\n" +
 	"\vcertificate\x18\x03 \x01(\fH\x00R\vcertificateB\x06\n" +
-	"\x04body\"\xd6\x01\n" +
+	"\x04body\"\xf0\x01\n" +
 	"\fStartSandbox\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x16\n" +
 	"\x06ticket\x18\x02 \x01(\tR\x06ticket\x12\x14\n" +
@@ -859,7 +869,8 @@ const file_stackwright_v1_builder_proto_rawDesc = "" +
 	"server_url\x18\x04 \x01(\tR\tserverUrl\x120\n" +
 	"\x06engine\x18\x05 \x01(\v2\x18.stackwright.v1.DownloadR\x06engine\x12\x1c\n" +
 	"\tproviders\x18\x06 \x03(\tR\tproviders\x12\x12\n" +
-	"\x04test\x18\a \x01(\bR\x04test\"$\n" +
+	"\x04test\x18\a \x01(\bR\x04test\x12\x18\n" +
+	"\atoolbox\x18\b \x01(\bR\atoolbox\"$\n" +
 	"\vStopSandbox\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId2\xa6\x01\n" +
 	"\x0eBuilderService\x12D\n" +

@@ -101,6 +101,9 @@ message StartSandbox {
   repeated string providers = 6;
   // A test sandbox runs the image's version command and reports its exit.
   bool test = 7;
+  // A toolbox sandbox serves an agent session until it is stopped; its
+  // ticket is the session's sandbox token.
+  bool toolbox = 8;
 }
 
 // The sandbox gets a graceful stop, so the engine can release its lock.

@@ -20,6 +20,8 @@ const (
 	// Builder takes a build server's client certificate, which the builder
 	// port's TLS handshake verified.
 	Builder
+	// Toolbox takes an agent sandbox's token as the bearer token.
+	Toolbox
 )
 
 type Rule struct {
@@ -74,6 +76,17 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.RunServiceRejectRunProcedure:   org(v1.Role_ROLE_REVIEWER),
 	stackwrightv1connect.RunServiceCancelRunProcedure:   org(v1.Role_ROLE_WRITER),
 	stackwrightv1connect.RunServiceListWaitingProcedure: org(v1.Role_ROLE_VIEWER),
+
+	stackwrightv1connect.AgentServiceGetAgentSettingsProcedure: org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.AgentServiceSetAgentSettingsProcedure: org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.AgentServiceListSessionsProcedure:     org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.AgentServiceStartSessionProcedure:     org(v1.Role_ROLE_WRITER),
+	stackwrightv1connect.AgentServiceSendMessageProcedure:      org(v1.Role_ROLE_WRITER),
+	stackwrightv1connect.AgentServiceStopTurnProcedure:         org(v1.Role_ROLE_WRITER),
+	stackwrightv1connect.AgentServiceDecideProposalProcedure:   org(v1.Role_ROLE_WRITER),
+	stackwrightv1connect.AgentServiceCloseSessionProcedure:     org(v1.Role_ROLE_WRITER),
+	stackwrightv1connect.AgentServiceWatchSessionProcedure:     org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.ToolboxServiceConnectProcedure:        {Access: Toolbox},
 
 	stackwrightv1connect.GraphServiceGetPlanGraphProcedure:    org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.GraphServiceGetPlanNodeProcedure:     org(v1.Role_ROLE_VIEWER),

@@ -140,11 +140,7 @@ func (s *Service) Create(ctx context.Context, r Request) (Created, error) {
 	if err != nil {
 		return Created{}, err
 	}
-	bin, err := s.Engines.Ensure(ctx, eng, version, platform)
-	if err != nil {
-		return Created{}, fmt.Errorf("engine %s %s: %w", eng, version, err)
-	}
-	binURL, err := s.presigner(r.Remote).PresignedGetObject(ctx, s.Bucket, bin.ObjectKey, time.Hour, url.Values{})
+	engine, err := s.EngineDownload(ctx, eng, version, platform, r.Remote)
 	if err != nil {
 		return Created{}, err
 	}
@@ -185,7 +181,21 @@ func (s *Service) Create(ctx context.Context, r Request) (Created, error) {
 	if err != nil {
 		return Created{}, err
 	}
-	return Created{ID: jobID, Ticket: ticket, Engine: &v1.Download{Name: bin.Name, Url: binURL.String(), Sha256: bin.SHA256}}, nil
+	return Created{ID: jobID, Ticket: ticket, Engine: engine}, nil
+}
+
+// EngineDownload makes sure the engine is in the mirror and returns its
+// download, presigned for a builder on the built-in host or a remote one.
+func (s *Service) EngineDownload(ctx context.Context, eng, version, platform string, remote bool) (*v1.Download, error) {
+	bin, err := s.Engines.Ensure(ctx, eng, version, platform)
+	if err != nil {
+		return nil, fmt.Errorf("engine %s %s: %w", eng, version, err)
+	}
+	u, err := s.presigner(remote).PresignedGetObject(ctx, s.Bucket, bin.ObjectKey, time.Hour, url.Values{})
+	if err != nil {
+		return nil, err
+	}
+	return &v1.Download{Name: bin.Name, Url: u.String(), Sha256: bin.SHA256}, nil
 }
 
 // Claim starts a job whose ticket the caller spent, and returns everything

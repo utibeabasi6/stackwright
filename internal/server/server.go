@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	"github.com/stackwright/stackwright/internal/agent"
 	"github.com/stackwright/stackwright/internal/api"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
@@ -40,6 +41,7 @@ type Config struct {
 	Binaries map[string]builders.Binary
 	Issuer   *oidc.Issuer
 	GitHub   *github.GitHub
+	Agent    *agent.Service
 }
 
 func New(c Config) http.Handler {
@@ -66,6 +68,9 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewCloudAccountServiceHandler(api.CloudAccounts{Issuer: c.Issuer}, opts))
 	serve(stackwrightv1connect.NewGitHubServiceHandler(api.GitHub{GitHub: c.GitHub}, opts))
 	serve(stackwrightv1connect.NewGraphServiceHandler(api.Graph{Jobs: c.Jobs, GitHubURL: c.GitHub.WebURL}, opts))
+	serve(stackwrightv1connect.NewAgentServiceHandler(c.Agent, opts))
+	serve(stackwrightv1connect.NewToolboxServiceHandler(c.Agent, opts))
+	mux.Handle("/git/", c.GitHub.GitProxy())
 	mux.Handle("/github/", c.GitHub.Callbacks())
 	mux.HandleFunc("POST /webhooks/github", c.GitHub.Webhook)
 	mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {

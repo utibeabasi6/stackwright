@@ -15,6 +15,7 @@ import { Setup } from "./pages/Setup";
 import { SignIn } from "./pages/SignIn";
 import { Audit } from "./pages/settings/Audit";
 import { CloudAccounts } from "./pages/settings/CloudAccounts";
+import { AgentSettings } from "./pages/settings/Agent";
 import { GitHub } from "./pages/settings/GitHub";
 import { OrgVariables } from "./pages/settings/OrgVariables";
 import { General } from "./pages/settings/General";
@@ -56,6 +57,7 @@ export const routeTree = root.addChildren([
         createRoute({ getParentRoute: () => settings, path: "variables", component: OrgVariables }),
         createRoute({ getParentRoute: () => settings, path: "cloud", component: CloudAccounts }),
         createRoute({ getParentRoute: () => settings, path: "github", component: GitHub }),
+        createRoute({ getParentRoute: () => settings, path: "agent", component: AgentSettings }),
         createRoute({ getParentRoute: () => settings, path: "sign-in", component: SignInProviders }),
       ]),
     ]),

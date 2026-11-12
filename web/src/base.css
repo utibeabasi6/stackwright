@@ -140,10 +140,78 @@ a {
   font-weight: 600;
 }
 
-.frame-main > .page {
+.frame-body {
+  display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.frame-body > .page {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
+}
+
+.agent-panel {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: var(--inspector-width);
+  padding: var(--space-4);
+  overflow-y: auto;
+  border-left: 1px solid var(--hairline);
+  background: var(--inspector);
+}
+
+.agent-panel h2,
+.agent-panel h3 {
+  margin: 0;
+  font: var(--type-title);
+}
+
+.agent-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-steps .from-user {
+  align-self: flex-end;
+  max-width: 90%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-card);
+  background: var(--selection);
+  white-space: pre-wrap;
+}
+
+.agent-steps .from-agent {
+  white-space: pre-wrap;
+}
+
+.agent-steps .tool summary {
+  cursor: pointer;
+  color: var(--ink-muted);
+}
+
+.agent-steps pre {
+  max-height: 240px;
+  margin: var(--space-1) 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: var(--type-log);
+}
+
+.agent-steps .tool.destroy summary {
+  color: var(--destroy);
+}
+
+.agent-steps .proposal {
+  border-color: var(--accent);
 }
 
 .page {

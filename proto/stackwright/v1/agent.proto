@@ -1,0 +1,252 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stackwright/v1/executor.proto";
+
+service AgentService {
+  rpc GetAgentSettings(GetAgentSettingsRequest) returns (GetAgentSettingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc SetAgentSettings(SetAgentSettingsRequest) returns (SetAgentSettingsResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // StartSession starts a sandbox for the workspace and sends the first
+  // message.
+  rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+  // SendMessage starts a turn, or answers the agent's question.
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  // StopTurn stops the turn in progress; the checkout keeps what the tools
+  // did.
+  rpc StopTurn(StopTurnRequest) returns (StopTurnResponse);
+  // DecideProposal commits and pushes a proposed commit, or discards the
+  // changes.
+  rpc DecideProposal(DecideProposalRequest) returns (DecideProposalResponse);
+  // CloseSession removes the sandbox. A session with uncommitted changes
+  // closes only with discard.
+  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
+  // WatchSession sends every step after after_seq, then each new one, and
+  // the session again whenever it changes.
+  rpc WatchSession(WatchSessionRequest) returns (stream WatchSessionResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// ToolboxService is for the toolbox in an agent sandbox. It authenticates
+// with the session's sandbox token.
+service ToolboxService {
+  rpc Connect(stream ToolboxMessage) returns (stream ToolboxOrder);
+}
+
+message AgentSettings {
+  bool has_key = 1;
+  // OpenRouter model ids, such as "anthropic/claude-opus-5.5".
+  string turn_model = 2;
+  string short_model = 3;
+  // US dollars for each calendar month (UTC).
+  double monthly_cap = 4;
+  double spent_this_month = 5;
+}
+
+message GetAgentSettingsRequest {
+  string org = 1;
+}
+
+message GetAgentSettingsResponse {
+  AgentSettings settings = 1;
+}
+
+message SetAgentSettingsRequest {
+  string org = 1;
+  // An empty key keeps the stored one.
+  string api_key = 2;
+  bool clear_key = 3;
+  string turn_model = 4;
+  string short_model = 5;
+  double monthly_cap = 6;
+}
+
+message SetAgentSettingsResponse {
+  AgentSettings settings = 1;
+}
+
+enum AgentSessionStatus {
+  AGENT_SESSION_STATUS_UNSPECIFIED = 0;
+  // The sandbox starts and clones the branch.
+  AGENT_SESSION_STATUS_STARTING = 1;
+  AGENT_SESSION_STATUS_READY = 2;
+  AGENT_SESSION_STATUS_WORKING = 3;
+  AGENT_SESSION_STATUS_WAITING_FOR_ANSWER = 4;
+  AGENT_SESSION_STATUS_WAITING_FOR_APPROVAL = 5;
+  // The sandbox is gone; a new message starts a fresh one.
+  AGENT_SESSION_STATUS_ASLEEP = 6;
+  AGENT_SESSION_STATUS_CLOSED = 7;
+  AGENT_SESSION_STATUS_FAILED = 8;
+}
+
+message AgentSession {
+  string id = 1;
+  string project = 2;
+  string workspace = 3;
+  // The session's branch, such as "agent/add-a-random-pet-3f2a".
+  string branch = 4;
+  AgentSessionStatus status = 5;
+  string title = 6;
+  string created_by = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  // The checkout has changes that nobody committed or discarded.
+  bool dirty = 10;
+  double spent = 11;
+  string error = 12;
+  int64 last_seq = 13;
+}
+
+message AgentStep {
+  int64 seq = 1;
+  // "user", "assistant", "tool_call", "tool_result", "proposal",
+  // "decision", "notice" or "error".
+  string kind = 2;
+  // JSON.
+  string payload = 3;
+  google.protobuf.Timestamp at = 4;
+  string actor = 5;
+}
+
+message ListSessionsRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+}
+
+message ListSessionsResponse {
+  repeated AgentSession sessions = 1;
+}
+
+message StartSessionRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  string message = 4;
+}
+
+message StartSessionResponse {
+  AgentSession session = 1;
+}
+
+message SendMessageRequest {
+  string org = 1;
+  string id = 2;
+  string message = 3;
+}
+
+message SendMessageResponse {
+  AgentSession session = 1;
+}
+
+message StopTurnRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message StopTurnResponse {}
+
+message DecideProposalRequest {
+  string org = 1;
+  string id = 2;
+  // The proposal step's seq.
+  int64 proposal = 3;
+  bool approve = 4;
+}
+
+message DecideProposalResponse {
+  AgentSession session = 1;
+}
+
+message CloseSessionRequest {
+  string org = 1;
+  string id = 2;
+  bool discard = 3;
+}
+
+message CloseSessionResponse {}
+
+message WatchSessionRequest {
+  string org = 1;
+  string id = 2;
+  int64 after_seq = 3;
+}
+
+message WatchSessionResponse {
+  repeated AgentStep steps = 1;
+  AgentSession session = 2;
+}
+
+message ToolboxMessage {
+  oneof body {
+    ToolboxReady ready = 1;
+    ToolResult result = 2;
+    // The first message on each stream: a Connect client sends its request
+    // headers only with its first message.
+    ToolboxHello hello = 3;
+  }
+}
+
+message ToolboxHello {}
+
+// The toolbox sends ready once it has cloned the branch, and again after
+// each restart of the stream.
+message ToolboxReady {
+  bool dirty = 1;
+}
+
+message ToolResult {
+  string id = 1;
+  string output = 2;
+  bool error = 3;
+  // The checkout has uncommitted changes after this call.
+  bool dirty = 4;
+}
+
+message ToolboxOrder {
+  oneof body {
+    Checkout checkout = 1;
+    ToolCall call = 2;
+    CommitOrder commit = 3;
+    DiscardOrder discard = 4;
+  }
+}
+
+// Checkout is the first order: clone the repository through the Git proxy
+// and check out the session's branch.
+message Checkout {
+  string git_url = 1;
+  string branch = 2;
+  // The branch to start from when the session's branch does not exist yet.
+  string base = 3;
+  // The project's folder in the repository.
+  string path = 4;
+  Download engine = 5;
+  // "tofu" or "terraform".
+  string engine_name = 6;
+}
+
+message ToolCall {
+  string id = 1;
+  string name = 2;
+  // JSON.
+  string arguments = 3;
+}
+
+message CommitOrder {
+  string id = 1;
+  string message = 2;
+  string author_name = 3;
+  string author_email = 4;
+}
+
+message DiscardOrder {
+  string id = 1;
+}

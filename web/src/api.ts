@@ -1,5 +1,6 @@
 import { ConnectError, createClient, type Interceptor } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
+import { AgentService } from "./gen/stackwright/v1/agent_pb";
 import { AuthService } from "./gen/stackwright/v1/auth_pb";
 import { BuildServerService } from "./gen/stackwright/v1/build_servers_pb";
 import { CloudAccountService } from "./gen/stackwright/v1/cloud_pb";
@@ -34,6 +35,7 @@ export const variableApi = createClient(VariableService, transport);
 export const cloudApi = createClient(CloudAccountService, transport);
 export const githubApi = createClient(GitHubService, transport);
 export const graphApi = createClient(GraphService, transport);
+export const agentApi = createClient(AgentService, transport);
 
 export function message(err: unknown): string {
   return err instanceof ConnectError ? err.rawMessage : "Something went wrong. Try again.";

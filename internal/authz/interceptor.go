@@ -28,8 +28,10 @@ type Scope struct {
 	// its certificate ends.
 	BuildServerID string
 	CertExpires   time.Time
-	target        string
-	after         []func()
+	// AgentSessionID is set for a toolbox's stream.
+	AgentSessionID string
+	target         string
+	after          []func()
 }
 
 type scopeKey struct{}
@@ -246,6 +248,13 @@ func (i *Interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) co
 				s.OrgID = *orgID
 			}
 			return next(context.WithValue(ctx, scopeKey{}, s), conn)
+		case rule.Access == Toolbox:
+			bearer, _ := strings.CutPrefix(conn.RequestHeader().Get("Authorization"), "Bearer ")
+			session, orgID, err := SandboxToken(ctx, i.Pool, bearer)
+			if err != nil {
+				return err
+			}
+			return next(context.WithValue(ctx, scopeKey{}, &Scope{AgentSessionID: session, OrgID: orgID}), conn)
 		case rule.Access == InOrg && conn.Spec().StreamType == connect.StreamTypeServer:
 			user, signedIn := auth.UserFrom(ctx)
 			if !signedIn {
@@ -302,4 +311,20 @@ func RoleToDB(r v1.Role) string {
 
 func RoleFromDB(s string) v1.Role {
 	return v1.Role(v1.Role_value["ROLE_"+strings.ToUpper(s)])
+}
+
+// SandboxToken returns the agent session and org of a running sandbox's
+// token. The toolbox stream and the Git proxy both take it.
+func SandboxToken(ctx context.Context, pool *pgxpool.Pool, token string) (session, orgID string, err error) {
+	if token == "" {
+		return "", "", connect.NewError(connect.CodeUnauthenticated, errors.New("no sandbox token"))
+	}
+	err = pool.QueryRow(ctx, `SELECT session_id, org_id FROM agent_sandbox_tokens WHERE token_hash = $1`, auth.HashToken(token)).Scan(&session, &orgID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", connect.NewError(connect.CodeUnauthenticated, errors.New("the sandbox token is unknown or its sandbox is gone"))
+	}
+	if err != nil {
+		return "", "", Internal(err)
+	}
+	return session, orgID, nil
 }

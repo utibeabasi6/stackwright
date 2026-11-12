@@ -17,7 +17,11 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"net/http/cgi"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -47,6 +51,9 @@ type fakeGitHub struct {
 	nextID       int64
 	comments     map[int64]string
 	commentPosts int
+	// gitRoot holds bare repositories, served with git http-backend.
+	gitRoot string
+	git     http.Handler
 }
 
 type fakeRepo struct {
@@ -72,9 +79,72 @@ func newFakeGitHub(t *testing.T) *fakeGitHub {
 	f := &fakeGitHub{t: t, key: key, webhookSecret: "webhook-secret-" + rand.Text()[:8],
 		installations: map[int64]string{}, commits: map[string]map[string]string{}, heads: map[string]string{}, compare: map[string][]string{},
 		checks: map[int64]*fakeCheck{}, comments: map[int64]string{}, nextID: 100}
+	f.gitRoot = t.TempDir()
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.git = &cgi.Handler{Path: gitPath, Args: []string{"http-backend"}, Env: []string{
+		"GIT_PROJECT_ROOT=" + f.gitRoot, "GIT_HTTP_EXPORT_ALL=1",
+		"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.receivepack", "GIT_CONFIG_VALUE_0=true",
+	}}
 	f.srv = httptest.NewServer(f)
 	t.Cleanup(f.srv.Close)
 	return f
+}
+
+// gitRepo makes a bare repository for fullName whose main branch has one
+// commit with files.
+func (f *fakeGitHub) gitRepo(fullName string, files map[string]string) {
+	f.t.Helper()
+	work := f.t.TempDir()
+	for name, body := range files {
+		path := filepath.Join(work, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			f.t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			f.t.Fatal(err)
+		}
+	}
+	bare := filepath.Join(f.gitRoot, fullName+".git")
+	for _, args := range [][]string{
+		{"init", "--bare", "--initial-branch=main", bare},
+		{"-C", work, "init", "--initial-branch=main"},
+		{"-C", work, "add", "--all"},
+		{"-C", work, "-c", "user.name=Test", "-c", "user.email=test@a.test", "commit", "-m", "Start"},
+		{"-C", work, "push", bare, "main"},
+	} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			f.t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+}
+
+// refs lists a repository's branches and their commits.
+func (f *fakeGitHub) refs(fullName string) map[string]string {
+	f.t.Helper()
+	out, err := exec.Command("git", "--git-dir", filepath.Join(f.gitRoot, fullName+".git"), "for-each-ref", "--format=%(refname) %(objectname)").Output()
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	refs := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if name, sha, ok := strings.Cut(line, " "); ok {
+			refs[name] = sha
+		}
+	}
+	return refs
+}
+
+// show returns a file at a revision of a repository.
+func (f *fakeGitHub) show(fullName, rev, path string) string {
+	f.t.Helper()
+	out, err := exec.Command("git", "--git-dir", filepath.Join(f.gitRoot, fullName+".git"), "show", rev+":"+path).CombinedOutput()
+	if err != nil {
+		f.t.Fatalf("git show %s:%s: %v: %s", rev, path, err, out)
+	}
+	return string(out)
 }
 
 // commit records a commit's files, for its tarball.
@@ -118,6 +188,16 @@ func (f *fakeGitHub) appJWT(r *http.Request) bool {
 }
 
 func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.Contains(r.URL.Path, ".git/") {
+		// Only the Git proxy reaches here, with the installation token.
+		if user, pass, ok := r.BasicAuth(); !ok || user != "x-access-token" || !strings.HasPrefix(pass, "ghs_") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="GitHub"`)
+			http.Error(w, "an installation token is required", http.StatusUnauthorized)
+			return
+		}
+		f.git.ServeHTTP(w, r)
+		return
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	p := r.URL.Path

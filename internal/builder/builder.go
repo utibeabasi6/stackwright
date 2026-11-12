@@ -171,6 +171,9 @@ func (b *Builder) start(ctx context.Context, order *v1.StartSandbox) {
 	} else {
 		spec.Env = map[string]string{"STACKWRIGHT_SERVER_URL": order.GetServerUrl()}
 		spec.Files = map[string][]byte{"ticket": []byte(order.GetTicket())}
+		if order.GetToolbox() {
+			spec.Command = []string{"toolbox"}
+		}
 		if b.Cache != "" {
 			if err := b.cacheEngine(ctx, order.GetEngine()); err != nil {
 				slog.Warn("cache the engine; the sandbox downloads it", "job", jobID, "err", err)

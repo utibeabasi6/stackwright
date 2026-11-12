@@ -1,4 +1,5 @@
-// stackwright-executor runs one job inside a sandbox, then exits.
+// stackwright-executor runs one job inside a sandbox, then exits. With the
+// argument "toolbox", it serves an agent session instead.
 package main
 
 import (
@@ -13,6 +14,7 @@ import (
 
 	"github.com/stackwright/stackwright/internal/executor"
 	"github.com/stackwright/stackwright/internal/sandbox"
+	"github.com/stackwright/stackwright/internal/toolbox"
 	"github.com/stackwright/stackwright/internal/version"
 )
 
@@ -46,6 +48,13 @@ func main() {
 	}
 	if err := os.Remove(ticketFile); err != nil {
 		slog.Warn("remove the ticket file", "err", err)
+	}
+	if len(os.Args) == 2 && os.Args[1] == "toolbox" {
+		if err := toolbox.Run(ctx, serverURL, string(ticket), "/work", cache); err != nil {
+			slog.Error("toolbox stopped", "err", err)
+			os.Exit(1)
+		}
+		return
 	}
 	if err := executor.Run(ctx, serverURL, string(ticket), "/work", cache); err != nil {
 		slog.Error("job failed", "err", err)

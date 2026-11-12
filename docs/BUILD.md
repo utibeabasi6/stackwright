@@ -41,6 +41,7 @@ Each decision has a record in [adr/](adr/).
 | Plan graph | A node for each resource; edges from the configuration and the executor's HCL map; ELK in the browser, under EPL-2.0; layouts kept per workspace | [0027](adr/0027-plan-graph.md) |
 | Live apply and replay | The run page shows the graph beside the timeline; one reducer folds live and replayed events; replay gaps capped at 2 s | [0028](adr/0028-live-apply-and-replay.md) |
 | Navigation | A collapsible sidebar that lists a workspace's pages inside it; breadcrumbs; the plan graph on the run page only | [0029](adr/0029-sidebar-navigation.md) |
+| Agent sessions | OpenRouter over HTTP; the cap counts its reported cost; the toolbox dials the server; the Git proxy lets a push through only for an unspent approval; a right-hand panel | [0030](adr/0030-agent-sessions.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**
@@ -127,7 +128,7 @@ it.
 | `cmd/stackwright` | The server, admin commands and, from phase 20, the user CLI |
 | `cmd/stackwright-builder` | The build server daemon |
 | `cmd/stackwright-executor` | The job runner inside a run sandbox |
-| `cmd/stackwright-toolbox` | The tool runner inside an agent sandbox |
+| `cmd/stackwright-executor` | Also the tool runner inside an agent sandbox, as `stackwright-executor toolbox` ([0030](adr/0030-agent-sessions.md)) |
 | `internal/<package>` | One package per concern: `auth`, `state`, `runs`, `graph`, `github`, `agent`, … |
 | `proto/` | Connect-RPC definitions |
 | `web/` | The React app; `web/src/ui/tokens.css` mirrors `docs/design/tokens.json` |
@@ -797,7 +798,7 @@ flowchart LR
 
 **`stackwright-builder`** holds one sandbox backend and the local cache.
 **`stackwright-executor`** runs one job and exits.
-**`stackwright-toolbox`** runs agent tools in a session's checkout.
+**`stackwright-executor toolbox`** runs agent tools in a session's checkout.
 
 ### A run, end to end
 

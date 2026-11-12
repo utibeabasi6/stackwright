@@ -5,12 +5,22 @@ import { authApi, message, projectApi, runApi } from "./api";
 import type { GetMeResponse } from "./gen/stackwright/v1/auth_pb";
 import { Role } from "./gen/stackwright/v1/orgs_pb";
 import { ShellContext } from "./me";
+import { AgentPanel } from "./agent/AgentPanel";
 import { Palette, type Command } from "./Palette";
 import { applyTheme, savedTheme, type Theme } from "./theme";
 import { useLoad } from "./useLoad";
 import { Select } from "./Select";
 
 const sidebarKey = "stackwright.sidebar";
+const agentKey = "stackwright.agent";
+
+function savedAgent() {
+  try {
+    return window.localStorage.getItem(agentKey) === "shown";
+  } catch {
+    return false;
+  }
+}
 
 const sectionNames: Record<string, string> = {
   runs: "Runs",
@@ -38,6 +48,18 @@ export function Shell() {
   const [palette, setPalette] = useState(false);
   const [collapsed, setCollapsed] = useState(savedCollapsed);
   const [theme, setTheme] = useState<Theme>(savedTheme);
+  const [agentShown, setAgentShown] = useState(savedAgent);
+  const toggleAgent = useCallback(() => {
+    setAgentShown((shown) => {
+      try {
+        if (shown) window.localStorage.removeItem(agentKey);
+        else window.localStorage.setItem(agentKey, "shown");
+      } catch {
+        // Storage can be refused; the choice then lasts until reload.
+      }
+      return !shown;
+    });
+  }, []);
   const toggleSidebar = useCallback(() => {
     setCollapsed((c) => {
       try {
@@ -85,11 +107,14 @@ export function Shell() {
       } else if (mod && e.key === "\\") {
         e.preventDefault();
         toggleSidebar();
+      } else if (mod && e.altKey && e.code === "Digit0") {
+        e.preventDefault();
+        toggleAgent();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, toggleAgent]);
 
   const role = me?.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
   const commands = useMemo<Command[]>(() => {
@@ -105,6 +130,7 @@ export function Shell() {
       { id: "variables", label: "Settings: Variables", group: "Page", run: go("/$org/settings/variables") },
       { id: "cloud", label: "Settings: Cloud accounts", group: "Page", run: go("/$org/settings/cloud") },
       { id: "github", label: "Settings: GitHub", group: "Page", run: go("/$org/settings/github") },
+      { id: "agent", label: "Settings: Agent", group: "Page", run: go("/$org/settings/agent") },
     ];
     if (role >= Role.ADMIN) {
       list.push(
@@ -251,13 +277,26 @@ export function Shell() {
             </button>
             {ws && <Crumbs ws={ws} rest={path.split("/").filter(Boolean).slice(4)} />}
             <span className="grow" />
+            {ws && (
+              <button type="button" aria-controls="agent" aria-expanded={agentShown} onClick={toggleAgent} title="⌥⌘0">
+                {agentShown ? "Hide agent" : "Agent"}
+              </button>
+            )}
             <button type="button" className="search" onClick={() => setPalette(true)}>
               Search <kbd>⌘K</kbd>
             </button>
           </div>
-          <main className="page">
-            <Outlet />
-          </main>
+          <div className="frame-body">
+            <main className="page">
+              <Outlet />
+            </main>
+            {ws && agentShown && (
+              <aside id="agent" className="agent-panel" aria-label="Agent">
+                <h2>Agent</h2>
+                <AgentPanel org={ws.org} project={ws.project} workspace={ws.workspace} />
+              </aside>
+            )}
+          </div>
         </div>
       </div>
       {palette && <Palette commands={commands} onClose={() => setPalette(false)} />}

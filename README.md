@@ -62,6 +62,16 @@ project uses the repository whose URL it has. GitHub must reach
 `STACKWRIGHT_PUBLIC_URL` to deliver webhooks. For GitHub Enterprise Server,
 set `STACKWRIGHT_GITHUB_URL` and `STACKWRIGHT_GITHUB_API_URL`.
 
+### The agent
+
+The agent works on projects that a linked GitHub installation covers. An
+org admin adds an [OpenRouter](https://openrouter.ai) key, the models and a
+monthly cap in Settings › Agent. ⌥⌘0 (Ctrl+Alt+0 off a Mac) opens the agent
+on any workspace page. Each session runs in its own sandbox on a build
+server, on its own branch; nothing reaches GitHub until a person chooses
+"Commit and push". Set `STACKWRIGHT_OPENROUTER_URL` to use another
+OpenRouter-compatible endpoint.
+
 ### AWS credentials for runs
 
 A run can get short-lived AWS credentials, with no keys stored. Add a cloud
@@ -108,6 +118,10 @@ STACKWRIGHT_TEST_INFRA=1 STACKWRIGHT_TEST_ENGINES=1 go test ./internal/server -r
 ```
 
 Then check the diff.
+
+`TestAgentRealModel` runs the agent checks against a real model. It costs
+about five cents, and runs only when `STACKWRIGHT_TEST_OPENROUTER_KEY` holds
+an OpenRouter key.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request.
 

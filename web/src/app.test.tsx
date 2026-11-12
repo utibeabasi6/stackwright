@@ -18,6 +18,9 @@ const api = vi.hoisted(() => ({
   approved: [] as number[],
   created: [] as unknown[],
   updates: [] as unknown[],
+  agentKey: false,
+  agentSteps: [] as unknown[],
+  decisions: [] as unknown[],
   variables: [] as unknown[],
   setVariables: [] as unknown[],
 }));
@@ -27,6 +30,18 @@ vi.mock("./api", () => ({
   graphApi: {
     getPlanGraph: async () => {
       throw new ConnectError("no plan to show", Code.FailedPrecondition);
+    },
+  },
+  agentApi: {
+    getAgentSettings: async () => ({ settings: { hasKey: api.agentKey, monthlyCap: 50, spentThisMonth: 1.25 } }),
+    listSessions: async () => ({ sessions: api.agentSteps.length ? [{ id: "s1", title: "Add a random_pet named db" }] : [] }),
+    watchSession: async function* () {
+      yield { session: { id: "s1", branch: "agent/add-db-s1", status: 5, spent: 0.12 }, steps: api.agentSteps };
+      await new Promise(() => {});
+    },
+    decideProposal: async (req: unknown) => {
+      api.decisions.push(req);
+      return {};
     },
   },
   meta: { getVersion: async () => ({ version: "0.1.0" }) },
@@ -188,6 +203,9 @@ beforeEach(() => {
   api.approved = [];
   api.created = [];
   api.updates = [];
+  api.agentKey = false;
+  api.agentSteps = [];
+  api.decisions = [];
   api.variables = [];
   api.setVariables = [];
   window.localStorage.clear();
@@ -459,6 +477,41 @@ test("an admin sets auto-apply and build server labels on the Settings page, not
     { org: "a", project: "network", workspace: "prod", autoApply: true },
     { org: "a", project: "network", workspace: "prod", requiredLabels: { values: { region: "eu" } } },
   ]);
+});
+
+test("the agent panel says when the org has no key", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [{ ...network, linkedRepo: "acme/infra" }];
+  at("/a/projects/network/prod");
+  await screen.findByRole("heading", { name: "prod" });
+  await userEvent.keyboard("{Control>}{Alt>}0{/Alt}{/Control}");
+  const panel = await screen.findByRole("complementary", { name: "Agent" });
+  expect(await within(panel).findByText(/needs an OpenRouter key/)).toBeInTheDocument();
+  expect(within(panel).getByRole("link", { name: "Settings › Agent" })).toHaveAttribute("href", "/a/settings/agent");
+  expect(screen.getByRole("navigation", { name: "Workspace" })).toBeInTheDocument();
+});
+
+test("a proposed commit waits for a person, who commits and pushes it", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [{ ...network, linkedRepo: "acme/infra" }];
+  api.agentKey = true;
+  api.agentSteps = [
+    { seq: 1n, kind: "user", payload: JSON.stringify({ text: "Add a random_pet named db" }) },
+    { seq: 2n, kind: "assistant", payload: JSON.stringify({ text: "", tool_calls: [{ id: "c1", function: { name: "read_file" } }] }) },
+    { seq: 3n, kind: "tool_call", payload: JSON.stringify({ id: "c1", name: "read_file", arguments: '{"path":"terraform.tfstate"}' }) },
+    { seq: 4n, kind: "tool_result", payload: JSON.stringify({ id: "c1", output: "Refused: state files hold secrets", error: true }) },
+    { seq: 5n, kind: "proposal", payload: JSON.stringify({ message: "Add a random_pet named db", diff: '+resource "random_pet" "db" {}' }) },
+  ];
+  at("/a/projects/network/prod");
+  await screen.findByRole("heading", { name: "prod" });
+  await userEvent.click(screen.getByRole("button", { name: "Agent" }));
+  const panel = await screen.findByRole("complementary", { name: "Agent" });
+  expect(await within(panel).findByText("Commit these changes?")).toBeInTheDocument();
+  expect(within(panel).getByText(/! read_file terraform.tfstate/)).toBeInTheDocument();
+  expect(within(panel).getByText(/Waits for a person to commit or discard/)).toBeInTheDocument();
+  expect(within(panel).getByRole("textbox", { name: "Message" })).toBeDisabled();
+  await userEvent.click(within(panel).getByRole("button", { name: "Commit and push" }));
+  expect(api.decisions).toMatchObject([{ org: "a", id: "s1", proposal: 5n, approve: true }]);
 });
 
 test("cloud accounts warn when AWS cannot trust the issuer", async () => {
