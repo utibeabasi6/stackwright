@@ -157,61 +157,325 @@ a {
   display: flex;
   flex: none;
   flex-direction: column;
-  gap: var(--space-3);
-  width: var(--inspector-width);
-  padding: var(--space-4);
-  overflow-y: auto;
+  width: var(--agent-width);
+  min-height: 0;
   border-left: 1px solid var(--hairline);
   background: var(--inspector);
 }
 
-.agent-panel h2,
-.agent-panel h3 {
+.agent-panel > h2 {
   margin: 0;
+  padding: var(--space-3) var(--space-4) 0;
   font: var(--type-title);
+}
+
+.agent {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.agent-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+}
+
+.agent-head .agent-switch {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: 0 var(--space-4) var(--space-2);
+  border-bottom: 1px solid var(--hairline);
+  color: var(--ink-muted);
+  font: var(--type-label);
+}
+
+.agent-meta .mono {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-meta .link {
+  margin-left: auto;
+}
+
+.agent-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+}
+
+.agent-status .dot,
+.agent-working .dot {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.agent-status.busy {
+  color: var(--accent-ink);
+}
+
+.agent-status.good {
+  color: var(--create);
+}
+
+.agent-status.attention {
+  color: var(--update);
+}
+
+.agent-status.bad {
+  color: var(--destroy);
+}
+
+.agent-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.agent-empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.agent-hello {
+  margin: 0 0 var(--space-2);
+  font: var(--type-title);
+}
+
+.agent-notice,
+.agent-error {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
 }
 
 .agent-steps {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.agent-steps .from-user {
-  align-self: flex-end;
-  max-width: 90%;
+.agent-steps .msg .who {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--ink-muted);
+  font: var(--type-label);
+}
+
+.agent-steps .msg .body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.agent-steps .msg.you .body {
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-card);
   background: var(--selection);
-  white-space: pre-wrap;
 }
 
-.agent-steps .from-agent {
-  white-space: pre-wrap;
+.agent-steps .msg.question .body {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--update);
+  border-radius: var(--radius-card);
+}
+
+.agent-steps .msg code {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-control);
+  background: var(--chrome);
+  font: var(--type-code);
+}
+
+.agent-steps .tool {
+  margin-top: calc(-1 * var(--space-2));
 }
 
 .agent-steps .tool summary {
-  cursor: pointer;
+  display: flex;
+  gap: var(--space-2);
   color: var(--ink-muted);
+  font: var(--type-code);
+  list-style: none;
+  cursor: pointer;
 }
 
-.agent-steps pre {
-  max-height: 240px;
+.agent-steps .tool summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-steps .tool .mark {
+  flex: none;
+  width: 2ch;
+  text-align: center;
+}
+
+.agent-steps .tool .line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-steps .tool.done .mark {
+  color: var(--create);
+}
+
+.agent-steps .tool.running .mark {
+  color: var(--accent-ink);
+}
+
+.agent-steps .tool.failed summary {
+  color: var(--destroy);
+}
+
+.agent-steps .tool pre,
+.agent-steps .proposal .diff {
+  max-height: 280px;
   margin: var(--space-1) 0 0;
+  padding: var(--space-2);
   overflow: auto;
-  white-space: pre-wrap;
+  border-radius: var(--radius-control);
+  background: var(--chrome);
+  color: var(--ink);
   font: var(--type-log);
+  white-space: pre-wrap;
 }
 
-.agent-steps .tool.destroy summary {
+.agent-steps .note {
+  color: var(--ink-muted);
+  font: var(--type-label);
+  text-align: center;
+}
+
+.agent-steps .note.bad {
   color: var(--destroy);
 }
 
 .agent-steps .proposal {
-  border-color: var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-card);
+  background: var(--window);
+}
+
+.agent-steps .proposal h3 {
+  margin: 0;
+  font: var(--type-title);
+}
+
+.agent-steps .proposal p {
+  margin: 0;
+}
+
+.agent-steps .proposal .files {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-steps .proposal .create,
+.agent-steps .proposal .diff .add {
+  color: var(--create);
+}
+
+.agent-steps .proposal .destroy,
+.agent-steps .proposal .diff .del {
+  color: var(--destroy);
+}
+
+.agent-working {
+  display: flex;
+  gap: var(--space-1);
+  color: var(--ink-muted);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .agent-working .dot {
+    animation: thinking 1.2s ease-in-out infinite;
+  }
+
+  .agent-working .dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .agent-working .dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes thinking {
+    50% {
+      opacity: 0.3;
+    }
+  }
+}
+
+.agent-composer {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--hairline);
+}
+
+.agent-composer .box {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--window);
+}
+
+.agent-composer .box:focus-within {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+
+.agent-composer textarea {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: var(--type-body);
+  resize: none;
+}
+
+.agent-composer textarea:focus-visible {
+  outline: none;
+}
+
+.agent-composer .hint {
+  margin: var(--space-1) 0 0;
+}
+
+button.link {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-ink);
 }
 
 .page {

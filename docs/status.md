@@ -760,3 +760,11 @@ now stays busy until its turn ends.
   proxy and the registries is open.
 - Sessions live in one server process, as the hub's builders do. A server
   restart leaves running sandboxes that its reaper does not know.
+
+**The agent panel, redone** (2026-11-12, after a first look): a chat with
+a header (session switcher, New, status, branch, spend, Close), a row for
+each tool step that opens to its output, a proposal card with its files
+and a coloured diff, and a composer pinned at the bottom where Enter sends
+and Shift+Enter breaks a line. Web tests cover the composer and the
+proposal; on the dev stack it was looked at in both themes with a real
+session.

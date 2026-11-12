@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   agentKey: false,
   agentSteps: [] as unknown[],
   decisions: [] as unknown[],
+  started: [] as string[],
   variables: [] as unknown[],
   setVariables: [] as unknown[],
 }));
@@ -33,6 +34,10 @@ vi.mock("./api", () => ({
     },
   },
   agentApi: {
+    startSession: async (req: { message: string }) => {
+      api.started.push(req.message);
+      return { session: { id: "s2" } };
+    },
     getAgentSettings: async () => ({ settings: { hasKey: api.agentKey, monthlyCap: 50, spentThisMonth: 1.25 } }),
     listSessions: async () => ({ sessions: api.agentSteps.length ? [{ id: "s1", title: "Add a random_pet named db" }] : [] }),
     watchSession: async function* () {
@@ -206,6 +211,7 @@ beforeEach(() => {
   api.agentKey = false;
   api.agentSteps = [];
   api.decisions = [];
+  api.started = [];
   api.variables = [];
   api.setVariables = [];
   window.localStorage.clear();
@@ -500,18 +506,41 @@ test("a proposed commit waits for a person, who commits and pushes it", async ()
     { seq: 2n, kind: "assistant", payload: JSON.stringify({ text: "", tool_calls: [{ id: "c1", function: { name: "read_file" } }] }) },
     { seq: 3n, kind: "tool_call", payload: JSON.stringify({ id: "c1", name: "read_file", arguments: '{"path":"terraform.tfstate"}' }) },
     { seq: 4n, kind: "tool_result", payload: JSON.stringify({ id: "c1", output: "Refused: state files hold secrets", error: true }) },
-    { seq: 5n, kind: "proposal", payload: JSON.stringify({ message: "Add a random_pet named db", diff: '+resource "random_pet" "db" {}' }) },
+    {
+      seq: 5n,
+      kind: "proposal",
+      payload: JSON.stringify({
+        message: "Add a random_pet named db",
+        diff: ' main.tf | 2 ++\n 1 file changed\n\ndiff --git a/main.tf b/main.tf\n+resource "random_pet" "db" {}',
+      }),
+    },
   ];
   at("/a/projects/network/prod");
   await screen.findByRole("heading", { name: "prod" });
   await userEvent.click(screen.getByRole("button", { name: "Agent" }));
   const panel = await screen.findByRole("complementary", { name: "Agent" });
   expect(await within(panel).findByText("Commit these changes?")).toBeInTheDocument();
-  expect(within(panel).getByText(/! read_file terraform.tfstate/)).toBeInTheDocument();
-  expect(within(panel).getByText(/Waits for a person to commit or discard/)).toBeInTheDocument();
+  expect(within(panel).getByText("Read terraform.tfstate").closest("li")).toHaveClass("failed");
+  expect(within(panel).getByText("Waits for a commit or discard")).toBeInTheDocument();
+  expect(within(panel).getByText("main.tf")).toBeInTheDocument();
   expect(within(panel).getByRole("textbox", { name: "Message" })).toBeDisabled();
   await userEvent.click(within(panel).getByRole("button", { name: "Commit and push" }));
   expect(api.decisions).toMatchObject([{ org: "a", id: "s1", proposal: 5n, approve: true }]);
+});
+
+test("with no session, Enter in the composer starts one; Shift+Enter breaks the line", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [{ ...network, linkedRepo: "acme/infra" }];
+  api.agentKey = true;
+  at("/a/projects/network/prod");
+  await screen.findByRole("heading", { name: "prod" });
+  await userEvent.click(screen.getByRole("button", { name: "Agent" }));
+  const panel = await screen.findByRole("complementary", { name: "Agent" });
+  expect(await within(panel).findByText("What should the agent change?")).toBeInTheDocument();
+  const box = within(panel).getByRole("textbox", { name: "Message" });
+  expect(within(panel).getByRole("button", { name: "Send" })).toBeDisabled();
+  await userEvent.type(box, "Add a pet{Shift>}{Enter}{/Shift}named db{Enter}");
+  expect(api.started).toEqual(["Add a pet\nnamed db"]);
 });
 
 test("cloud accounts warn when AWS cannot trust the issuer", async () => {

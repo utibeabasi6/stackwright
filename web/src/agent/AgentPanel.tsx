@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { agentApi, message, projectApi } from "../api";
 import { AgentSessionStatus, type AgentSession, type AgentStep } from "../gen/stackwright/v1/agent_pb";
@@ -9,21 +9,34 @@ import { useLoad } from "../useLoad";
 
 type Props = { org: string; project: string; workspace: string };
 
-const statusText: Record<AgentSessionStatus, string> = {
-  [AgentSessionStatus.UNSPECIFIED]: "",
-  [AgentSessionStatus.STARTING]: "Starting a sandbox and cloning the branch",
-  [AgentSessionStatus.READY]: "Ready",
-  [AgentSessionStatus.WORKING]: "Working",
-  [AgentSessionStatus.WAITING_FOR_ANSWER]: "Waits for your answer",
-  [AgentSessionStatus.WAITING_FOR_APPROVAL]: "Waits for a person to commit or discard",
-  [AgentSessionStatus.ASLEEP]: "Asleep; a message starts a fresh sandbox",
-  [AgentSessionStatus.CLOSED]: "Closed",
-  [AgentSessionStatus.FAILED]: "Failed",
+type Tone = "busy" | "good" | "attention" | "muted" | "bad";
+
+const status: Record<AgentSessionStatus, { text: string; tone: Tone }> = {
+  [AgentSessionStatus.UNSPECIFIED]: { text: "", tone: "muted" },
+  [AgentSessionStatus.STARTING]: { text: "Starting", tone: "busy" },
+  [AgentSessionStatus.READY]: { text: "Ready", tone: "good" },
+  [AgentSessionStatus.WORKING]: { text: "Working", tone: "busy" },
+  [AgentSessionStatus.WAITING_FOR_ANSWER]: { text: "Waits for your answer", tone: "attention" },
+  [AgentSessionStatus.WAITING_FOR_APPROVAL]: { text: "Waits for a commit or discard", tone: "attention" },
+  [AgentSessionStatus.ASLEEP]: { text: "Asleep", tone: "muted" },
+  [AgentSessionStatus.CLOSED]: { text: "Closed", tone: "muted" },
+  [AgentSessionStatus.FAILED]: { text: "Failed", tone: "bad" },
 };
 
 const busy = (s?: AgentSession) => s?.status === AgentSessionStatus.WORKING || s?.status === AgentSessionStatus.STARTING;
 
-// AgentPanel holds a workspace's agent sessions and the open one.
+type Payload = Record<string, unknown>;
+const parse = (s: string): Payload => {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return {};
+  }
+};
+const text = (v: unknown) => (typeof v === "string" ? v : "");
+
+// AgentPanel is a chat with the agent about one workspace: its sessions, the
+// open one's conversation, and a composer that starts or continues one.
 export function AgentPanel({ org, project, workspace }: Props) {
   const { me } = useShell();
   const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
@@ -32,81 +45,83 @@ export function AgentPanel({ org, project, workspace }: Props) {
   const sessions = useLoad(`agent-sessions:${org}/${project}/${workspace}`, () =>
     agentApi.listSessions({ org, project, workspace }).then((r) => r.sessions),
   );
-  const [open, setOpen] = useState<string>();
+  const [chosen, setChosen] = useState<string>();
   const [error, setError] = useState<string>();
-  const current = open ?? sessions.data?.[0]?.id;
+  const current = chosen ?? sessions.data?.[0]?.id ?? "new";
 
   if (settings.data && !settings.data.hasKey) {
     return (
-      <p className="muted">
+      <Notice>
         The agent needs an OpenRouter key. An admin adds it in{" "}
         <Link to="/$org/settings/agent" params={{ org }}>
           Settings › Agent
         </Link>
         .
-      </p>
+      </Notice>
     );
   }
   if (ws.data && !ws.data.project?.linkedRepo) {
     return (
-      <p className="muted">
+      <Notice>
         The agent works on projects in a repository that a linked GitHub installation covers.{" "}
         <Link to="/$org/settings/github" params={{ org }}>
           Link a repository
         </Link>
         .
-      </p>
+      </Notice>
     );
   }
 
-  const start = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
+  const start = async (msg: string) => {
     setError(undefined);
     try {
-      const r = await agentApi.startSession({ org, project, workspace, message: String(new FormData(form).get("message")) });
-      form.reset();
+      const r = await agentApi.startSession({ org, project, workspace, message: msg });
       sessions.reload();
-      setOpen(r.session?.id);
+      setChosen(r.session?.id);
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
 
+  const options = [
+    ...(sessions.data ?? []).map((s) => ({ value: s.id, label: s.title })),
+    ...(current === "new" ? [{ value: "new", label: "New session" }] : []),
+  ];
   return (
-    <div className="stack">
-      {(sessions.data?.length ?? 0) > 0 && (
-        <label className="field">
-          <span>Session</span>
-          <Select
-            value={current ?? "new"}
-            onChange={(v) => setOpen(v)}
-            options={[
-              ...(sessions.data ?? []).map((s) => ({ value: s.id, label: s.title })),
-              ...(writer ? [{ value: "new", label: "New session…" }] : []),
-            ]}
-          />
-        </label>
-      )}
-      {error && <p className="error">{error}</p>}
-      {current && current !== "new" ? (
-        <Session key={current} org={org} id={current} writer={writer} onChange={sessions.reload} />
+    <div className="agent">
+      <div className="agent-head">
+        {options.length > 0 && (
+          <Select className="agent-switch" aria-label="Session" value={current} onChange={setChosen} options={options} />
+        )}
+        {writer && current !== "new" && (
+          <button type="button" onClick={() => setChosen("new")}>
+            + New
+          </button>
+        )}
+      </div>
+      {current === "new" ? (
+        <>
+          <div className="agent-scroll agent-empty">
+            <p className="agent-hello">What should the agent change?</p>
+            <p className="hint">
+              It works in a sandbox on its own branch of {ws.data?.project?.linkedRepo || "the repository"}. Nothing reaches GitHub until a
+              person commits it.
+            </p>
+            {error && <p className="error">{error}</p>}
+          </div>
+          {writer && <Composer placeholder="Ask for a change" onSend={start} />}
+        </>
       ) : (
-        writer && (
-          <form className="stack" onSubmit={start} aria-label="New agent session">
-            <label className="field">
-              <span>What should the agent change?</span>
-              <textarea name="message" required rows={4} placeholder="Add a random_pet named db" />
-            </label>
-            <button type="submit" className="primary">
-              Start
-            </button>
-            <p className="hint">The agent works on its own branch in a sandbox. Nothing reaches GitHub until a person commits it.</p>
-          </form>
-        )
+        <Session key={current} org={org} id={current} writer={writer} onChange={sessions.reload} />
       )}
     </div>
   );
+}
+
+function Notice({ children }: { children: ReactNode }) {
+  return <p className="agent-notice muted">{children}</p>;
 }
 
 function useSession(org: string, id: string) {
@@ -121,8 +136,9 @@ function useSession(org: string, id: string) {
           for await (const r of agentApi.watchSession({ org, id, afterSeq: cursor }, { signal: abort.signal })) {
             if (r.session) setSession(r.session);
             if (r.steps.length > 0) {
+              const fresh = r.steps.filter((s) => s.seq > cursor);
               cursor = r.steps[r.steps.length - 1].seq;
-              setSteps((prev) => [...prev, ...r.steps]);
+              setSteps((prev) => [...prev, ...fresh]);
             }
           }
         } catch {
@@ -136,144 +152,321 @@ function useSession(org: string, id: string) {
   return { session, steps };
 }
 
-type Payload = Record<string, unknown>;
-const parse = (s: string): Payload => {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return {};
-  }
-};
-
 function Session({ org, id, writer, onChange }: { org: string; id: string; writer: boolean; onChange: () => void }) {
   const { session, steps } = useSession(org, id);
   const [error, setError] = useState<string>();
+  const scroll = useRef<HTMLDivElement>(null);
+  const pinned = useRef(true);
+
+  useEffect(() => {
+    const el = scroll.current;
+    if (el && pinned.current) el.scrollTop = el.scrollHeight;
+  }, [steps.length]);
+
   const act = async (fn: () => Promise<unknown>) => {
     setError(undefined);
     try {
       await fn();
       onChange();
+      return true;
     } catch (err) {
       setError(message(err));
+      return false;
     }
   };
-  const send = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const text = String(new FormData(form).get("message"));
-    void act(() => agentApi.sendMessage({ org, id, message: text })).then(() => form.reset());
-  };
-  const results = new Map(steps.filter((s) => s.kind === "tool_result").map((s) => [String(parse(s.payload).id), parse(s.payload)]));
+  const results = new Map(steps.filter((s) => s.kind === "tool_result").map((s) => [text(parse(s.payload).id), parse(s.payload)]));
   const decided = new Set(steps.filter((s) => s.kind === "decision").map((s) => Number(parse(s.payload).proposal)));
-  const waitingProposal = session?.status === AgentSessionStatus.WAITING_FOR_APPROVAL;
+  const waiting = session?.status;
+  const st = session ? status[session.status] : undefined;
 
   return (
-    <div className="stack agent-session">
+    <>
       {session && (
-        <p className="hint">
-          <span className="mono">{session.branch}</span> · {statusText[session.status]}
-          {session.spent > 0 && ` · $${session.spent.toFixed(2)}`}
-        </p>
+        <div className="agent-meta">
+          {st && (
+            <span className={`agent-status ${st.tone}`}>
+              <span className="dot" aria-hidden="true" />
+              {st.text}
+            </span>
+          )}
+          <span className="mono" title="The session's branch">
+            {session.branch}
+          </span>
+          {session.spent > 0 && <span>${session.spent.toFixed(2)}</span>}
+          {writer && !busy(session) && (
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                if (session.dirty && !window.confirm("Close this session? Its uncommitted changes are lost.")) return;
+                void act(() => agentApi.closeSession({ org, id, discard: true }));
+              }}
+            >
+              Close
+            </button>
+          )}
+        </div>
       )}
-      <ol className="agent-steps" aria-label="Conversation" aria-live="polite">
-        {steps.map((s) => {
-          const p = parse(s.payload);
-          switch (s.kind) {
-            case "user":
-              return (
-                <li key={String(s.seq)} className="from-user">
-                  {String(p.text)}
-                </li>
-              );
-            case "assistant":
-              return p.text ? (
-                <li key={String(s.seq)} className="from-agent">
-                  {String(p.text)}
-                </li>
-              ) : null;
-            case "tool_call": {
-              const r = results.get(String(p.id));
-              const args = parse(String(p.arguments ?? ""));
-              const failed = r?.error === true;
-              return (
-                <li key={String(s.seq)} className={failed ? "tool destroy" : "tool"}>
-                  <details>
-                    <summary className="mono">
-                      {failed ? "! " : r ? "✓ " : "… "}
-                      {String(p.name)} {args.path ? String(args.path) : ""}
-                      {p.name === "ask_user" ? `: ${String(args.question)}` : ""}
-                    </summary>
-                    {r && <pre className="mono">{String(r.output)}</pre>}
-                  </details>
-                </li>
-              );
-            }
-            case "proposal":
-              return (
-                <li key={String(s.seq)} className="proposal card stack">
-                  <h3>Commit these changes?</h3>
-                  <p className="mono">{String(p.message)}</p>
-                  <details>
-                    <summary>Show diff</summary>
-                    <pre className="mono diff">{String(p.diff)}</pre>
-                  </details>
-                  {writer && waitingProposal && !decided.has(Number(s.seq)) && (
-                    <div className="row">
-                      <button type="button" onClick={() => act(() => agentApi.decideProposal({ org, id, proposal: s.seq, approve: false }))}>
-                        Discard
-                      </button>
-                      <button
-                        type="button"
-                        className="primary"
-                        onClick={() => act(() => agentApi.decideProposal({ org, id, proposal: s.seq, approve: true }))}
-                      >
-                        Commit and push
-                      </button>
-                    </div>
-                  )}
-                </li>
-              );
-            case "decision":
-            case "notice":
-              return (
-                <li key={String(s.seq)} className="notice muted">
-                  {String(p.text)}
-                </li>
-              );
-            case "error":
-              return (
-                <li key={String(s.seq)} className="error">
-                  ! {String(p.text)}
-                </li>
-              );
-          }
-          return null;
-        })}
-      </ol>
-      {error && <p className="error">{error}</p>}
+      <div
+        className="agent-scroll"
+        ref={scroll}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+        }}
+      >
+        <ol className="agent-steps" aria-label="Conversation" aria-live="polite">
+          {steps.map((s) => (
+            <Step
+              key={String(s.seq)}
+              step={s}
+              results={results}
+              canDecide={writer && waiting === AgentSessionStatus.WAITING_FOR_APPROVAL && !decided.has(Number(s.seq))}
+              decide={(approve) => act(() => agentApi.decideProposal({ org, id, proposal: s.seq, approve }))}
+            />
+          ))}
+          {busy(session) && (
+            <li className="agent-working" aria-label="The agent is working">
+              <span className="dot" />
+              <span className="dot" />
+              <span className="dot" />
+            </li>
+          )}
+        </ol>
+      </div>
+      {error && <p className="error agent-error">{error}</p>}
       {writer && session && (
-        <form className="stack" onSubmit={send} aria-label="Message the agent">
-          <textarea
-            name="message"
-            required
-            rows={3}
-            aria-label={session.status === AgentSessionStatus.WAITING_FOR_ANSWER ? "Your answer" : "Message"}
-            placeholder={session.status === AgentSessionStatus.WAITING_FOR_ANSWER ? "Answer the question" : "Ask for a change"}
-            disabled={busy(session) || waitingProposal}
-          />
-          <div className="row">
-            {busy(session) ? (
-              <button type="button" className="danger" onClick={() => act(() => agentApi.stopTurn({ org, id }))}>
-                Stop
-              </button>
-            ) : (
-              <button type="submit" disabled={waitingProposal}>
-                Send
-              </button>
-            )}
-          </div>
-        </form>
+        <Composer
+          placeholder={
+            waiting === AgentSessionStatus.WAITING_FOR_ANSWER
+              ? "Answer the question"
+              : waiting === AgentSessionStatus.WAITING_FOR_APPROVAL
+                ? "Commit or discard the proposal first"
+                : "Ask for a change"
+          }
+          disabled={waiting === AgentSessionStatus.WAITING_FOR_APPROVAL}
+          working={busy(session)}
+          onStop={() => act(() => agentApi.stopTurn({ org, id }))}
+          onSend={(msg) => act(() => agentApi.sendMessage({ org, id, message: msg }))}
+        />
       )}
-    </div>
+    </>
+  );
+}
+
+type ComposerProps = {
+  placeholder: string;
+  disabled?: boolean;
+  working?: boolean;
+  onSend: (msg: string) => Promise<boolean>;
+  onStop?: () => void;
+};
+
+function Composer({ placeholder, disabled, working, onSend, onStop }: ComposerProps) {
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const send = async () => {
+    const msg = draft.trim();
+    if (!msg || sending || working || disabled) return;
+    setSending(true);
+    if (await onSend(msg)) setDraft("");
+    setSending(false);
+  };
+  const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      void send();
+    }
+  };
+  return (
+    <form
+      className="agent-composer"
+      aria-label="Message the agent"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void send();
+      }}
+    >
+      <div className="box">
+        <textarea
+          aria-label="Message"
+          rows={2}
+          value={draft}
+          placeholder={placeholder}
+          disabled={disabled}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={keyDown}
+        />
+        {working ? (
+          <button type="button" className="danger" onClick={onStop}>
+            ■ Stop
+          </button>
+        ) : (
+          <button type="submit" className="primary" disabled={!draft.trim() || sending || disabled}>
+            Send
+          </button>
+        )}
+      </div>
+      <p className="hint">Enter sends · Shift+Enter starts a new line</p>
+    </form>
+  );
+}
+
+// toolLine names a tool call in a few words, as a person would say it.
+function toolLine(name: string, args: Payload): string {
+  const path = text(args.path);
+  switch (name) {
+    case "list_files":
+      return path ? `Listed files in ${path}` : "Listed the files";
+    case "read_file":
+      return `Read ${path}`;
+    case "search":
+      return `Searched for “${text(args.pattern)}”${path ? ` in ${path}` : ""}`;
+    case "edit_file":
+      return `Edited ${path}`;
+    case "write_file":
+      return `Wrote ${path}`;
+    case "fmt":
+      return "Formatted the code";
+    case "validate":
+      return "Ran validate";
+    case "propose_commit":
+      return "Proposed a commit";
+  }
+  return name;
+}
+
+type StepProps = {
+  step: AgentStep;
+  results: Map<string, Payload>;
+  canDecide: boolean;
+  decide: (approve: boolean) => void;
+};
+
+function Step({ step, results, canDecide, decide }: StepProps) {
+  const p = parse(step.payload);
+  switch (step.kind) {
+    case "user":
+      return (
+        <li className="msg you">
+          <span className="who">You</span>
+          <div className="body">{text(p.text)}</div>
+        </li>
+      );
+    case "assistant":
+      return text(p.text) ? (
+        <li className="msg agent-msg">
+          <span className="who">Agent</span>
+          <div className="body">
+            <Prose text={text(p.text)} />
+          </div>
+        </li>
+      ) : null;
+    case "tool_call": {
+      const args = parse(text(p.arguments));
+      if (p.name === "ask_user") {
+        return (
+          <li className="msg question">
+            <span className="who">Agent asks</span>
+            <div className="body">{text(args.question)}</div>
+          </li>
+        );
+      }
+      const r = results.get(text(p.id));
+      const state = !r ? "running" : r.error === true ? "failed" : "done";
+      const mark = { running: "…", failed: "!", done: "✓" }[state];
+      return (
+        <li className={`tool ${state}`}>
+          <details>
+            <summary>
+              <span className="mark" aria-hidden="true">
+                {mark}
+              </span>
+              <span className="line">{toolLine(text(p.name), args)}</span>
+              <span className="sr-only">{state === "failed" ? ", failed" : state === "running" ? ", running" : ""}</span>
+            </summary>
+            {r && <pre>{text(r.output) || "(no output)"}</pre>}
+          </details>
+        </li>
+      );
+    }
+    case "tool_result":
+      return p.answer === true ? (
+        <li className="msg you">
+          <span className="who">You</span>
+          <div className="body">{text(p.output)}</div>
+        </li>
+      ) : null;
+    case "proposal":
+      return <Proposal message={text(p.message)} diff={text(p.diff)} canDecide={canDecide} decide={decide} />;
+    case "decision":
+    case "notice":
+      return <li className="note">{text(p.text)}</li>;
+    case "error":
+      return <li className="note bad">! {text(p.text)}</li>;
+  }
+  return null;
+}
+
+// Prose shows a reply's text, with `code` in the code font.
+function Prose({ text: t }: { text: string }) {
+  return (
+    <>
+      {t.split(/(`[^`\n]+`)/).map((part, i) =>
+        part.startsWith("`") && part.endsWith("`") && part.length > 2 ? (
+          <code key={i}>{part.slice(1, -1)}</code>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+function Proposal({ message: msg, diff, canDecide, decide }: { message: string; diff: string; canDecide: boolean; decide: (approve: boolean) => void }) {
+  const [shown, setShown] = useState(false);
+  // git diff --stat lines look like " main.tf | 3 +++".
+  const files = diff
+    .split("\n")
+    .map((l) => l.match(/^\s*(\S.*?)\s+\|\s+(\d+)\s*([+-]*)/))
+    .filter((m): m is RegExpMatchArray => m !== null)
+    .map((m) => ({ name: m[1], adds: (m[3].match(/\+/g) ?? []).length, dels: (m[3].match(/-/g) ?? []).length }));
+  const patch = diff.slice(diff.indexOf("diff --git") >= 0 ? diff.indexOf("diff --git") : 0);
+  return (
+    <li className="proposal" aria-label="Proposed commit">
+      <h3>Commit these changes?</h3>
+      <p className="mono">{msg}</p>
+      <ul className="files">
+        {files.map((f) => (
+          <li key={f.name}>
+            <span className="mono">{f.name}</span>
+            {f.adds > 0 && <span className="create"> +{f.adds}</span>}
+            {f.dels > 0 && <span className="destroy"> −{f.dels}</span>}
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="link" aria-expanded={shown} onClick={() => setShown(!shown)}>
+        {shown ? "Hide the diff" : "Show the diff"}
+      </button>
+      {shown && (
+        <pre className="diff">
+          {patch.split("\n").map((l, i) => (
+            <span key={i} className={l.startsWith("+") && !l.startsWith("+++") ? "add" : l.startsWith("-") && !l.startsWith("---") ? "del" : undefined}>
+              {l + "\n"}
+            </span>
+          ))}
+        </pre>
+      )}
+      {canDecide && (
+        <div className="row">
+          <button type="button" onClick={() => decide(false)}>
+            Discard
+          </button>
+          <button type="button" className="primary" onClick={() => decide(true)}>
+            Commit and push
+          </button>
+        </div>
+      )}
+    </li>
   );
 }

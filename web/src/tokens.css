@@ -43,6 +43,7 @@
   --control-height: 32px;
   --inspector-width: 360px;
   --sidebar-width: 220px;
+  --agent-width: 440px;
 }
 
 @media (prefers-color-scheme: dark) {
