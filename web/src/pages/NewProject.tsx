@@ -1,22 +1,22 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { githubApi, message, projectApi } from "../api";
+import { cloudApi, githubApi, message, projectApi } from "../api";
+import { EngineVersion } from "../EngineVersion";
 import { useLoad } from "../useLoad";
 import { Engine, Layout } from "../gen/stackwright/v1/projects_pb";
 import { useShell } from "../me";
-
-const defaults = { [Engine.OPENTOFU]: "1.10.7", [Engine.TERRAFORM]: "1.5.7" } as Record<Engine, string>;
 
 export function NewProject() {
   const { org } = useParams({ strict: false }) as { org: string };
   const { reloadProjects } = useShell();
   const navigate = useNavigate();
   const [engine, setEngine] = useState(Engine.OPENTOFU);
-  const [version, setVersion] = useState(defaults[Engine.OPENTOFU]);
+  const [version, setVersion] = useState("");
   const [layout, setLayout] = useState(Layout.CLI_WORKSPACES);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const repos = useLoad(`github:${org}`, () => githubApi.getGitHub({ org }));
+  const accounts = useLoad(`cloud-accounts:${org}`, () => cloudApi.listCloudAccounts({ org }).then((r) => r.accounts));
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -35,6 +35,7 @@ export function NewProject() {
           .filter(Boolean),
         repoUrl: String(f.get("repoUrl")),
         branch: String(f.get("branch")),
+        cloudAccount: String(f.get("cloudAccount") ?? ""),
       });
       reloadProjects();
       const p = r.project!;
@@ -66,23 +67,15 @@ export function NewProject() {
               onChange={(e) => {
                 const next = Number(e.target.value) as Engine;
                 setEngine(next);
-                setVersion(defaults[next]);
+                setVersion("");
               }}
             >
               <option value={Engine.OPENTOFU}>OpenTofu</option>
               <option value={Engine.TERRAFORM}>Terraform</option>
             </select>
           </label>
-          <label className="field">
-            <span>Version</span>
-            <input className="mono" required value={version} onChange={(e) => setVersion(e.target.value)} />
-          </label>
+          <EngineVersion engine={engine} value={version} onChange={setVersion} />
         </div>
-        <span className="hint">
-          {engine === Engine.TERRAFORM
-            ? "Terraform 1.0.0 to 1.5.7. Newer Terraform has a licence that does not allow it here."
-            : "OpenTofu 1.8.0 or newer."}
-        </span>
         <fieldset className="field">
           <legend>Layout</legend>
           <label>
@@ -117,6 +110,20 @@ export function NewProject() {
             <input name="branch" placeholder="main" />
           </label>
         </div>
+        {(accounts.data?.length ?? 0) > 0 && (
+          <label className="field">
+            <span>Cloud account</span>
+            <select name="cloudAccount" defaultValue="">
+              <option value="">None</option>
+              {accounts.data?.map((a) => (
+                <option key={a.id} value={a.name}>
+                  {a.name} (AWS {a.aws?.region})
+                </option>
+              ))}
+            </select>
+            <span className="hint">Every workspace of the project starts with it. Each workspace can change it later.</span>
+          </label>
+        )}
         {error && <p className="error">{error}</p>}
         <div className="row">
           <button type="submit" className="primary" disabled={busy}>

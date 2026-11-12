@@ -64,6 +64,7 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.ProjectServiceCreateWorkspaceProcedure:     org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.ProjectServiceArchiveWorkspaceProcedure:    org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.ProjectServiceUpdateWorkspaceProcedure:     org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.ProjectServiceListEngineVersionsProcedure:  {Access: SignedIn},
 
 	stackwrightv1connect.RunServiceCreateRunProcedure:   org(v1.Role_ROLE_WRITER),
 	stackwrightv1connect.RunServiceListRunsProcedure:    org(v1.Role_ROLE_VIEWER),

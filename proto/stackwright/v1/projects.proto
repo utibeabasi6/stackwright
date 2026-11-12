@@ -18,6 +18,19 @@ service ProjectService {
   rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
   rpc ArchiveWorkspace(ArchiveWorkspaceRequest) returns (ArchiveWorkspaceResponse);
   rpc UpdateWorkspace(UpdateWorkspaceRequest) returns (UpdateWorkspaceResponse);
+  // ListEngineVersions lists an engine's stable releases that Stackwright
+  // supports, newest first.
+  rpc ListEngineVersions(ListEngineVersionsRequest) returns (ListEngineVersionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message ListEngineVersionsRequest {
+  Engine engine = 1;
+}
+
+message ListEngineVersionsResponse {
+  repeated string versions = 1;
 }
 
 enum Engine {
@@ -90,6 +103,8 @@ message CreateProjectRequest {
   repeated string workspaces = 7;
   string repo_url = 8;
   string branch = 9;
+  // A cloud account for every workspace the project starts with, or empty.
+  string cloud_account = 10;
 }
 
 message CreateProjectResponse {

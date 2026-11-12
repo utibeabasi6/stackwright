@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -214,8 +215,14 @@ func (r *runner) run(ctx context.Context) (err error) {
 		}
 		env = append(env, "TF_CLI_CONFIG_FILE="+config)
 	}
+	initJSON := job.GetEngine() == v1.Engine_ENGINE_OPENTOFU
+	if !initJSON {
+		// Terraform's init writes JSON only in newer versions; its help says which.
+		help, _ := exec.CommandContext(ctx, binPath, "init", "-help").CombinedOutput() //nolint:gosec // the engine binary, checked against its SHA-256
+		initJSON = bytes.Contains(help, []byte("-json"))
+	}
 	engine := &cli{
-		bin: binPath, dir: dir, initJSON: job.GetEngine() == v1.Engine_ENGINE_OPENTOFU, redact: r.redact, env: env,
+		bin: binPath, dir: dir, initJSON: initJSON, redact: r.redact, env: env,
 		line: func(e event) {
 			r.log.Write(e.payload)
 			r.log.WriteByte('\n')

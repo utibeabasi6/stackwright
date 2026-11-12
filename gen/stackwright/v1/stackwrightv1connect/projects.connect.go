@@ -60,6 +60,9 @@ const (
 	// ProjectServiceUpdateWorkspaceProcedure is the fully-qualified name of the ProjectService's
 	// UpdateWorkspace RPC.
 	ProjectServiceUpdateWorkspaceProcedure = "/stackwright.v1.ProjectService/UpdateWorkspace"
+	// ProjectServiceListEngineVersionsProcedure is the fully-qualified name of the ProjectService's
+	// ListEngineVersions RPC.
+	ProjectServiceListEngineVersionsProcedure = "/stackwright.v1.ProjectService/ListEngineVersions"
 )
 
 // ProjectServiceClient is a client for the stackwright.v1.ProjectService service.
@@ -73,6 +76,9 @@ type ProjectServiceClient interface {
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
 	ArchiveWorkspace(context.Context, *connect.Request[v1.ArchiveWorkspaceRequest]) (*connect.Response[v1.ArchiveWorkspaceResponse], error)
 	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
+	// ListEngineVersions lists an engine's stable releases that Stackwright
+	// supports, newest first.
+	ListEngineVersions(context.Context, *connect.Request[v1.ListEngineVersionsRequest]) (*connect.Response[v1.ListEngineVersionsResponse], error)
 }
 
 // NewProjectServiceClient constructs a client for the stackwright.v1.ProjectService service. By
@@ -142,6 +148,13 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(projectServiceMethods.ByName("UpdateWorkspace")),
 			connect.WithClientOptions(opts...),
 		),
+		listEngineVersions: connect.NewClient[v1.ListEngineVersionsRequest, v1.ListEngineVersionsResponse](
+			httpClient,
+			baseURL+ProjectServiceListEngineVersionsProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("ListEngineVersions")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -156,6 +169,7 @@ type projectServiceClient struct {
 	createWorkspace     *connect.Client[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse]
 	archiveWorkspace    *connect.Client[v1.ArchiveWorkspaceRequest, v1.ArchiveWorkspaceResponse]
 	updateWorkspace     *connect.Client[v1.UpdateWorkspaceRequest, v1.UpdateWorkspaceResponse]
+	listEngineVersions  *connect.Client[v1.ListEngineVersionsRequest, v1.ListEngineVersionsResponse]
 }
 
 // ListProjects calls stackwright.v1.ProjectService.ListProjects.
@@ -203,6 +217,11 @@ func (c *projectServiceClient) UpdateWorkspace(ctx context.Context, req *connect
 	return c.updateWorkspace.CallUnary(ctx, req)
 }
 
+// ListEngineVersions calls stackwright.v1.ProjectService.ListEngineVersions.
+func (c *projectServiceClient) ListEngineVersions(ctx context.Context, req *connect.Request[v1.ListEngineVersionsRequest]) (*connect.Response[v1.ListEngineVersionsResponse], error) {
+	return c.listEngineVersions.CallUnary(ctx, req)
+}
+
 // ProjectServiceHandler is an implementation of the stackwright.v1.ProjectService service.
 type ProjectServiceHandler interface {
 	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
@@ -214,6 +233,9 @@ type ProjectServiceHandler interface {
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
 	ArchiveWorkspace(context.Context, *connect.Request[v1.ArchiveWorkspaceRequest]) (*connect.Response[v1.ArchiveWorkspaceResponse], error)
 	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
+	// ListEngineVersions lists an engine's stable releases that Stackwright
+	// supports, newest first.
+	ListEngineVersions(context.Context, *connect.Request[v1.ListEngineVersionsRequest]) (*connect.Response[v1.ListEngineVersionsResponse], error)
 }
 
 // NewProjectServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -279,6 +301,13 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 		connect.WithSchema(projectServiceMethods.ByName("UpdateWorkspace")),
 		connect.WithHandlerOptions(opts...),
 	)
+	projectServiceListEngineVersionsHandler := connect.NewUnaryHandler(
+		ProjectServiceListEngineVersionsProcedure,
+		svc.ListEngineVersions,
+		connect.WithSchema(projectServiceMethods.ByName("ListEngineVersions")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/stackwright.v1.ProjectService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProjectServiceListProjectsProcedure:
@@ -299,6 +328,8 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 			projectServiceArchiveWorkspaceHandler.ServeHTTP(w, r)
 		case ProjectServiceUpdateWorkspaceProcedure:
 			projectServiceUpdateWorkspaceHandler.ServeHTTP(w, r)
+		case ProjectServiceListEngineVersionsProcedure:
+			projectServiceListEngineVersionsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -342,4 +373,8 @@ func (UnimplementedProjectServiceHandler) ArchiveWorkspace(context.Context, *con
 
 func (UnimplementedProjectServiceHandler) UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.ProjectService.UpdateWorkspace is not implemented"))
+}
+
+func (UnimplementedProjectServiceHandler) ListEngineVersions(context.Context, *connect.Request[v1.ListEngineVersionsRequest]) (*connect.Response[v1.ListEngineVersionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.ProjectService.ListEngineVersions is not implemented"))
 }

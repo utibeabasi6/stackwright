@@ -36,7 +36,7 @@ Each decision has a record in [adr/](adr/).
 | Sandbox image | Alpine with git, for modules; linked projects run from their branch, with no upload | [0024](adr/0024-git-in-sandboxes-and-linked-runs.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
-| Default engine | OpenTofu; Terraform up to 1.5.7 | — |
+| Default engine | OpenTofu; every Terraform from 1.0.0, downloaded from HashiCorp at run time | [0025](adr/0025-newer-terraform.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**
@@ -45,8 +45,7 @@ Each decision has a record in [adr/](adr/).
   A self-hosted install already keeps its state.
 - A warm pool of sandboxes.
 
-**Later, after phase 22:** the Unikraft sandbox backend, Pulumi, and
-Terraform 1.6 and newer.
+**Later, after phase 22:** the Unikraft sandbox backend and Pulumi.
 
 ## 2. Rules for the interface
 
@@ -232,8 +231,8 @@ works on every page.
 **Build.**
 - `projects` and `workspaces`; create, list, get, update, archive. Only
   admins and owners change them ([0016](adr/0016-projects-before-repositories.md)).
-- Engine and version from an allow-list: OpenTofu 1.8 and newer, Terraform up
-  to 1.5.7.
+- Engine and version from an allow-list: OpenTofu 1.8 and newer, Terraform
+  1.0 and newer ([0025](adr/0025-newer-terraform.md)).
 - The shell: the toolbar, the workspace tab strip, the command palette, light
   and dark. Open tabs are kept in the browser, for each org. The "Waiting on
   you" count appears in phase 5, when something can wait.

@@ -75,14 +75,15 @@ func fixture(t *testing.T, signer *openpgp.Entity, archive []byte) *fakeRelease 
 	}}
 }
 
-func mirror(t *testing.T, upstream http.Handler, key []byte, fingerprint string) (*Mirror, *minio.Client, string) {
+func mirror(t *testing.T, releases http.Handler, key []byte, fingerprint string) (*Mirror, *minio.Client, string) {
 	t.Helper()
 	db := testenv.New(t)
 	s3, bucket := testenv.S3(t)
-	srv := httptest.NewServer(upstream)
+	srv := httptest.NewServer(releases)
 	t.Cleanup(srv.Close)
 	return &Mirror{Pool: db.App, S3: s3, Bucket: bucket, HTTP: srv.Client(), releases: map[string]release{
-		"opentofu": {key: key, fingerprint: fingerprint, baseURL: srv.URL, prefix: "tofu", sigSuffix: ".gpgsig"},
+		"opentofu": {key: key, fingerprint: fingerprint, baseURL: srv.URL, prefix: "tofu", sigSuffix: ".gpgsig",
+			index: srv.URL + "/api.json", versions: upstream["opentofu"].versions},
 	}}, s3, bucket
 }
 
@@ -179,5 +180,22 @@ func TestEnsureFromUpstream(t *testing.T) {
 			continue
 		}
 		t.Logf("%s %s: %s", engine, version, b.SHA256)
+	}
+}
+
+func TestVersionsAreStableAndNewestFirst(t *testing.T) {
+	up := &fakeRelease{files: map[string][]byte{
+		"api.json": []byte(`{"versions":[{"id":"1.9.0"},{"id":"1.10.7"},{"id":"1.11.0-beta1"},{"id":"1.10.10"},{"id":"1.9.0"}]}`),
+	}}
+	m, _, _ := mirror(t, up, nil, "")
+	got, err := m.Versions(context.Background(), "opentofu")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(got) != "[1.10.10 1.10.7 1.9.0]" {
+		t.Errorf("versions: %v", got)
+	}
+	if _, err := m.Versions(context.Background(), "opentofu"); err != nil || up.gets.Load() != 1 {
+		t.Errorf("a second call fetched the index again: %d gets, %v", up.gets.Load(), err)
 	}
 }

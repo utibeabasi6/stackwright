@@ -18,6 +18,7 @@ import (
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builders"
+	"github.com/stackwright/stackwright/internal/engine"
 )
 
 const sampleEngineVersion = "1.10.7"
@@ -29,6 +30,7 @@ var (
 
 type Projects struct {
 	stackwrightv1connect.UnimplementedProjectServiceHandler
+	Engines *engine.Mirror
 }
 
 var engines = map[v1.Engine]string{v1.Engine_ENGINE_OPENTOFU: "opentofu", v1.Engine_ENGINE_TERRAFORM: "terraform"}
@@ -62,8 +64,8 @@ func checkEngine(engine v1.Engine, version string) error {
 			return invalid("Stackwright supports OpenTofu 1.8.0 and newer")
 		}
 	case v1.Engine_ENGINE_TERRAFORM:
-		if n < 1_000_000 || n > 1_005_007 {
-			return invalid("Stackwright supports Terraform 1.0.0 to 1.5.7; newer Terraform has a licence that forbids it")
+		if n < 1_000_000 {
+			return invalid("Stackwright supports Terraform 1.0.0 and newer")
 		}
 	default:
 		return invalid("choose OpenTofu or Terraform")
@@ -154,7 +156,7 @@ func project(ctx context.Context, tx pgx.Tx, slug string) (projectRow, error) {
 	return ps[0], nil
 }
 
-func (Projects) ListProjects(ctx context.Context, _ *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error) {
+func (h Projects) ListProjects(ctx context.Context, _ *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error) {
 	ps, err := loadProjects(ctx, authz.ScopeFrom(ctx).Tx, "")
 	if err != nil {
 		return nil, authz.Internal(err)
@@ -166,7 +168,7 @@ func (Projects) ListProjects(ctx context.Context, _ *connect.Request[v1.ListProj
 	return connect.NewResponse(&v1.ListProjectsResponse{Projects: out}), nil
 }
 
-func (Projects) GetWorkspace(ctx context.Context, req *connect.Request[v1.GetWorkspaceRequest]) (*connect.Response[v1.GetWorkspaceResponse], error) {
+func (h Projects) GetWorkspace(ctx context.Context, req *connect.Request[v1.GetWorkspaceRequest]) (*connect.Response[v1.GetWorkspaceResponse], error) {
 	pr, err := project(ctx, authz.ScopeFrom(ctx).Tx, req.Msg.Project)
 	if err != nil {
 		return nil, err
@@ -201,7 +203,7 @@ func insertProject(ctx context.Context, s *authz.Scope, p *v1.Project, workspace
 	return pr.p, err
 }
 
-func (Projects) CreateProject(ctx context.Context, req *connect.Request[v1.CreateProjectRequest]) (*connect.Response[v1.CreateProjectResponse], error) {
+func (h Projects) CreateProject(ctx context.Context, req *connect.Request[v1.CreateProjectRequest]) (*connect.Response[v1.CreateProjectResponse], error) {
 	m := req.Msg
 	if !slugPattern.MatchString(m.Slug) {
 		return nil, invalid("the project's short name needs 1 to 40 lowercase letters, digits or hyphens")
@@ -215,6 +217,13 @@ func (Projects) CreateProject(ctx context.Context, req *connect.Request[v1.Creat
 	}
 	if len(m.RepoUrl) > 300 || len(m.Branch) > 200 {
 		return nil, invalid("the repository URL or branch is too long")
+	}
+	s := authz.ScopeFrom(ctx)
+	var account *v1.CloudAccount
+	if m.CloudAccount != "" {
+		if account, err = oneAccount(ctx, s.Tx, m.CloudAccount); err != nil {
+			return nil, err
+		}
 	}
 	workspaces := m.Workspaces
 	switch m.Layout {
@@ -237,17 +246,41 @@ func (Projects) CreateProject(ctx context.Context, req *connect.Request[v1.Creat
 	default:
 		return nil, invalid("choose a plain folder or CLI workspaces")
 	}
-	p, err := insertProject(ctx, authz.ScopeFrom(ctx), &v1.Project{
+	p, err := insertProject(ctx, s, &v1.Project{
 		Slug: m.Slug, Path: path, Engine: m.Engine, EngineVersion: m.EngineVersion,
 		Layout: m.Layout, RepoUrl: strings.TrimSpace(m.RepoUrl), Branch: strings.TrimSpace(m.Branch),
 	}, workspaces, false)
 	if err != nil {
 		return nil, err
 	}
+	if account != nil {
+		if _, err := s.Tx.Exec(ctx, `UPDATE workspaces w SET cloud_account_id = $1 FROM projects p
+			WHERE p.id = w.project_id AND p.slug = $2 AND p.archived_at IS NULL`, account.GetId(), m.Slug); err != nil {
+			return nil, authz.Internal(err)
+		}
+	}
 	return connect.NewResponse(&v1.CreateProjectResponse{Project: p}), nil
 }
 
-func (Projects) CreateSampleProject(ctx context.Context, _ *connect.Request[v1.CreateSampleProjectRequest]) (*connect.Response[v1.CreateSampleProjectResponse], error) {
+func (h Projects) ListEngineVersions(ctx context.Context, req *connect.Request[v1.ListEngineVersionsRequest]) (*connect.Response[v1.ListEngineVersionsResponse], error) {
+	name, ok := engines[req.Msg.GetEngine()]
+	if !ok {
+		return nil, invalid("choose OpenTofu or Terraform")
+	}
+	all, err := h.Engines.Versions(ctx, name)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("the %s release list: %w", name, err))
+	}
+	out := &v1.ListEngineVersionsResponse{}
+	for _, v := range all {
+		if checkEngine(req.Msg.GetEngine(), v) == nil {
+			out.Versions = append(out.Versions, v)
+		}
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h Projects) CreateSampleProject(ctx context.Context, _ *connect.Request[v1.CreateSampleProjectRequest]) (*connect.Response[v1.CreateSampleProjectResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	var n int
 	if err := s.Tx.QueryRow(ctx, `SELECT count(*) FROM projects WHERE org_id = app_org_id() AND archived_at IS NULL AND sample`).Scan(&n); err != nil {
@@ -267,7 +300,7 @@ func (Projects) CreateSampleProject(ctx context.Context, _ *connect.Request[v1.C
 	return connect.NewResponse(&v1.CreateSampleProjectResponse{Project: p}), nil
 }
 
-func (Projects) UpdateProject(ctx context.Context, req *connect.Request[v1.UpdateProjectRequest]) (*connect.Response[v1.UpdateProjectResponse], error) {
+func (h Projects) UpdateProject(ctx context.Context, req *connect.Request[v1.UpdateProjectRequest]) (*connect.Response[v1.UpdateProjectResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	m := req.Msg
 	pr, err := project(ctx, s.Tx, m.Project)
@@ -312,7 +345,7 @@ func refuseLocked(ctx context.Context, tx pgx.Tx, projectID, workspace string) e
 		"workspace %s is locked by %s since %s; wait for it to finish, or force-unlock it first", name, who, since.UTC().Format("15:04 MST")))
 }
 
-func (Projects) ArchiveProject(ctx context.Context, req *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error) {
+func (h Projects) ArchiveProject(ctx context.Context, req *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	pr, err := project(ctx, s.Tx, req.Msg.Project)
 	if err != nil {
@@ -331,7 +364,7 @@ func (Projects) ArchiveProject(ctx context.Context, req *connect.Request[v1.Arch
 	return connect.NewResponse(&v1.ArchiveProjectResponse{}), nil
 }
 
-func (Projects) CreateWorkspace(ctx context.Context, req *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error) {
+func (h Projects) CreateWorkspace(ctx context.Context, req *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	pr, err := project(ctx, s.Tx, req.Msg.Project)
 	if err != nil {
@@ -355,7 +388,7 @@ func (Projects) CreateWorkspace(ctx context.Context, req *connect.Request[v1.Cre
 	return connect.NewResponse(&v1.CreateWorkspaceResponse{Workspace: &v1.Workspace{Name: req.Msg.Name, CreatedAt: timestamppb.Now()}}), nil
 }
 
-func (Projects) ArchiveWorkspace(ctx context.Context, req *connect.Request[v1.ArchiveWorkspaceRequest]) (*connect.Response[v1.ArchiveWorkspaceResponse], error) {
+func (h Projects) ArchiveWorkspace(ctx context.Context, req *connect.Request[v1.ArchiveWorkspaceRequest]) (*connect.Response[v1.ArchiveWorkspaceResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	pr, err := project(ctx, s.Tx, req.Msg.Project)
 	if err != nil {
@@ -382,7 +415,7 @@ func (Projects) ArchiveWorkspace(ctx context.Context, req *connect.Request[v1.Ar
 	return connect.NewResponse(&v1.ArchiveWorkspaceResponse{}), nil
 }
 
-func (Projects) UpdateWorkspace(ctx context.Context, req *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error) {
+func (h Projects) UpdateWorkspace(ctx context.Context, req *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	ws, err := workspaceID(ctx, s.Tx, req.Msg.Project, req.Msg.Workspace)
 	if err != nil {

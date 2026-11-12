@@ -8,12 +8,18 @@ import (
 	"crypto/sha256"
 	_ "embed"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/jackc/pgx/v5"
@@ -45,6 +51,9 @@ type release struct {
 	baseURL     string
 	prefix      string
 	sigSuffix   string
+	// index lists every release; versions reads it.
+	index    string
+	versions func([]byte) ([]string, error)
 }
 
 func (r release) url(version, file string) string {
@@ -56,11 +65,33 @@ var upstream = map[string]release{
 		key: openTofuKey, fingerprint: "E3E6E43D84CB852EADB0051D0C0AF313E5FD9F80",
 		baseURL: "https://github.com/opentofu/opentofu/releases/download/v{version}",
 		prefix:  "tofu", sigSuffix: ".gpgsig",
+		index: "https://get.opentofu.org/tofu/api.json",
+		versions: func(b []byte) ([]string, error) {
+			var doc struct {
+				Versions []struct {
+					ID string `json:"id"`
+				} `json:"versions"`
+			}
+			err := json.Unmarshal(b, &doc)
+			out := make([]string, 0, len(doc.Versions))
+			for _, v := range doc.Versions {
+				out = append(out, v.ID)
+			}
+			return out, err
+		},
 	},
 	"terraform": {
 		key: hashiCorpKey, fingerprint: "C874011F0AB405110D02105534365D9472D7468F",
 		baseURL: "https://releases.hashicorp.com/terraform/{version}",
 		prefix:  "terraform", sigSuffix: ".sig",
+		index: "https://releases.hashicorp.com/terraform/index.json",
+		versions: func(b []byte) ([]string, error) {
+			var doc struct {
+				Versions map[string]json.RawMessage `json:"versions"`
+			}
+			err := json.Unmarshal(b, &doc)
+			return slices.Collect(maps.Keys(doc.Versions)), err
+		},
 	},
 }
 
@@ -78,6 +109,63 @@ type Mirror struct {
 	HTTP   *http.Client
 
 	releases map[string]release
+
+	mu       sync.Mutex
+	versions map[string]versionList
+}
+
+type versionList struct {
+	versions []string
+	at       time.Time
+}
+
+// versionsFor keeps each engine's list this long, so the new project form
+// does not fetch an index on each visit.
+const versionsFor = time.Hour
+
+// Versions returns the engine's stable releases, newest first.
+func (m *Mirror) Versions(ctx context.Context, engine string) ([]string, error) {
+	r, ok := m.release(engine)
+	if !ok {
+		return nil, fmt.Errorf("unknown engine %q", engine)
+	}
+	m.mu.Lock()
+	cached, ok := m.versions[engine]
+	m.mu.Unlock()
+	if ok && time.Since(cached.at) < versionsFor {
+		return cached.versions, nil
+	}
+	body, err := m.get(ctx, r.index)
+	if err != nil {
+		return nil, err
+	}
+	all, err := r.versions(body)
+	if err != nil {
+		return nil, fmt.Errorf("read the %s release index: %w", engine, err)
+	}
+	stable := slices.DeleteFunc(all, func(v string) bool { return !validVersion.MatchString(v) })
+	slices.SortFunc(stable, func(a, b string) int { return CompareVersions(b, a) })
+	stable = slices.Compact(stable)
+	m.mu.Lock()
+	if m.versions == nil {
+		m.versions = map[string]versionList{}
+	}
+	m.versions[engine] = versionList{versions: stable, at: time.Now()}
+	m.mu.Unlock()
+	return stable, nil
+}
+
+// CompareVersions orders two major.minor.patch versions.
+func CompareVersions(a, b string) int {
+	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	for i := range min(len(pa), len(pb)) {
+		x, _ := strconv.Atoi(pa[i])
+		y, _ := strconv.Atoi(pb[i])
+		if x != y {
+			return x - y
+		}
+	}
+	return len(pa) - len(pb)
 }
 
 // Ensure returns the binary for an engine version on a platform such as

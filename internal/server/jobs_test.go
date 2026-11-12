@@ -470,7 +470,11 @@ func TestJobTicketWorksOnce(t *testing.T) {
 func TestJobDownloadsAGitModule(t *testing.T) {
 	t.Parallel()
 	w := newJobWorld(t)
-	for _, project := range [][2]string{{"net", "prod"}, {"legacy", "default"}} {
+	owner := w.client()
+	owner.must("AuthService/SignIn", map[string]any{"email": "owner@a.test", "password": password})
+	owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "modern", "engine": "ENGINE_TERRAFORM",
+		"engineVersion": "1.17.2", "layout": "LAYOUT_PLAIN"})
+	for _, project := range [][2]string{{"net", "prod"}, {"legacy", "default"}, {"modern", "default"}} {
 		orgID, ws := w.workspaceID(project[0], project[1])
 		id, code, logs := w.run(jobs.Request{OrgID: orgID, WorkspaceID: ws, Operation: v1.JobOperation_JOB_OPERATION_PLAN, Source: source(t, "gitmodule")})
 		if code != 0 {

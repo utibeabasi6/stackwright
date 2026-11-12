@@ -497,3 +497,30 @@ that inputs and selects get more padding.
 - The tabs and the new input padding were not looked at in a browser: the
   dev stack's public URL is a tunnel, so the browser pane could not sign in.
 - The upload of the EKS example again, now with git.
+
+### Phase 8, engines and project creation
+
+Decisions: [0025](adr/0025-newer-terraform.md).
+
+**Verified on 2026-11-12:**
+- `ListEngineVersions` reads the real release lists: Terraform 1.17.2 and
+  1.5.7, and OpenTofu 1.13.9 and 1.10.7, with no pre-releases and no
+  OpenTofu below 1.8.0. The list is kept for an hour (engine test with a
+  fake index: one fetch for two calls).
+- A project on Terraform 1.17.2 is accepted, and a plan with a git module
+  succeeds on it in a real sandbox. HashiCorp's pinned key checks the
+  1.17.2 release, and its `init` writes JSON, found from its help.
+- A project can start with a cloud account, which every one of its
+  workspaces gets; an unknown account is refused.
+- Web tests: the new project form picks the newest version, offers it as
+  "1.17.2 (newest)", and sends the cloud account. Settings › project uses
+  the same select.
+- A cache key clash: the Cloud accounts page and the new project form both
+  used `cloud:<org>` for different shapes; the form now has its own key.
+- The form controls were looked at on a static page with the app's styles,
+  in both themes: inputs and selects are 32 px with 12 px side padding, and
+  selects draw their chevron.
+
+**Not verified:**
+- A select's opened list. macOS draws it, and the browser pane cannot
+  capture it.

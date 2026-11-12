@@ -12,7 +12,41 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stackwright/v1/projects.proto.
  */
 export const file_stackwright_v1_projects: GenFile = /*@__PURE__*/
-  fileDesc("Ch1zdGFja3dyaWdodC92MS9wcm9qZWN0cy5wcm90bxIOc3RhY2t3cmlnaHQudjEixwIKB1Byb2plY3QSDAoEc2x1ZxgBIAEoCRIMCgRwYXRoGAIgASgJEiYKBmVuZ2luZRgDIAEoDjIWLnN0YWNrd3JpZ2h0LnYxLkVuZ2luZRIWCg5lbmdpbmVfdmVyc2lvbhgEIAEoCRImCgZsYXlvdXQYBSABKA4yFi5zdGFja3dyaWdodC52MS5MYXlvdXQSEAoIcmVwb191cmwYBiABKAkSDgoGYnJhbmNoGAcgASgJEg4KBnNhbXBsZRgIIAEoCBItCgp3b3Jrc3BhY2VzGAkgAygLMhkuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlEi4KCmNyZWF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC2xpbmtlZF9yZXBvGAsgASgJEhIKCnJ1bl9icmFuY2gYDCABKAki8wEKCVdvcmtzcGFjZRIMCgRuYW1lGAEgASgJEi4KCmNyZWF0ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCmF1dG9fYXBwbHkYAyABKAgSRgoPcmVxdWlyZWRfbGFiZWxzGAQgAygLMi0uc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlLlJlcXVpcmVkTGFiZWxzRW50cnkSFQoNY2xvdWRfYWNjb3VudBgFIAEoCRo1ChNSZXF1aXJlZExhYmVsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiIgoTTGlzdFByb2plY3RzUmVxdWVzdBILCgNvcmcYASABKAkiQQoUTGlzdFByb2plY3RzUmVzcG9uc2USKQoIcHJvamVjdHMYASADKAsyFy5zdGFja3dyaWdodC52MS5Qcm9qZWN0IkYKE0dldFdvcmtzcGFjZVJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJIm4KFEdldFdvcmtzcGFjZVJlc3BvbnNlEigKB3Byb2plY3QYASABKAsyFy5zdGFja3dyaWdodC52MS5Qcm9qZWN0EiwKCXdvcmtzcGFjZRgCIAEoCzIZLnN0YWNrd3JpZ2h0LnYxLldvcmtzcGFjZSLdAQoUQ3JlYXRlUHJvamVjdFJlcXVlc3QSCwoDb3JnGAEgASgJEgwKBHNsdWcYAiABKAkSDAoEcGF0aBgDIAEoCRImCgZlbmdpbmUYBCABKA4yFi5zdGFja3dyaWdodC52MS5FbmdpbmUSFgoOZW5naW5lX3ZlcnNpb24YBSABKAkSJgoGbGF5b3V0GAYgASgOMhYuc3RhY2t3cmlnaHQudjEuTGF5b3V0EhIKCndvcmtzcGFjZXMYByADKAkSEAoIcmVwb191cmwYCCABKAkSDgoGYnJhbmNoGAkgASgJIkEKFUNyZWF0ZVByb2plY3RSZXNwb25zZRIoCgdwcm9qZWN0GAEgASgLMhcuc3RhY2t3cmlnaHQudjEuUHJvamVjdCIpChpDcmVhdGVTYW1wbGVQcm9qZWN0UmVxdWVzdBILCgNvcmcYASABKAkiRwobQ3JlYXRlU2FtcGxlUHJvamVjdFJlc3BvbnNlEigKB3Byb2plY3QYASABKAsyFy5zdGFja3dyaWdodC52MS5Qcm9qZWN0InwKFFVwZGF0ZVByb2plY3RSZXF1ZXN0EgsKA29yZxgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEgwKBHBhdGgYAyABKAkSFgoOZW5naW5lX3ZlcnNpb24YBCABKAkSEAoIcmVwb191cmwYBSABKAkSDgoGYnJhbmNoGAYgASgJIkEKFVVwZGF0ZVByb2plY3RSZXNwb25zZRIoCgdwcm9qZWN0GAEgASgLMhcuc3RhY2t3cmlnaHQudjEuUHJvamVjdCI1ChVBcmNoaXZlUHJvamVjdFJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkiGAoWQXJjaGl2ZVByb2plY3RSZXNwb25zZSJEChZDcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0EgsKA29yZxgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEgwKBG5hbWUYAyABKAkiRwoXQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USLAoJd29ya3NwYWNlGAEgASgLMhkuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlIkoKF0FyY2hpdmVXb3Jrc3BhY2VSZXF1ZXN0EgsKA29yZxgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEhEKCXdvcmtzcGFjZRgDIAEoCSIaChhBcmNoaXZlV29ya3NwYWNlUmVzcG9uc2UiogEKFlVwZGF0ZVdvcmtzcGFjZVJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJEhcKCmF1dG9fYXBwbHkYBCABKAhIAIgBARIvCg9yZXF1aXJlZF9sYWJlbHMYBSABKAsyFi5zdGFja3dyaWdodC52MS5MYWJlbHNCDQoLX2F1dG9fYXBwbHkiawoGTGFiZWxzEjIKBnZhbHVlcxgBIAMoCzIiLnN0YWNrd3JpZ2h0LnYxLkxhYmVscy5WYWx1ZXNFbnRyeRotCgtWYWx1ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIhkKF1VwZGF0ZVdvcmtzcGFjZVJlc3BvbnNlKksKBkVuZ2luZRIWChJFTkdJTkVfVU5TUEVDSUZJRUQQABITCg9FTkdJTkVfT1BFTlRPRlUQARIUChBFTkdJTkVfVEVSUkFGT1JNEAIqTQoGTGF5b3V0EhYKEkxBWU9VVF9VTlNQRUNJRklFRBAAEhAKDExBWU9VVF9QTEFJThABEhkKFUxBWU9VVF9DTElfV09SS1NQQUNFUxACMowHCg5Qcm9qZWN0U2VydmljZRJeCgxMaXN0UHJvamVjdHMSIy5zdGFja3dyaWdodC52MS5MaXN0UHJvamVjdHNSZXF1ZXN0GiQuc3RhY2t3cmlnaHQudjEuTGlzdFByb2plY3RzUmVzcG9uc2UiA5ACARJeCgxHZXRXb3Jrc3BhY2USIy5zdGFja3dyaWdodC52MS5HZXRXb3Jrc3BhY2VSZXF1ZXN0GiQuc3RhY2t3cmlnaHQudjEuR2V0V29ya3NwYWNlUmVzcG9uc2UiA5ACARJcCg1DcmVhdGVQcm9qZWN0EiQuc3RhY2t3cmlnaHQudjEuQ3JlYXRlUHJvamVjdFJlcXVlc3QaJS5zdGFja3dyaWdodC52MS5DcmVhdGVQcm9qZWN0UmVzcG9uc2USbgoTQ3JlYXRlU2FtcGxlUHJvamVjdBIqLnN0YWNrd3JpZ2h0LnYxLkNyZWF0ZVNhbXBsZVByb2plY3RSZXF1ZXN0Gisuc3RhY2t3cmlnaHQudjEuQ3JlYXRlU2FtcGxlUHJvamVjdFJlc3BvbnNlElwKDVVwZGF0ZVByb2plY3QSJC5zdGFja3dyaWdodC52MS5VcGRhdGVQcm9qZWN0UmVxdWVzdBolLnN0YWNrd3JpZ2h0LnYxLlVwZGF0ZVByb2plY3RSZXNwb25zZRJfCg5BcmNoaXZlUHJvamVjdBIlLnN0YWNrd3JpZ2h0LnYxLkFyY2hpdmVQcm9qZWN0UmVxdWVzdBomLnN0YWNrd3JpZ2h0LnYxLkFyY2hpdmVQcm9qZWN0UmVzcG9uc2USYgoPQ3JlYXRlV29ya3NwYWNlEiYuc3RhY2t3cmlnaHQudjEuQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBonLnN0YWNrd3JpZ2h0LnYxLkNyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlEmUKEEFyY2hpdmVXb3Jrc3BhY2USJy5zdGFja3dyaWdodC52MS5BcmNoaXZlV29ya3NwYWNlUmVxdWVzdBooLnN0YWNrd3JpZ2h0LnYxLkFyY2hpdmVXb3Jrc3BhY2VSZXNwb25zZRJiCg9VcGRhdGVXb3Jrc3BhY2USJi5zdGFja3dyaWdodC52MS5VcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0Gicuc3RhY2t3cmlnaHQudjEuVXBkYXRlV29ya3NwYWNlUmVzcG9uc2VCwQEKEmNvbS5zdGFja3dyaWdodC52MUINUHJvamVjdHNQcm90b1ABWkNnaXRodWIuY29tL3N0YWNrd3JpZ2h0L3N0YWNrd3JpZ2h0L2dlbi9zdGFja3dyaWdodC92MTtzdGFja3dyaWdodHYxogIDU1hYqgIOU3RhY2t3cmlnaHQuVjHKAg5TdGFja3dyaWdodFxWMeICGlN0YWNrd3JpZ2h0XFYxXEdQQk1ldGFkYXRh6gIPU3RhY2t3cmlnaHQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Ch1zdGFja3dyaWdodC92MS9wcm9qZWN0cy5wcm90bxIOc3RhY2t3cmlnaHQudjEiQwoZTGlzdEVuZ2luZVZlcnNpb25zUmVxdWVzdBImCgZlbmdpbmUYASABKA4yFi5zdGFja3dyaWdodC52MS5FbmdpbmUiLgoaTGlzdEVuZ2luZVZlcnNpb25zUmVzcG9uc2USEAoIdmVyc2lvbnMYASADKAkixwIKB1Byb2plY3QSDAoEc2x1ZxgBIAEoCRIMCgRwYXRoGAIgASgJEiYKBmVuZ2luZRgDIAEoDjIWLnN0YWNrd3JpZ2h0LnYxLkVuZ2luZRIWCg5lbmdpbmVfdmVyc2lvbhgEIAEoCRImCgZsYXlvdXQYBSABKA4yFi5zdGFja3dyaWdodC52MS5MYXlvdXQSEAoIcmVwb191cmwYBiABKAkSDgoGYnJhbmNoGAcgASgJEg4KBnNhbXBsZRgIIAEoCBItCgp3b3Jrc3BhY2VzGAkgAygLMhkuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlEi4KCmNyZWF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC2xpbmtlZF9yZXBvGAsgASgJEhIKCnJ1bl9icmFuY2gYDCABKAki8wEKCVdvcmtzcGFjZRIMCgRuYW1lGAEgASgJEi4KCmNyZWF0ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCmF1dG9fYXBwbHkYAyABKAgSRgoPcmVxdWlyZWRfbGFiZWxzGAQgAygLMi0uc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlLlJlcXVpcmVkTGFiZWxzRW50cnkSFQoNY2xvdWRfYWNjb3VudBgFIAEoCRo1ChNSZXF1aXJlZExhYmVsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiIgoTTGlzdFByb2plY3RzUmVxdWVzdBILCgNvcmcYASABKAkiQQoUTGlzdFByb2plY3RzUmVzcG9uc2USKQoIcHJvamVjdHMYASADKAsyFy5zdGFja3dyaWdodC52MS5Qcm9qZWN0IkYKE0dldFdvcmtzcGFjZVJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJIm4KFEdldFdvcmtzcGFjZVJlc3BvbnNlEigKB3Byb2plY3QYASABKAsyFy5zdGFja3dyaWdodC52MS5Qcm9qZWN0EiwKCXdvcmtzcGFjZRgCIAEoCzIZLnN0YWNrd3JpZ2h0LnYxLldvcmtzcGFjZSL0AQoUQ3JlYXRlUHJvamVjdFJlcXVlc3QSCwoDb3JnGAEgASgJEgwKBHNsdWcYAiABKAkSDAoEcGF0aBgDIAEoCRImCgZlbmdpbmUYBCABKA4yFi5zdGFja3dyaWdodC52MS5FbmdpbmUSFgoOZW5naW5lX3ZlcnNpb24YBSABKAkSJgoGbGF5b3V0GAYgASgOMhYuc3RhY2t3cmlnaHQudjEuTGF5b3V0EhIKCndvcmtzcGFjZXMYByADKAkSEAoIcmVwb191cmwYCCABKAkSDgoGYnJhbmNoGAkgASgJEhUKDWNsb3VkX2FjY291bnQYCiABKAkiQQoVQ3JlYXRlUHJvamVjdFJlc3BvbnNlEigKB3Byb2plY3QYASABKAsyFy5zdGFja3dyaWdodC52MS5Qcm9qZWN0IikKGkNyZWF0ZVNhbXBsZVByb2plY3RSZXF1ZXN0EgsKA29yZxgBIAEoCSJHChtDcmVhdGVTYW1wbGVQcm9qZWN0UmVzcG9uc2USKAoHcHJvamVjdBgBIAEoCzIXLnN0YWNrd3JpZ2h0LnYxLlByb2plY3QifAoUVXBkYXRlUHJvamVjdFJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSDAoEcGF0aBgDIAEoCRIWCg5lbmdpbmVfdmVyc2lvbhgEIAEoCRIQCghyZXBvX3VybBgFIAEoCRIOCgZicmFuY2gYBiABKAkiQQoVVXBkYXRlUHJvamVjdFJlc3BvbnNlEigKB3Byb2plY3QYASABKAsyFy5zdGFja3dyaWdodC52MS5Qcm9qZWN0IjUKFUFyY2hpdmVQcm9qZWN0UmVxdWVzdBILCgNvcmcYASABKAkSDwoHcHJvamVjdBgCIAEoCSIYChZBcmNoaXZlUHJvamVjdFJlc3BvbnNlIkQKFkNyZWF0ZVdvcmtzcGFjZVJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSDAoEbmFtZRgDIAEoCSJHChdDcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRIsCgl3b3Jrc3BhY2UYASABKAsyGS5zdGFja3dyaWdodC52MS5Xb3Jrc3BhY2UiSgoXQXJjaGl2ZVdvcmtzcGFjZVJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJIhoKGEFyY2hpdmVXb3Jrc3BhY2VSZXNwb25zZSKiAQoWVXBkYXRlV29ya3NwYWNlUmVxdWVzdBILCgNvcmcYASABKAkSDwoHcHJvamVjdBgCIAEoCRIRCgl3b3Jrc3BhY2UYAyABKAkSFwoKYXV0b19hcHBseRgEIAEoCEgAiAEBEi8KD3JlcXVpcmVkX2xhYmVscxgFIAEoCzIWLnN0YWNrd3JpZ2h0LnYxLkxhYmVsc0INCgtfYXV0b19hcHBseSJrCgZMYWJlbHMSMgoGdmFsdWVzGAEgAygLMiIuc3RhY2t3cmlnaHQudjEuTGFiZWxzLlZhbHVlc0VudHJ5Gi0KC1ZhbHVlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiGQoXVXBkYXRlV29ya3NwYWNlUmVzcG9uc2UqSwoGRW5naW5lEhYKEkVOR0lORV9VTlNQRUNJRklFRBAAEhMKD0VOR0lORV9PUEVOVE9GVRABEhQKEEVOR0lORV9URVJSQUZPUk0QAipNCgZMYXlvdXQSFgoSTEFZT1VUX1VOU1BFQ0lGSUVEEAASEAoMTEFZT1VUX1BMQUlOEAESGQoVTEFZT1VUX0NMSV9XT1JLU1BBQ0VTEAIy/gcKDlByb2plY3RTZXJ2aWNlEl4KDExpc3RQcm9qZWN0cxIjLnN0YWNrd3JpZ2h0LnYxLkxpc3RQcm9qZWN0c1JlcXVlc3QaJC5zdGFja3dyaWdodC52MS5MaXN0UHJvamVjdHNSZXNwb25zZSIDkAIBEl4KDEdldFdvcmtzcGFjZRIjLnN0YWNrd3JpZ2h0LnYxLkdldFdvcmtzcGFjZVJlcXVlc3QaJC5zdGFja3dyaWdodC52MS5HZXRXb3Jrc3BhY2VSZXNwb25zZSIDkAIBElwKDUNyZWF0ZVByb2plY3QSJC5zdGFja3dyaWdodC52MS5DcmVhdGVQcm9qZWN0UmVxdWVzdBolLnN0YWNrd3JpZ2h0LnYxLkNyZWF0ZVByb2plY3RSZXNwb25zZRJuChNDcmVhdGVTYW1wbGVQcm9qZWN0Eiouc3RhY2t3cmlnaHQudjEuQ3JlYXRlU2FtcGxlUHJvamVjdFJlcXVlc3QaKy5zdGFja3dyaWdodC52MS5DcmVhdGVTYW1wbGVQcm9qZWN0UmVzcG9uc2USXAoNVXBkYXRlUHJvamVjdBIkLnN0YWNrd3JpZ2h0LnYxLlVwZGF0ZVByb2plY3RSZXF1ZXN0GiUuc3RhY2t3cmlnaHQudjEuVXBkYXRlUHJvamVjdFJlc3BvbnNlEl8KDkFyY2hpdmVQcm9qZWN0EiUuc3RhY2t3cmlnaHQudjEuQXJjaGl2ZVByb2plY3RSZXF1ZXN0GiYuc3RhY2t3cmlnaHQudjEuQXJjaGl2ZVByb2plY3RSZXNwb25zZRJiCg9DcmVhdGVXb3Jrc3BhY2USJi5zdGFja3dyaWdodC52MS5DcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0Gicuc3RhY2t3cmlnaHQudjEuQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USZQoQQXJjaGl2ZVdvcmtzcGFjZRInLnN0YWNrd3JpZ2h0LnYxLkFyY2hpdmVXb3Jrc3BhY2VSZXF1ZXN0Giguc3RhY2t3cmlnaHQudjEuQXJjaGl2ZVdvcmtzcGFjZVJlc3BvbnNlEmIKD1VwZGF0ZVdvcmtzcGFjZRImLnN0YWNrd3JpZ2h0LnYxLlVwZGF0ZVdvcmtzcGFjZVJlcXVlc3QaJy5zdGFja3dyaWdodC52MS5VcGRhdGVXb3Jrc3BhY2VSZXNwb25zZRJwChJMaXN0RW5naW5lVmVyc2lvbnMSKS5zdGFja3dyaWdodC52MS5MaXN0RW5naW5lVmVyc2lvbnNSZXF1ZXN0Giouc3RhY2t3cmlnaHQudjEuTGlzdEVuZ2luZVZlcnNpb25zUmVzcG9uc2UiA5ACAULBAQoSY29tLnN0YWNrd3JpZ2h0LnYxQg1Qcm9qZWN0c1Byb3RvUAFaQ2dpdGh1Yi5jb20vc3RhY2t3cmlnaHQvc3RhY2t3cmlnaHQvZ2VuL3N0YWNrd3JpZ2h0L3YxO3N0YWNrd3JpZ2h0djGiAgNTWFiqAg5TdGFja3dyaWdodC5WMcoCDlN0YWNrd3JpZ2h0XFYx4gIaU3RhY2t3cmlnaHRcVjFcR1BCTWV0YWRhdGHqAg9TdGFja3dyaWdodDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+
+/**
+ * @generated from message stackwright.v1.ListEngineVersionsRequest
+ */
+export type ListEngineVersionsRequest = Message<"stackwright.v1.ListEngineVersionsRequest"> & {
+  /**
+   * @generated from field: stackwright.v1.Engine engine = 1;
+   */
+  engine: Engine;
+};
+
+/**
+ * Describes the message stackwright.v1.ListEngineVersionsRequest.
+ * Use `create(ListEngineVersionsRequestSchema)` to create a new message.
+ */
+export const ListEngineVersionsRequestSchema: GenMessage<ListEngineVersionsRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_projects, 0);
+
+/**
+ * @generated from message stackwright.v1.ListEngineVersionsResponse
+ */
+export type ListEngineVersionsResponse = Message<"stackwright.v1.ListEngineVersionsResponse"> & {
+  /**
+   * @generated from field: repeated string versions = 1;
+   */
+  versions: string[];
+};
+
+/**
+ * Describes the message stackwright.v1.ListEngineVersionsResponse.
+ * Use `create(ListEngineVersionsResponseSchema)` to create a new message.
+ */
+export const ListEngineVersionsResponseSchema: GenMessage<ListEngineVersionsResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_projects, 1);
 
 /**
  * @generated from message stackwright.v1.Project
@@ -88,7 +122,7 @@ export type Project = Message<"stackwright.v1.Project"> & {
  * Use `create(ProjectSchema)` to create a new message.
  */
 export const ProjectSchema: GenMessage<Project> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 0);
+  messageDesc(file_stackwright_v1_projects, 2);
 
 /**
  * @generated from message stackwright.v1.Workspace
@@ -131,7 +165,7 @@ export type Workspace = Message<"stackwright.v1.Workspace"> & {
  * Use `create(WorkspaceSchema)` to create a new message.
  */
 export const WorkspaceSchema: GenMessage<Workspace> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 1);
+  messageDesc(file_stackwright_v1_projects, 3);
 
 /**
  * @generated from message stackwright.v1.ListProjectsRequest
@@ -148,7 +182,7 @@ export type ListProjectsRequest = Message<"stackwright.v1.ListProjectsRequest"> 
  * Use `create(ListProjectsRequestSchema)` to create a new message.
  */
 export const ListProjectsRequestSchema: GenMessage<ListProjectsRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 2);
+  messageDesc(file_stackwright_v1_projects, 4);
 
 /**
  * @generated from message stackwright.v1.ListProjectsResponse
@@ -165,7 +199,7 @@ export type ListProjectsResponse = Message<"stackwright.v1.ListProjectsResponse"
  * Use `create(ListProjectsResponseSchema)` to create a new message.
  */
 export const ListProjectsResponseSchema: GenMessage<ListProjectsResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 3);
+  messageDesc(file_stackwright_v1_projects, 5);
 
 /**
  * @generated from message stackwright.v1.GetWorkspaceRequest
@@ -192,7 +226,7 @@ export type GetWorkspaceRequest = Message<"stackwright.v1.GetWorkspaceRequest"> 
  * Use `create(GetWorkspaceRequestSchema)` to create a new message.
  */
 export const GetWorkspaceRequestSchema: GenMessage<GetWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 4);
+  messageDesc(file_stackwright_v1_projects, 6);
 
 /**
  * @generated from message stackwright.v1.GetWorkspaceResponse
@@ -214,7 +248,7 @@ export type GetWorkspaceResponse = Message<"stackwright.v1.GetWorkspaceResponse"
  * Use `create(GetWorkspaceResponseSchema)` to create a new message.
  */
 export const GetWorkspaceResponseSchema: GenMessage<GetWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 5);
+  messageDesc(file_stackwright_v1_projects, 7);
 
 /**
  * @generated from message stackwright.v1.CreateProjectRequest
@@ -264,6 +298,13 @@ export type CreateProjectRequest = Message<"stackwright.v1.CreateProjectRequest"
    * @generated from field: string branch = 9;
    */
   branch: string;
+
+  /**
+   * A cloud account for every workspace the project starts with, or empty.
+   *
+   * @generated from field: string cloud_account = 10;
+   */
+  cloudAccount: string;
 };
 
 /**
@@ -271,7 +312,7 @@ export type CreateProjectRequest = Message<"stackwright.v1.CreateProjectRequest"
  * Use `create(CreateProjectRequestSchema)` to create a new message.
  */
 export const CreateProjectRequestSchema: GenMessage<CreateProjectRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 6);
+  messageDesc(file_stackwright_v1_projects, 8);
 
 /**
  * @generated from message stackwright.v1.CreateProjectResponse
@@ -288,7 +329,7 @@ export type CreateProjectResponse = Message<"stackwright.v1.CreateProjectRespons
  * Use `create(CreateProjectResponseSchema)` to create a new message.
  */
 export const CreateProjectResponseSchema: GenMessage<CreateProjectResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 7);
+  messageDesc(file_stackwright_v1_projects, 9);
 
 /**
  * @generated from message stackwright.v1.CreateSampleProjectRequest
@@ -305,7 +346,7 @@ export type CreateSampleProjectRequest = Message<"stackwright.v1.CreateSamplePro
  * Use `create(CreateSampleProjectRequestSchema)` to create a new message.
  */
 export const CreateSampleProjectRequestSchema: GenMessage<CreateSampleProjectRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 8);
+  messageDesc(file_stackwright_v1_projects, 10);
 
 /**
  * @generated from message stackwright.v1.CreateSampleProjectResponse
@@ -322,7 +363,7 @@ export type CreateSampleProjectResponse = Message<"stackwright.v1.CreateSamplePr
  * Use `create(CreateSampleProjectResponseSchema)` to create a new message.
  */
 export const CreateSampleProjectResponseSchema: GenMessage<CreateSampleProjectResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 9);
+  messageDesc(file_stackwright_v1_projects, 11);
 
 /**
  * @generated from message stackwright.v1.UpdateProjectRequest
@@ -364,7 +405,7 @@ export type UpdateProjectRequest = Message<"stackwright.v1.UpdateProjectRequest"
  * Use `create(UpdateProjectRequestSchema)` to create a new message.
  */
 export const UpdateProjectRequestSchema: GenMessage<UpdateProjectRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 10);
+  messageDesc(file_stackwright_v1_projects, 12);
 
 /**
  * @generated from message stackwright.v1.UpdateProjectResponse
@@ -381,7 +422,7 @@ export type UpdateProjectResponse = Message<"stackwright.v1.UpdateProjectRespons
  * Use `create(UpdateProjectResponseSchema)` to create a new message.
  */
 export const UpdateProjectResponseSchema: GenMessage<UpdateProjectResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 11);
+  messageDesc(file_stackwright_v1_projects, 13);
 
 /**
  * @generated from message stackwright.v1.ArchiveProjectRequest
@@ -403,7 +444,7 @@ export type ArchiveProjectRequest = Message<"stackwright.v1.ArchiveProjectReques
  * Use `create(ArchiveProjectRequestSchema)` to create a new message.
  */
 export const ArchiveProjectRequestSchema: GenMessage<ArchiveProjectRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 12);
+  messageDesc(file_stackwright_v1_projects, 14);
 
 /**
  * @generated from message stackwright.v1.ArchiveProjectResponse
@@ -416,7 +457,7 @@ export type ArchiveProjectResponse = Message<"stackwright.v1.ArchiveProjectRespo
  * Use `create(ArchiveProjectResponseSchema)` to create a new message.
  */
 export const ArchiveProjectResponseSchema: GenMessage<ArchiveProjectResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 13);
+  messageDesc(file_stackwright_v1_projects, 15);
 
 /**
  * @generated from message stackwright.v1.CreateWorkspaceRequest
@@ -443,7 +484,7 @@ export type CreateWorkspaceRequest = Message<"stackwright.v1.CreateWorkspaceRequ
  * Use `create(CreateWorkspaceRequestSchema)` to create a new message.
  */
 export const CreateWorkspaceRequestSchema: GenMessage<CreateWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 14);
+  messageDesc(file_stackwright_v1_projects, 16);
 
 /**
  * @generated from message stackwright.v1.CreateWorkspaceResponse
@@ -460,7 +501,7 @@ export type CreateWorkspaceResponse = Message<"stackwright.v1.CreateWorkspaceRes
  * Use `create(CreateWorkspaceResponseSchema)` to create a new message.
  */
 export const CreateWorkspaceResponseSchema: GenMessage<CreateWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 15);
+  messageDesc(file_stackwright_v1_projects, 17);
 
 /**
  * @generated from message stackwright.v1.ArchiveWorkspaceRequest
@@ -487,7 +528,7 @@ export type ArchiveWorkspaceRequest = Message<"stackwright.v1.ArchiveWorkspaceRe
  * Use `create(ArchiveWorkspaceRequestSchema)` to create a new message.
  */
 export const ArchiveWorkspaceRequestSchema: GenMessage<ArchiveWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 16);
+  messageDesc(file_stackwright_v1_projects, 18);
 
 /**
  * @generated from message stackwright.v1.ArchiveWorkspaceResponse
@@ -500,7 +541,7 @@ export type ArchiveWorkspaceResponse = Message<"stackwright.v1.ArchiveWorkspaceR
  * Use `create(ArchiveWorkspaceResponseSchema)` to create a new message.
  */
 export const ArchiveWorkspaceResponseSchema: GenMessage<ArchiveWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 17);
+  messageDesc(file_stackwright_v1_projects, 19);
 
 /**
  * @generated from message stackwright.v1.UpdateWorkspaceRequest
@@ -537,7 +578,7 @@ export type UpdateWorkspaceRequest = Message<"stackwright.v1.UpdateWorkspaceRequ
  * Use `create(UpdateWorkspaceRequestSchema)` to create a new message.
  */
 export const UpdateWorkspaceRequestSchema: GenMessage<UpdateWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 18);
+  messageDesc(file_stackwright_v1_projects, 20);
 
 /**
  * Labels wraps a map, so an update can tell "no change" from "none".
@@ -556,7 +597,7 @@ export type Labels = Message<"stackwright.v1.Labels"> & {
  * Use `create(LabelsSchema)` to create a new message.
  */
 export const LabelsSchema: GenMessage<Labels> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 19);
+  messageDesc(file_stackwright_v1_projects, 21);
 
 /**
  * @generated from message stackwright.v1.UpdateWorkspaceResponse
@@ -569,7 +610,7 @@ export type UpdateWorkspaceResponse = Message<"stackwright.v1.UpdateWorkspaceRes
  * Use `create(UpdateWorkspaceResponseSchema)` to create a new message.
  */
 export const UpdateWorkspaceResponseSchema: GenMessage<UpdateWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_projects, 20);
+  messageDesc(file_stackwright_v1_projects, 22);
 
 /**
  * @generated from enum stackwright.v1.Engine
@@ -698,6 +739,17 @@ export const ProjectService: GenService<{
     methodKind: "unary";
     input: typeof UpdateWorkspaceRequestSchema;
     output: typeof UpdateWorkspaceResponseSchema;
+  },
+  /**
+   * ListEngineVersions lists an engine's stable releases that Stackwright
+   * supports, newest first.
+   *
+   * @generated from rpc stackwright.v1.ProjectService.ListEngineVersions
+   */
+  listEngineVersions: {
+    methodKind: "unary";
+    input: typeof ListEngineVersionsRequestSchema;
+    output: typeof ListEngineVersionsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_stackwright_v1_projects, 0);

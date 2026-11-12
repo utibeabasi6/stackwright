@@ -1,6 +1,7 @@
 # 0016 — Projects before repositories
 
-**Status:** Accepted, 2026-11-11.
+**Status:** Accepted, 2026-11-11. [0025](0025-newer-terraform.md) supersedes
+"Terraform 1.0.0 to 1.5.7": every Terraform from 1.0.0.
 
 ## Context
 

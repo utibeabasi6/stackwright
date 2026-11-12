@@ -46,6 +46,13 @@ Stackwright host, so set these in `.env` to addresses that it can reach:
 Compose publishes the builder port and RustFS on 127.0.0.1 only. Publish
 them beyond this host for build servers on other machines.
 
+### Engines
+
+Projects run OpenTofu (from 1.8.0) or Terraform (from 1.0.0). Stackwright
+downloads each version from its publisher the first time a run needs it,
+and checks its signature. Terraform 1.6 and newer are under HashiCorp's
+Business Source Licence; whether your use meets it is yours to judge.
+
 ### GitHub
 
 A pull request plans the workspaces it touches, and a push to a project's

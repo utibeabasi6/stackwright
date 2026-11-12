@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
@@ -126,6 +126,11 @@ vi.mock("./api", () => ({
     }),
   },
   projectApi: {
+    listEngineVersions: async () => ({ versions: ["1.17.2", "1.16.7", "1.5.7"] }),
+    createProject: async (req: { slug: string }) => {
+      api.created.push(req);
+      return { project: { slug: req.slug, workspaces: [{ name: "default" }] } };
+    },
     listProjects: async () => ({ projects: api.projects }),
     getWorkspace: async ({ project, workspace }: { project: string; workspace: string }) => {
       const p = (api.projects as { slug: string; workspaces: { name: string }[] }[]).find((x) => x.slug === project);
@@ -494,4 +499,17 @@ test("a plan error shows its file, line and detail", async () => {
   const timeline = await screen.findByRole("list", { name: "Timeline" });
   expect(await within(timeline).findByText("! Unsupported argument (main.tf:3)")).toBeInTheDocument();
   expect(within(timeline).getByText('An argument named "nope" is not expected here.')).toBeInTheDocument();
+});
+
+test("a new project picks the newest engine version and can start with a cloud account", async () => {
+  signedInAs(Role.ADMIN);
+  at("/a/projects/new");
+  await userEvent.type(await screen.findByRole("textbox", { name: "Short name" }), "lab");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "Engine" }), "Terraform");
+  const version = await screen.findByRole("combobox", { name: "Version" });
+  await waitFor(() => expect(version).toHaveValue("1.17.2"));
+  expect(within(version).getByRole("option", { name: "1.17.2 (newest)" })).toBeInTheDocument();
+  await userEvent.selectOptions(await screen.findByRole("combobox", { name: /^Cloud account/ }), "prod-aws");
+  await userEvent.click(screen.getByRole("button", { name: /Create/ }));
+  expect(api.created).toMatchObject([{ slug: "lab", engineVersion: "1.17.2", cloudAccount: "prod-aws" }]);
 });

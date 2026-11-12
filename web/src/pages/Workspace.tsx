@@ -5,6 +5,7 @@ import { message, projectApi } from "../api";
 import { describe, engineName } from "../engines";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { Layout } from "../gen/stackwright/v1/projects_pb";
+import { EngineVersion } from "../EngineVersion";
 import { useShell } from "../me";
 import { useLoad } from "../useLoad";
 import { CloudPanel } from "./CloudPanel";
@@ -32,6 +33,7 @@ export function Workspace() {
     navigate({ to: ".", search: id === "runs" ? {} : { tab: id }, replace: true } as Parameters<typeof navigate>[0]);
   const ws = useLoad(`${org}/${project}/${workspace}`, () => projectApi.getWorkspace({ org, project, workspace }));
   const [error, setError] = useState<string>();
+  const [version, setVersion] = useState("");
   const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export function Workspace() {
         org,
         project,
         path: String(f.get("path")),
-        engineVersion: String(f.get("version")),
+        engineVersion: version || p.engineVersion,
         repoUrl: String(f.get("repoUrl")),
         branch: String(f.get("branch")),
       }),
@@ -190,10 +192,7 @@ export function Workspace() {
                       <span>Folder</span>
                       <input name="path" className="mono" defaultValue={p.path} />
                     </label>
-                    <label className="field">
-                      <span>{engineName(p.engine)} version</span>
-                      <input name="version" className="mono" required defaultValue={p.engineVersion} />
-                    </label>
+                    <EngineVersion engine={p.engine} value={version || p.engineVersion} onChange={setVersion} label={`${engineName(p.engine)} version`} />
                   </div>
                   <div className="row">
                     <label className="field grow">

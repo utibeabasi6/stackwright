@@ -421,3 +421,43 @@ func TestRunGetsVariablesAndCloudCredentials(t *testing.T) {
 		t.Errorf("a workspace that the trust policy does not name: %v", failed)
 	}
 }
+
+func TestProjectStartsWithACloudAccount(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, nil)
+	owner := w.setup()
+	owner.must("CloudAccountService/CreateCloudAccount", map[string]any{"org": "a", "name": "test",
+		"aws": map[string]any{"planRoleArn": "arn:aws:iam::123456789012:role/plan", "applyRoleArn": "arn:aws:iam::123456789012:role/apply", "region": "eu-west-1"}})
+	project := map[string]any{"org": "a", "slug": "net", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7",
+		"layout": "LAYOUT_CLI_WORKSPACES", "workspaces": []string{"dev", "prod"}}
+	if _, code := owner.call("ProjectService/CreateProject", merge(project, map[string]any{"cloudAccount": "missing"})); code != "not_found" {
+		t.Errorf("an unknown account: %q", code)
+	}
+	owner.must("ProjectService/CreateProject", merge(project, map[string]any{"cloudAccount": "test"}))
+	for _, ws := range []string{"dev", "prod"} {
+		got := owner.must("ProjectService/GetWorkspace", map[string]any{"org": "a", "project": "net", "workspace": ws})["workspace"].(map[string]any)
+		if got["cloudAccount"] != "test" {
+			t.Errorf("%s: %v", ws, got)
+		}
+	}
+}
+
+func TestEngineVersionsComeFromTheReleases(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, nil)
+	owner := w.setup()
+	for engine, want := range map[string][2]string{"ENGINE_TERRAFORM": {"1.17.2", "1.5.7"}, "ENGINE_OPENTOFU": {"1.13.9", "1.10.7"}} {
+		got := owner.must("ProjectService/ListEngineVersions", map[string]any{"engine": engine})["versions"].([]any)
+		list := fmt.Sprint(got)
+		if !strings.Contains(list, want[0]) || !strings.Contains(list, want[1]) || strings.Contains(list, "-") {
+			t.Errorf("%s: %v", engine, got)
+		}
+		if engine == "ENGINE_OPENTOFU" && strings.Contains(list, " 1.7.") {
+			t.Errorf("OpenTofu below 1.8.0 is listed: %v", got)
+		}
+	}
+	if _, code := owner.call("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "new", "engine": "ENGINE_TERRAFORM",
+		"engineVersion": "1.17.2", "layout": "LAYOUT_PLAIN"}); code != "" {
+		t.Errorf("Terraform 1.17.2: %q", code)
+	}
+}

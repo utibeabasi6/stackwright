@@ -55,7 +55,7 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewAuthServiceHandler(&api.Auth{Cookies: cookies, SetupCode: c.SetupCode}, opts))
 	serve(stackwrightv1connect.NewOrgServiceHandler(&api.Orgs{PublicURL: c.PublicURL}, opts))
 	serve(stackwrightv1connect.NewInstanceServiceHandler(&api.Instance{KEK: c.KEK, SignIn: signIn}, opts))
-	serve(stackwrightv1connect.NewProjectServiceHandler(api.Projects{}, opts))
+	serve(stackwrightv1connect.NewProjectServiceHandler(api.Projects{Engines: c.Jobs.Engines}, opts))
 	serve(stackwrightv1connect.NewStateServiceHandler(&api.State{Store: c.State, PublicURL: c.PublicURL}, opts))
 	serve(stackwrightv1connect.NewTokenServiceHandler(api.Tokens{}, opts))
 	serve(stackwrightv1connect.NewExecutorServiceHandler(api.Executor{Jobs: c.Jobs, Changed: c.Runs.Changed}, opts))
