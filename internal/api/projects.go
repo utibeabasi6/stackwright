@@ -96,8 +96,10 @@ type projectRow struct {
 }
 
 func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, error) {
-	rows, err := tx.Query(ctx, `SELECT id, slug, path, engine, engine_version, layout, repo_url, branch, sample, created_at
-		FROM projects WHERE org_id = app_org_id() AND archived_at IS NULL AND ($1 = '' OR slug = $1) ORDER BY slug`, slug)
+	rows, err := tx.Query(ctx, `SELECT p.id, p.slug, p.path, p.engine, p.engine_version, p.layout, p.repo_url, p.branch, p.sample, p.created_at,
+		coalesce(r.full_name, ''), coalesce(nullif(p.branch, ''), r.default_branch, '')
+		FROM projects p LEFT JOIN repos r ON lower(r.full_name) = p.repo
+		WHERE p.org_id = app_org_id() AND p.archived_at IS NULL AND ($1 = '' OR p.slug = $1) ORDER BY p.slug`, slug)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +107,8 @@ func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, er
 		p := &v1.Project{}
 		var id, engine, layout string
 		var created time.Time
-		err := r.Scan(&id, &p.Slug, &p.Path, &engine, &p.EngineVersion, &layout, &p.RepoUrl, &p.Branch, &p.Sample, &created)
+		err := r.Scan(&id, &p.Slug, &p.Path, &engine, &p.EngineVersion, &layout, &p.RepoUrl, &p.Branch, &p.Sample, &created,
+			&p.LinkedRepo, &p.RunBranch)
 		p.Engine, p.Layout, p.CreatedAt = key(engines, engine), key(layouts, layout), timestamppb.New(created)
 		return projectRow{id, p}, err
 	})

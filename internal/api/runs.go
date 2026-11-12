@@ -18,6 +18,7 @@ import (
 	"github.com/stackwright/stackwright/fixtures"
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/github"
 	"github.com/stackwright/stackwright/internal/runs"
 )
 
@@ -32,6 +33,7 @@ const (
 type Runs struct {
 	Pool         *pgxpool.Pool
 	Orchestrator *runs.Orchestrator
+	GitHub       *github.GitHub
 }
 
 const runColumns = `r.id, r.number, p.slug, w.name, r.status, r.plan_only, r.source, r.source_sha256,
@@ -106,6 +108,16 @@ func (h Runs) CreateRun(ctx context.Context, req *connect.Request[v1.CreateRunRe
 	if err != nil {
 		return nil, err
 	}
+	head, linked, err := h.GitHub.BranchHead(ctx, s.Tx, s.OrgID, ws)
+	switch {
+	case linked && len(m.Source) > 0:
+		return nil, invalid("this project runs from its GitHub repository; uploads are for projects with no repository")
+	case linked && err != nil:
+		return nil, githubError(err)
+	case linked:
+		head.PlanOnly, head.CreatedBy = m.PlanOnly, s.UserID
+		return h.created(ctx, s, m, head)
+	}
 	source, name := m.Source, strings.TrimSpace(m.SourceName)
 	switch {
 	case len(source) == 0:
@@ -131,9 +143,13 @@ func (h Runs) CreateRun(ctx context.Context, req *connect.Request[v1.CreateRunRe
 		name = name[:maxSourceName]
 	}
 	sum := sha256.Sum256(source)
-	id, number, err := h.Orchestrator.Create(ctx, s.Tx, s.OrgID, runs.NewRun{
+	return h.created(ctx, s, m, runs.NewRun{
 		WorkspaceID: ws, PlanOnly: m.PlanOnly, Source: source, SourceName: name, SourceSHA: hex.EncodeToString(sum[:]), CreatedBy: s.UserID,
 	})
+}
+
+func (h Runs) created(ctx context.Context, s *authz.Scope, m *v1.CreateRunRequest, r runs.NewRun) (*connect.Response[v1.CreateRunResponse], error) {
+	id, number, err := h.Orchestrator.Create(ctx, s.Tx, s.OrgID, r)
 	if err != nil {
 		return nil, authz.Internal(err)
 	}

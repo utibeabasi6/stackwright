@@ -59,7 +59,7 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewStateServiceHandler(&api.State{Store: c.State, PublicURL: c.PublicURL}, opts))
 	serve(stackwrightv1connect.NewTokenServiceHandler(api.Tokens{}, opts))
 	serve(stackwrightv1connect.NewExecutorServiceHandler(api.Executor{Jobs: c.Jobs, Changed: c.Runs.Changed}, opts))
-	serve(stackwrightv1connect.NewRunServiceHandler(api.Runs{Pool: c.Pool, Orchestrator: c.Runs}, opts, connect.WithReadMaxBytes(48<<20)))
+	serve(stackwrightv1connect.NewRunServiceHandler(api.Runs{Pool: c.Pool, Orchestrator: c.Runs, GitHub: c.GitHub}, opts, connect.WithReadMaxBytes(48<<20)))
 	serve(stackwrightv1connect.NewBuilderServiceHandler(c.Builders, opts))
 	serve(stackwrightv1connect.NewBuildServerServiceHandler(api.BuildServers{KEK: c.KEK, Hub: c.Builders, Binaries: c.Binaries}, opts))
 	serve(stackwrightv1connect.NewVariableServiceHandler(api.Variables{KEK: c.KEK}, opts))

@@ -45,7 +45,14 @@ export function changes(r: Pick<Run, "adds" | "changes" | "destroys">) {
   ];
 }
 
-type Line = { text: string; tone?: Tone };
+type Line = { text: string; tone?: Tone; detail?: string };
+
+type Diagnostic = {
+  severity?: string;
+  summary?: string;
+  detail?: string;
+  range?: { filename?: string; start?: { line?: number } };
+};
 
 const engineNames: Record<string, string> = { ENGINE_OPENTOFU: "OpenTofu", ENGINE_TERRAFORM: "Terraform" };
 
@@ -105,6 +112,13 @@ export function describeEvent(e: RunEvent): Line {
       return { text: `AWS credentials issued for ${p.role_arn}, until ${new Date(String(p.expires_at)).toLocaleTimeString()}` };
     case "executor.failed":
       return { text: `! ${p.stage} failed: ${p.error}`, tone: "error" };
+    case "engine.diagnostic": {
+      // https://opentofu.org/docs/internals/machine-readable-ui/#diagnostic
+      const d = (p.diagnostic ?? {}) as Diagnostic;
+      const where = d.range?.filename ? ` (${d.range.filename}${d.range.start?.line ? `:${d.range.start.line}` : ""})` : "";
+      const error = d.severity === "error";
+      return { text: `${error ? "! " : ""}${d.summary ?? "Diagnostic"}${where}`, detail: d.detail || undefined, tone: error ? "error" : "warn" };
+    }
     case "executor.finished":
       return { text: p.succeeded ? "Sandbox finished" : "Sandbox finished with an error", tone: p.succeeded ? undefined : "error" };
   }

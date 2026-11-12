@@ -38,7 +38,7 @@ type event struct {
 }
 
 func (c *cli) init(ctx context.Context) error {
-	args := []string{"init", "-input=false"}
+	args := []string{"init", "-input=false", "-no-color"}
 	if c.initJSON {
 		args = append(args, "-json")
 	}

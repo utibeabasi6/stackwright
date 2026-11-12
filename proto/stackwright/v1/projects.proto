@@ -43,6 +43,11 @@ message Project {
   bool sample = 8;
   repeated Workspace workspaces = 9;
   google.protobuf.Timestamp created_at = 10;
+  // The repository as "owner/name", when a linked GitHub installation
+  // covers it. Its runs plan run_branch, the project's branch or the
+  // repository's default one.
+  string linked_repo = 11;
+  string run_branch = 12;
 }
 
 message Workspace {

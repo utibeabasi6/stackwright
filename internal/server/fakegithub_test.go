@@ -37,12 +37,13 @@ type fakeGitHub struct {
 	webhookSecret string
 	installations map[int64]string
 	// visible lists the installations that the user token can see.
-	visible      []int64
-	repos        []fakeRepo
-	commits      map[string]map[string]string
+	visible []int64
+	repos   []fakeRepo
+	commits map[string]map[string]string
+	// heads holds each branch's newest commit.
+	heads        map[string]string
 	compare      map[string][]string
 	checks       map[int64]*fakeCheck
-	updates      []fakeCheck
 	nextID       int64
 	comments     map[int64]string
 	commentPosts int
@@ -69,7 +70,7 @@ func newFakeGitHub(t *testing.T) *fakeGitHub {
 		t.Fatal(err)
 	}
 	f := &fakeGitHub{t: t, key: key, webhookSecret: "webhook-secret-" + rand.Text()[:8],
-		installations: map[int64]string{}, commits: map[string]map[string]string{}, compare: map[string][]string{},
+		installations: map[int64]string{}, commits: map[string]map[string]string{}, heads: map[string]string{}, compare: map[string][]string{},
 		checks: map[int64]*fakeCheck{}, comments: map[int64]string{}, nextID: 100}
 	f.srv = httptest.NewServer(f)
 	t.Cleanup(f.srv.Close)
@@ -154,6 +155,13 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			list = append(list, map[string]any{"id": repo.ID, "full_name": repo.FullName, "default_branch": "main", "private": true})
 		}
 		f.json(w, map[string]any{"repositories": list})
+	case strings.Contains(p, "/commits/"):
+		sha, ok := f.heads[p[strings.LastIndex(p, "/")+1:]]
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		f.json(w, map[string]string{"sha": sha})
 	case strings.Contains(p, "/compare/"):
 		spec := p[strings.Index(p, "/compare/")+len("/compare/"):]
 		files, ok := f.compare[spec]
@@ -178,7 +186,6 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.nextID++
 		c := f.check(f.nextID, body)
 		f.checks[c.ID] = &c
-		f.updates = append(f.updates, c)
 		f.json(w, map[string]any{"id": c.ID})
 	case r.Method == http.MethodPatch && strings.Contains(p, "/check-runs/"):
 		id, _ := strconv.ParseInt(p[strings.LastIndex(p, "/")+1:], 10, 64)
@@ -190,7 +197,6 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c := f.check(id, body)
 		c.HeadSHA = old.HeadSHA
 		f.checks[id] = &c
-		f.updates = append(f.updates, c)
 		f.json(w, map[string]any{"id": id})
 	case r.Method == http.MethodPost && strings.HasSuffix(p, "/comments"):
 		f.nextID++

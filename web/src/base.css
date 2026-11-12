@@ -139,15 +139,49 @@ code,
   color: var(--ink-muted);
 }
 
-input,
-select {
+input:not([type="checkbox"], [type="radio"]),
+select,
+textarea {
+  box-sizing: border-box;
   font: inherit;
-  min-height: 30px;
-  padding: 0 10px;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-control);
-  background: var(--window);
+  background-color: var(--window);
   color: var(--ink);
+}
+
+/* The chevron is drawn here, so that padding and colors behave the same
+   in both themes and every browser. */
+select {
+  appearance: none;
+  padding-right: 32px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
+    linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
+  background-position:
+    right 15px center,
+    right 10px center;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+input[type="file"] {
+  padding: var(--space-1) var(--space-1);
+  line-height: 22px;
+}
+
+input[type="file"]::file-selector-button {
+  font: inherit;
+  margin-right: var(--space-2);
+  padding: 0 var(--space-2);
+  height: 22px;
+  border: 1px solid var(--hairline);
+  border-radius: calc(var(--radius-control) - 2px);
+  background: var(--chrome);
+  color: var(--ink);
+  cursor: pointer;
 }
 
 button,
@@ -675,4 +709,10 @@ details.card summary {
 .prose p,
 .prose ul {
   margin: 0;
+}
+
+.timeline .detail {
+  display: block;
+  white-space: pre-wrap;
+  color: var(--ink-muted);
 }

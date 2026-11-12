@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -339,4 +340,40 @@ func (g *GitHub) start(ctx context.Context, tx pgx.Tx, orgID string, repo repoRo
 		}
 	}
 	return nil
+}
+
+// BranchHead returns a run of the newest commit on the branch that the
+// workspace's project runs from, and false when no linked installation
+// covers the project's repository. tx needs the org setting.
+// https://docs.github.com/en/rest/commits/commits#get-a-commit
+func (g *GitHub) BranchHead(ctx context.Context, tx pgx.Tx, orgID, workspaceID string) (runs.NewRun, bool, error) {
+	var repo repoRow
+	var branch string
+	err := tx.QueryRow(ctx, `SELECT r.id, r.installation_id, r.full_name, r.default_branch, coalesce(nullif(p.branch, ''), r.default_branch)
+		FROM workspaces w JOIN projects p ON p.id = w.project_id JOIN repos r ON lower(r.full_name) = p.repo WHERE w.id = $1`, workspaceID).
+		Scan(&repo.id, &repo.installation, &repo.fullName, &repo.defaultBranch, &branch)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return runs.NewRun{}, false, nil
+	}
+	if err != nil {
+		return runs.NewRun{}, true, err
+	}
+	token, err := g.installationToken(ctx, repo.installation)
+	if err != nil {
+		return runs.NewRun{}, true, err
+	}
+	var commit struct {
+		SHA string `json:"sha"`
+	}
+	if err := g.call(ctx, http.MethodGet, fmt.Sprintf("/repos/%s/commits/%s", repo.fullName, url.PathEscape(branch)), token, nil, &commit); err != nil {
+		return runs.NewRun{}, true, fmt.Errorf("find the newest commit on %s: %w", branch, err)
+	}
+	a, err := g.archive(ctx, tx, orgID, repo, commit.SHA)
+	if err != nil {
+		return runs.NewRun{}, true, err
+	}
+	return runs.NewRun{
+		WorkspaceID: workspaceID, SourceKey: a.key, SourceSHA: a.sha256, CommitSHA: commit.SHA, Branch: branch, RepoID: repo.id,
+		SourceName: fmt.Sprintf("%s@%s · %s", repo.fullName, branch, commit.SHA[:min(7, len(commit.SHA))]),
+	}, true, nil
 }

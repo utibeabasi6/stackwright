@@ -132,6 +132,11 @@ type Project struct {
 	Sample        bool                   `protobuf:"varint,8,opt,name=sample,proto3" json:"sample,omitempty"`
 	Workspaces    []*Workspace           `protobuf:"bytes,9,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// The repository as "owner/name", when a linked GitHub installation
+	// covers it. Its runs plan run_branch, the project's branch or the
+	// repository's default one.
+	LinkedRepo    string `protobuf:"bytes,11,opt,name=linked_repo,json=linkedRepo,proto3" json:"linked_repo,omitempty"`
+	RunBranch     string `protobuf:"bytes,12,opt,name=run_branch,json=runBranch,proto3" json:"run_branch,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -234,6 +239,20 @@ func (x *Project) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *Project) GetLinkedRepo() string {
+	if x != nil {
+		return x.LinkedRepo
+	}
+	return ""
+}
+
+func (x *Project) GetRunBranch() string {
+	if x != nil {
+		return x.RunBranch
+	}
+	return ""
 }
 
 type Workspace struct {
@@ -1332,7 +1351,7 @@ var File_stackwright_v1_projects_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_projects_proto_rawDesc = "" +
 	"\n" +
-	"\x1dstackwright/v1/projects.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf9\x02\n" +
+	"\x1dstackwright/v1/projects.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb9\x03\n" +
 	"\aProject\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12.\n" +
@@ -1347,7 +1366,11 @@ const file_stackwright_v1_projects_proto_rawDesc = "" +
 	"workspaces\x129\n" +
 	"\n" +
 	"created_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xb9\x02\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1f\n" +
+	"\vlinked_repo\x18\v \x01(\tR\n" +
+	"linkedRepo\x12\x1d\n" +
+	"\n" +
+	"run_branch\x18\f \x01(\tR\trunBranch\"\xb9\x02\n" +
 	"\tWorkspace\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x129\n" +
 	"\n" +

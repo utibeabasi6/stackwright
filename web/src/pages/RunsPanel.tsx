@@ -13,12 +13,14 @@ type Props = {
   project: string;
   workspace: string;
   sample: boolean;
+  linkedRepo: string;
+  runBranch: string;
   autoApply: boolean;
   requiredLabels: Record<string, string>;
   reload: () => void;
 };
 
-export function RunsPanel({ org, project, workspace, sample, autoApply, requiredLabels, reload }: Props) {
+export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBranch, autoApply, requiredLabels, reload }: Props) {
   const { me, reloadWaiting } = useShell();
   const navigate = useNavigate();
   const runs = useLoad(`runs:${org}/${project}/${workspace}`, () => runApi.listRuns({ org, project, workspace }).then((r) => r.runs));
@@ -98,7 +100,13 @@ export function RunsPanel({ org, project, workspace, sample, autoApply, required
           <section className="card" aria-labelledby="start-h">
             <form className="stack" onSubmit={start}>
               <h2 id="start-h">Start a run</h2>
-              {!sample && (
+              {linkedRepo && (
+                <p className="muted">
+                  Plans the newest commit of <span className="mono">{runBranch}</span> in{" "}
+                  <span className="mono">{linkedRepo}</span>. Pull requests and pushes start runs on their own.
+                </p>
+              )}
+              {!sample && !linkedRepo && (
                 <label className="field">
                   <span>Code, as a .tar.gz of the repository</span>
                   <input name="source" type="file" accept=".tar.gz,.tgz,application/gzip" required />

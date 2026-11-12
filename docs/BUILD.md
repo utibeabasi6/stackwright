@@ -33,6 +33,7 @@ Each decision has a record in [adr/](adr/).
 | Build servers | Port 8443 with Stackwright's own CA, a static builder binary under systemd, executor images from a registry, a cache only the builder writes, no Docker install | [0021](adr/0021-build-server-enrolment.md) |
 | Cloud credentials | The server is the OIDC issuer, with a key sealed in Postgres; a token for each job, in the claim with the variables | [0022](adr/0022-variables-and-cloud-credentials.md) |
 | GitHub | One App per instance from a manifest; an installation links after the installer authorizes; forks never plan | [0023](adr/0023-github-app.md) |
+| Sandbox image | Alpine with git, for modules; linked projects run from their branch, with no upload | [0024](adr/0024-git-in-sandboxes-and-linked-runs.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; Terraform up to 1.5.7 | — |

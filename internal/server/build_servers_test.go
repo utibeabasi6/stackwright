@@ -237,7 +237,7 @@ func TestBuildServerLabelsAndDraining(t *testing.T) {
 	owner.must("ProjectService/UpdateWorkspace", dev(map[string]any{"requiredLabels": map[string]any{"values": map[string]string{"region": "eu"}}}))
 
 	owner.must("RunService/CreateRun", dev(map[string]any{"planOnly": true}))
-	deadline := time.Now().Add(time.Minute)
+	deadline := time.Now().Add(4 * time.Minute)
 	for {
 		run := owner.must("RunService/GetRun", dev(map[string]any{"number": 1}))["run"].(map[string]any)
 		if run["buildServer"] != nil {

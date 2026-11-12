@@ -29,3 +29,4 @@ line to the old one that points to the new one.
 | [0021](0021-build-server-enrolment.md) | Build servers: a builder port with its own CA, a binary install, a builder-filled cache |
 | [0022](0022-variables-and-cloud-credentials.md) | Variables and cloud credentials: an issuer the server serves, secrets in the claim |
 | [0023](0023-github-app.md) | GitHub: one App per instance from a manifest, forks never plan |
+| [0024](0024-git-in-sandboxes-and-linked-runs.md) | git in the sandbox image, and linked projects run from their branch |

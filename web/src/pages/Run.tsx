@@ -111,6 +111,7 @@ export function Run() {
               <span>
                 {line.text}
                 {e.resourceAddr && !line.text.includes(e.resourceAddr) && <code> {e.resourceAddr}</code>}
+                {line.detail && <span className="detail">{line.detail}</span>}
               </span>
             </li>
           );

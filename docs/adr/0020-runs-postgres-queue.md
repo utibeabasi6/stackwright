@@ -1,7 +1,9 @@
 # 0020 — Runs: a Postgres queue, uploaded code, joined networks
 
 **Status:** Accepted, 2026-11-11. Supersedes the job queue in
-[0003](0003-nats-inside-the-control-plane.md).
+[0003](0003-nats-inside-the-control-plane.md). For projects that a linked
+GitHub installation covers, [0024](0024-git-in-sandboxes-and-linked-runs.md)
+supersedes "code by upload": they run from their branch.
 
 ## Context
 

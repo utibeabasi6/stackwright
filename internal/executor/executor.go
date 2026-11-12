@@ -206,7 +206,7 @@ func (r *runner) run(ctx context.Context) (err error) {
 	}
 	// Stackwright's own entries come last: with a key twice, the last one
 	// wins, so a variable cannot replace them.
-	env = append(env, "HOME="+home, "TF_IN_AUTOMATION=1", "TF_INPUT=0", "TF_HTTP_PASSWORD="+job.GetToken())
+	env = append(env, "HOME="+home, "PATH=/usr/local/bin:/usr/bin:/bin", "TF_IN_AUTOMATION=1", "TF_INPUT=0", "TF_HTTP_PASSWORD="+job.GetToken())
 	if providers := filepath.Join(r.cache, "providers"); r.cache != "" && isDir(providers) {
 		config := filepath.Join(home, "cli.tfrc")
 		if err := os.WriteFile(config, fmt.Appendf(nil, "provider_installation {\n  filesystem_mirror {\n    path = %q\n  }\n  direct {}\n}\n", providers), 0o600); err != nil {

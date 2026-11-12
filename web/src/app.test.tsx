@@ -278,7 +278,7 @@ test("the workspace shows its state and the backend setup", async () => {
   signedInAs(Role.VIEWER);
   api.projects = [network];
   api.locked = true;
-  at("/a/projects/network/prod");
+  at("/a/projects/network/prod?tab=state");
   expect(await screen.findByText("serial 3")).toBeInTheDocument();
   expect(screen.getByText(/Locked by ci@runner for apply/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Force unlock" })).not.toBeInTheDocument();
@@ -290,7 +290,7 @@ test("an admin can force-unlock", async () => {
   signedInAs(Role.ADMIN);
   api.projects = [network];
   api.locked = true;
-  at("/a/projects/network/prod");
+  at("/a/projects/network/prod?tab=state");
   expect(await screen.findByRole("button", { name: "Force unlock" })).toBeInTheDocument();
 });
 
@@ -409,7 +409,7 @@ test("a workspace shows its variables, and never a sensitive value", async () =>
     { category: 1, key: "greeting", value: "hello-project", scope: { project: "network" } },
     { category: 2, key: "DB_PASSWORD", value: "", sensitive: true, scope: { project: "network", workspace: "prod" } },
   ];
-  at("/a/projects/network/prod");
+  at("/a/projects/network/prod?tab=variables");
   const vars = await screen.findByRole("region", { name: "Variables" });
   expect(await within(vars).findByText("hello-project")).toBeInTheDocument();
   expect(within(vars).getByText("Sensitive, hidden")).toBeInTheDocument();
@@ -446,4 +446,52 @@ test("a run from a pull request says so", async () => {
   api.runs = [{ ...waitingRun, trigger: "pull_request", prNumber: 12, commitSha: "2222222222222222222222222222222222222222", createdBy: "" }];
   at("/a/projects/network/prod/runs/1");
   expect(await screen.findByText("pull request #12 · 2222222")).toBeInTheDocument();
+});
+
+test("a linked project plans its branch and asks for no upload", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [{ ...network, repoUrl: "https://github.com/acme/infra", linkedRepo: "acme/infra", runBranch: "main" }];
+  at("/a/projects/network/prod");
+  const start = await screen.findByRole("region", { name: "Start a run" });
+  expect(within(start).getByText(/Plans the newest commit of/)).toBeInTheDocument();
+  expect(within(start).queryByLabelText(/Code/)).not.toBeInTheDocument();
+  await userEvent.click(within(start).getByRole("button", { name: "Start plan" }));
+  expect(api.created).toMatchObject([{ org: "a", project: "network", workspace: "prod", sourceName: "" }]);
+});
+
+test("the workspace's sections are tabs", async () => {
+  signedInAs(Role.ADMIN);
+  api.projects = [network];
+  at("/a/projects/network/prod");
+  const tabs = await screen.findByRole("tablist", { name: "Workspace sections" });
+  expect(within(tabs).getByRole("tab", { name: "Runs" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.queryByRole("region", { name: "Variables" })).not.toBeInTheDocument();
+  await userEvent.click(within(tabs).getByRole("tab", { name: "Variables" }));
+  expect(await screen.findByRole("region", { name: "Variables" })).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Start a run" })).not.toBeInTheDocument();
+});
+
+test("a plan error shows its file, line and detail", async () => {
+  signedInAs(Role.VIEWER);
+  api.projects = [network];
+  api.runs = [{ ...waitingRun, status: RunStatus.FAILED }];
+  api.events = [
+    {
+      seq: 1n,
+      type: "engine.diagnostic",
+      payload: JSON.stringify({
+        "@message": "Error: Unsupported argument",
+        diagnostic: {
+          severity: "error",
+          summary: "Unsupported argument",
+          detail: 'An argument named "nope" is not expected here.',
+          range: { filename: "main.tf", start: { line: 3 } },
+        },
+      }),
+    },
+  ];
+  at("/a/projects/network/prod/runs/1");
+  const timeline = await screen.findByRole("list", { name: "Timeline" });
+  expect(await within(timeline).findByText("! Unsupported argument (main.tf:3)")).toBeInTheDocument();
+  expect(within(timeline).getByText('An argument named "nope" is not expected here.')).toBeInTheDocument();
 });

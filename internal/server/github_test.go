@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -299,5 +300,33 @@ func TestGitHubPullRequestsPlanAndMergesApply(t *testing.T) {
 	var archives int
 	if err := w.owner.QueryRow(t.Context(), `SELECT count(*) FROM source_archives`).Scan(&archives); err != nil || archives != 3 {
 		t.Errorf("source archives: %d, %v; want one for each commit that ran", archives, err)
+	}
+}
+
+func TestGitHubLinkedProjectRunsItsBranchHead(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, nil)
+	owner := w.setup()
+	w.createApp(owner)
+	w.link(owner)
+	w.github.commit(shaBase, map[string]string{"network/main.tf": `resource "terraform_data" "vpc" {}`})
+	w.github.mu.Lock()
+	w.github.heads["main"] = shaBase
+	w.github.mu.Unlock()
+	owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "network", "path": "network", "engine": "ENGINE_OPENTOFU",
+		"engineVersion": "1.10.7", "layout": "LAYOUT_CLI_WORKSPACES", "workspaces": []string{"dev"}, "repoUrl": "https://github.com/acme/infra"})
+	dev := map[string]any{"org": "a", "project": "network", "workspace": "dev"}
+
+	p := owner.must("ProjectService/GetWorkspace", dev)["project"].(map[string]any)
+	if p["linkedRepo"] != "acme/infra" || p["runBranch"] != "main" {
+		t.Errorf("project: %v", p)
+	}
+	run := owner.must("RunService/CreateRun", merge(dev, map[string]any{"planOnly": true}))["run"].(map[string]any)
+	if run["commitSha"] != shaBase || run["branch"] != "main" || run["trigger"] != "ui" || run["repo"] != "acme/infra" || run["source"] != "acme/infra@main · 1111111" {
+		t.Errorf("run: %v", run)
+	}
+	upload := merge(dev, map[string]any{"source": base64.StdEncoding.EncodeToString(source(t, "ok")), "sourceName": "ok.tar.gz"})
+	if _, code := owner.call("RunService/CreateRun", upload); code != "invalid_argument" {
+		t.Errorf("an upload to a linked project: %q", code)
 	}
 }

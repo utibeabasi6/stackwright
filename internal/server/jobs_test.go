@@ -466,3 +466,23 @@ func TestJobTicketWorksOnce(t *testing.T) {
 		t.Errorf("events after the job ended: %d", code)
 	}
 }
+
+func TestJobDownloadsAGitModule(t *testing.T) {
+	t.Parallel()
+	w := newJobWorld(t)
+	for _, project := range [][2]string{{"net", "prod"}, {"legacy", "default"}} {
+		orgID, ws := w.workspaceID(project[0], project[1])
+		id, code, logs := w.run(jobs.Request{OrgID: orgID, WorkspaceID: ws, Operation: v1.JobOperation_JOB_OPERATION_PLAN, Source: source(t, "gitmodule")})
+		if code != 0 {
+			t.Fatalf("%s: exited %d:\n%s", project[0], code, logs)
+		}
+		if status, msg, changes := w.status(id); status != "succeeded" || changes == nil || !*changes {
+			t.Errorf("%s: job %s %q %v", project[0], status, msg, changes)
+		}
+		for _, e := range w.events(id) {
+			if b, _ := json.Marshal(e.Payload); strings.Contains(string(b), `\u001b[`) {
+				t.Errorf("%s: an event keeps a color code: %s", project[0], b)
+			}
+		}
+	}
+}

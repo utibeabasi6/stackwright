@@ -23,7 +23,11 @@ RUN for arch in amd64 arm64; do \
     done
 RUN mkdir -p /out/files
 
-FROM gcr.io/distroless/static-debian12:nonroot AS executor
+# Alpine for git, which the engines use to download most modules
+# (adr/0024). The sandbox still runs as 65532 with a read-only root.
+FROM alpine:3.22.2 AS executor
+RUN apk add --no-cache git ca-certificates
+USER 65532:65532
 COPY --from=go /out/stackwright-executor /stackwright-executor
 COPY --from=go --chown=65532:65532 /out/files /run/stackwright
 ENTRYPOINT ["/stackwright-executor"]

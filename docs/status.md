@@ -14,7 +14,7 @@ commit that finishes a phase.
 | 5 | Done, reviewed 2026-11-12 |
 | 6 | Done, reviewed 2026-11-12 |
 | 7 | Built; the real AWS check waits for the user |
-| 8 | Built, waiting for review; the real GitHub check waits |
+| 8 | Done, reviewed 2026-11-12; the real GitHub check is under way |
 
 ## Phase 0: Repository and compose
 
@@ -463,3 +463,37 @@ older runs still show their source.
 - Nothing deletes old source archives.
 - The App cannot push; phase 12 needs contents: write.
 - One server process runs the webhook and check loops.
+
+### Phase 8, after the first real runs
+
+Decisions: [0024](adr/0024-git-in-sandboxes-and-linked-runs.md).
+
+The first upload of outside code (an EKS example) failed in `init`: the
+executor image had no git, which most registry modules need. Its timeline
+also showed Terraform's color codes. The user then asked that linked
+projects run from their branch, that the workspace's sections be tabs, and
+that inputs and selects get more padding.
+
+**Verified on 2026-11-12:**
+- A plan of a module fetched with `git::https://` succeeds on OpenTofu
+  1.10.7 and on Terraform 1.5.7, and no event holds a color code.
+- A run started in the UI on a linked project plans the branch head that
+  GitHub reports (fake GitHub), with its commit, branch and repository; an
+  upload to such a project is refused. The project reports its linked
+  repository and run branch.
+- Web tests: the workspace opens on the Runs tab, other sections load only
+  when chosen, and a linked project shows no upload field.
+- The rebuilt executor image runs git 2.49.1.
+- The run timeline shows an engine diagnostic as its summary with
+  `file:line`, and its detail under it (web test; seen in the stored
+  events of the EKS run: five "Unsupported argument" errors in
+  `eks-cluster.tf`, from code written for an older EKS module).
+- `TestBuildServerLabelsAndDraining` failed twice in full race runs: it gave
+  a run 60 s to reach a build server, and in a full run every test world
+  downloads OpenTofu at once before that. It now waits 4 minutes, as the
+  other run tests do, and the server package passes.
+
+**Not verified:**
+- The tabs and the new input padding were not looked at in a browser: the
+  dev stack's public URL is a tunnel, so the browser pane could not sign in.
+- The upload of the EKS example again, now with git.
