@@ -35,7 +35,9 @@ type jobWorld struct {
 
 // newJobWorld serves a world that sandboxes reach at host.docker.internal,
 // with an OpenTofu project "net" and a Terraform project "legacy".
-func newJobWorld(t *testing.T) *jobWorld {
+// requireDocker builds the executor image, once for each test that needs
+// it; Docker's cache makes the later builds quick.
+func requireDocker(t *testing.T) {
 	t.Helper()
 	if os.Getenv("STACKWRIGHT_TEST_ENGINES") == "" {
 		t.Skip("set STACKWRIGHT_TEST_ENGINES=1 to run jobs in Docker")
@@ -43,6 +45,11 @@ func newJobWorld(t *testing.T) *jobWorld {
 	if out, err := exec.Command("docker", "build", "-q", "--target", "executor", "-t", executorImage, "../..").CombinedOutput(); err != nil {
 		t.Fatalf("build the executor image: %v: %s", err, out)
 	}
+}
+
+func newJobWorld(t *testing.T) *jobWorld {
+	t.Helper()
+	requireDocker(t)
 	w := start(t, nil, true)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -53,7 +60,7 @@ func newJobWorld(t *testing.T) *jobWorld {
 	owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "legacy", "engine": "ENGINE_TERRAFORM",
 		"engineVersion": "1.5.7", "layout": "LAYOUT_PLAIN"})
 
-	d, err := sandbox.NewDocker("", "host.docker.internal:host-gateway")
+	d, err := sandbox.NewDocker(sandbox.DockerConfig{ExtraHosts: []string{"host.docker.internal:host-gateway"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +138,7 @@ func (w *jobWorld) start(ticket string) sandbox.Sandbox {
 	return s
 }
 
-func (w *jobWorld) run(r jobs.Request) (jobID string, code int, logs string) {
+func (w *jobWorld) run(r jobs.Request) (jobID string, code int32, logs string) {
 	w.t.Helper()
 	id, ticket := w.create(r)
 	s := w.start(ticket)

@@ -27,8 +27,10 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/builders"
 	"github.com/stackwright/stackwright/internal/engine"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/runs"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/server"
 	"github.com/stackwright/stackwright/internal/state"
@@ -39,6 +41,8 @@ const (
 	setupCode = "setup123"
 	password  = "correct horse battery"
 	issuer    = "http://127.0.0.1:18071/default"
+
+	builderToken = "builder-test-token"
 )
 
 type world struct {
@@ -49,6 +53,7 @@ type world struct {
 	bucket string
 	public string
 	jobs   *jobs.Service
+	runs   *runs.Orchestrator
 }
 
 func newWorld(t *testing.T, web fstest.MapFS) *world {
@@ -67,6 +72,9 @@ func start(t *testing.T, web fstest.MapFS, engines bool) *world {
 		t.Fatal(err)
 	}
 	srv := httptest.NewUnstartedServer(nil)
+	srv.Config.Protocols = new(http.Protocols)
+	srv.Config.Protocols.SetHTTP1(true)
+	srv.Config.Protocols.SetUnencryptedHTTP2(true)
 	public := ""
 	if engines {
 		l, err := net.Listen("tcp", "0.0.0.0:0")
@@ -90,13 +98,19 @@ func start(t *testing.T, web fstest.MapFS, engines bool) *world {
 	}
 	js := &jobs.Service{Pool: d.App, KEK: kek, S3: s3, Presign: presign, Bucket: bucket,
 		Engines: &engine.Mirror{Pool: d.App, S3: s3, Bucket: bucket, HTTP: http.DefaultClient}}
+	hub := &builders.Hub{}
+	orch := &runs.Orchestrator{Pool: d.App, KEK: kek, S3: s3, Bucket: bucket, Jobs: js, Hub: hub, NATS: testenv.NATS(t)}
+	js.OnEnd, hub.OnExit = orch.JobEnded, orch.SandboxExited
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go orch.Run(ctx)
 	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
-		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js}
+		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, BuilderToken: builderToken}
 	if web != nil {
 		cfg.Web = web
 	}
 	srv.Config.Handler = server.New(cfg)
-	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public, jobs: js}
+	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public, jobs: js, runs: orch}
 }
 
 type client struct {
@@ -185,6 +199,7 @@ func (w *world) userID(email string) string {
 type method struct {
 	procedure string
 	write     bool
+	stream    bool
 }
 
 func methods() []method {
@@ -193,14 +208,15 @@ func methods() []method {
 		v1.File_stackwright_v1_auth_proto, v1.File_stackwright_v1_orgs_proto,
 		v1.File_stackwright_v1_instance_proto, v1.File_stackwright_v1_meta_proto,
 		v1.File_stackwright_v1_projects_proto, v1.File_stackwright_v1_state_proto,
-		v1.File_stackwright_v1_executor_proto,
+		v1.File_stackwright_v1_executor_proto, v1.File_stackwright_v1_runs_proto, v1.File_stackwright_v1_builder_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
 			for j := range s.Methods().Len() {
 				m := s.Methods().Get(j)
 				level := m.Options().(*descriptorpb.MethodOptions).GetIdempotencyLevel()
-				out = append(out, method{"/" + string(s.FullName()) + "/" + string(m.Name()), level != descriptorpb.MethodOptions_NO_SIDE_EFFECTS})
+				out = append(out, method{"/" + string(s.FullName()) + "/" + string(m.Name()),
+					level != descriptorpb.MethodOptions_NO_SIDE_EFFECTS, m.IsStreamingClient() || m.IsStreamingServer()})
 			}
 		}
 	}
@@ -350,6 +366,9 @@ func TestRoleMatrix(t *testing.T) {
 	anonymous := w.client()
 
 	for _, m := range methods() {
+		if m.stream {
+			continue
+		}
 		rule := authz.Policy[m.procedure]
 		switch rule.Access {
 		case authz.Public:
@@ -400,7 +419,7 @@ func TestAnotherOrgIsNotFound(t *testing.T) {
 	memberB := w.userID("member@b.test")
 
 	for _, m := range methods() {
-		if authz.Policy[m.procedure].Access != authz.InOrg {
+		if authz.Policy[m.procedure].Access != authz.InOrg || m.stream {
 			continue
 		}
 		if _, code := adminA.call(short(m.procedure), map[string]any{"org": "b"}); code != "not_found" {
@@ -522,6 +541,20 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 	step("TokenService/RevokeApiToken", func() {
 		owner.must("TokenService/RevokeApiToken", map[string]any{"org": "a", "id": tokenID})
 	})
+	step("ProjectService/UpdateWorkspace", func() {
+		owner.must("ProjectService/UpdateWorkspace", map[string]any{"org": "a", "project": "web", "workspace": "prod", "autoApply": true})
+	})
+	ws := map[string]any{"org": "a", "project": "sample", "workspace": "dev"}
+	for i, procedure := range []string{"RunService/ApproveRun", "RunService/RejectRun", "RunService/CancelRun"} {
+		step("RunService/CreateRun", func() { owner.must("RunService/CreateRun", ws) })
+		if _, err := w.owner.Exec(context.Background(), `UPDATE runs SET status = CASE WHEN number = $1 THEN 'needs_approval' ELSE 'canceled' END,
+			state_serial = -1`, i+1); err != nil {
+			t.Fatal(err)
+		}
+		step(procedure, func() {
+			owner.must(procedure, map[string]any{"org": "a", "project": "sample", "workspace": "dev", "number": i + 1})
+		})
+	}
 	second := w.client()
 	step("AuthService/SignIn", func() {
 		second.must("AuthService/SignIn", map[string]any{"email": "owner@a.test", "password": password})
@@ -540,7 +573,7 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 
 	for _, m := range methods() {
 		access := authz.Policy[m.procedure].Access
-		if m.write && !covered[m.procedure] && access != authz.JobTicket && access != authz.Job {
+		if m.write && !covered[m.procedure] && access != authz.JobTicket && access != authz.Job && access != authz.Builder {
 			t.Errorf("%s writes, but this test does not check its audit row", m.procedure)
 		}
 	}

@@ -57,6 +57,9 @@ const (
 	// ProjectServiceArchiveWorkspaceProcedure is the fully-qualified name of the ProjectService's
 	// ArchiveWorkspace RPC.
 	ProjectServiceArchiveWorkspaceProcedure = "/stackwright.v1.ProjectService/ArchiveWorkspace"
+	// ProjectServiceUpdateWorkspaceProcedure is the fully-qualified name of the ProjectService's
+	// UpdateWorkspace RPC.
+	ProjectServiceUpdateWorkspaceProcedure = "/stackwright.v1.ProjectService/UpdateWorkspace"
 )
 
 // ProjectServiceClient is a client for the stackwright.v1.ProjectService service.
@@ -69,6 +72,7 @@ type ProjectServiceClient interface {
 	ArchiveProject(context.Context, *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error)
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
 	ArchiveWorkspace(context.Context, *connect.Request[v1.ArchiveWorkspaceRequest]) (*connect.Response[v1.ArchiveWorkspaceResponse], error)
+	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
 }
 
 // NewProjectServiceClient constructs a client for the stackwright.v1.ProjectService service. By
@@ -132,6 +136,12 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(projectServiceMethods.ByName("ArchiveWorkspace")),
 			connect.WithClientOptions(opts...),
 		),
+		updateWorkspace: connect.NewClient[v1.UpdateWorkspaceRequest, v1.UpdateWorkspaceResponse](
+			httpClient,
+			baseURL+ProjectServiceUpdateWorkspaceProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("UpdateWorkspace")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -145,6 +155,7 @@ type projectServiceClient struct {
 	archiveProject      *connect.Client[v1.ArchiveProjectRequest, v1.ArchiveProjectResponse]
 	createWorkspace     *connect.Client[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse]
 	archiveWorkspace    *connect.Client[v1.ArchiveWorkspaceRequest, v1.ArchiveWorkspaceResponse]
+	updateWorkspace     *connect.Client[v1.UpdateWorkspaceRequest, v1.UpdateWorkspaceResponse]
 }
 
 // ListProjects calls stackwright.v1.ProjectService.ListProjects.
@@ -187,6 +198,11 @@ func (c *projectServiceClient) ArchiveWorkspace(ctx context.Context, req *connec
 	return c.archiveWorkspace.CallUnary(ctx, req)
 }
 
+// UpdateWorkspace calls stackwright.v1.ProjectService.UpdateWorkspace.
+func (c *projectServiceClient) UpdateWorkspace(ctx context.Context, req *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error) {
+	return c.updateWorkspace.CallUnary(ctx, req)
+}
+
 // ProjectServiceHandler is an implementation of the stackwright.v1.ProjectService service.
 type ProjectServiceHandler interface {
 	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
@@ -197,6 +213,7 @@ type ProjectServiceHandler interface {
 	ArchiveProject(context.Context, *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error)
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
 	ArchiveWorkspace(context.Context, *connect.Request[v1.ArchiveWorkspaceRequest]) (*connect.Response[v1.ArchiveWorkspaceResponse], error)
+	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
 }
 
 // NewProjectServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -256,6 +273,12 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 		connect.WithSchema(projectServiceMethods.ByName("ArchiveWorkspace")),
 		connect.WithHandlerOptions(opts...),
 	)
+	projectServiceUpdateWorkspaceHandler := connect.NewUnaryHandler(
+		ProjectServiceUpdateWorkspaceProcedure,
+		svc.UpdateWorkspace,
+		connect.WithSchema(projectServiceMethods.ByName("UpdateWorkspace")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/stackwright.v1.ProjectService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProjectServiceListProjectsProcedure:
@@ -274,6 +297,8 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 			projectServiceCreateWorkspaceHandler.ServeHTTP(w, r)
 		case ProjectServiceArchiveWorkspaceProcedure:
 			projectServiceArchiveWorkspaceHandler.ServeHTTP(w, r)
+		case ProjectServiceUpdateWorkspaceProcedure:
+			projectServiceUpdateWorkspaceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -313,4 +338,8 @@ func (UnimplementedProjectServiceHandler) CreateWorkspace(context.Context, *conn
 
 func (UnimplementedProjectServiceHandler) ArchiveWorkspace(context.Context, *connect.Request[v1.ArchiveWorkspaceRequest]) (*connect.Response[v1.ArchiveWorkspaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.ProjectService.ArchiveWorkspace is not implemented"))
+}
+
+func (UnimplementedProjectServiceHandler) UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.ProjectService.UpdateWorkspace is not implemented"))
 }

@@ -4,7 +4,7 @@ COMPOSE := docker compose -f compose.yaml -f compose.dev.yaml
 export GOTOOLCHAIN := local
 
 -include .env
-export STACKWRIGHT_POSTGRES_PASSWORD STACKWRIGHT_APP_DB_PASSWORD STACKWRIGHT_NATS_PASSWORD STACKWRIGHT_S3_ACCESS_KEY STACKWRIGHT_S3_SECRET_KEY STACKWRIGHT_KEK
+export STACKWRIGHT_POSTGRES_PASSWORD STACKWRIGHT_APP_DB_PASSWORD STACKWRIGHT_NATS_PASSWORD STACKWRIGHT_S3_ACCESS_KEY STACKWRIGHT_S3_SECRET_KEY STACKWRIGHT_KEK STACKWRIGHT_BUILDER_TOKEN
 
 .PHONY: init up down dev test test-go test-web lint lint-go lint-web lint-proto generate build images secrets vuln licenses smoke
 
@@ -53,6 +53,7 @@ build:
 images:
 	docker build -t stackwright/stackwright:dev .
 	docker build --target executor -t stackwright/executor:dev .
+	docker build --target builder -t stackwright/builder:dev .
 
 secrets:
 	$(TOOL) gitleaks git --no-banner --redact .

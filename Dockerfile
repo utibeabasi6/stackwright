@@ -13,14 +13,20 @@ RUN go mod download
 COPY cmd cmd
 COPY internal internal
 COPY gen gen
+COPY fixtures fixtures
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" -o /out/ ./cmd/stackwright ./cmd/stackwright-executor
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" -o /out/ ./cmd/stackwright ./cmd/stackwright-executor ./cmd/stackwright-builder
 RUN mkdir -p /out/files
 
 FROM gcr.io/distroless/static-debian12:nonroot AS executor
 COPY --from=go /out/stackwright-executor /stackwright-executor
 COPY --from=go --chown=65532:65532 /out/files /run/stackwright
 ENTRYPOINT ["/stackwright-executor"]
+
+# Root, to use the Docker socket, which is root on its host anyway (adr/0007).
+FROM gcr.io/distroless/static-debian12 AS builder
+COPY --from=go /out/stackwright-builder /stackwright-builder
+ENTRYPOINT ["/stackwright-builder"]
 
 FROM gcr.io/distroless/static-debian12:nonroot AS binary
 COPY --from=go /out/stackwright /stackwright

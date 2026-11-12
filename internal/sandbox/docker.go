@@ -39,14 +39,25 @@ var ErrNoSuchImage = errors.New("the sandbox image is not on the Docker host")
 // Docker runs each sandbox as one container on a bridge network of its own,
 // through the Docker Engine API on a Unix socket.
 type Docker struct {
-	client     *http.Client
-	extraHosts []string
+	client *http.Client
+	c      DockerConfig
 }
 
-// NewDocker talks to host, a unix:// address. An empty host means
-// DOCKER_HOST, then /var/run/docker.sock. extraHosts are added to each
-// sandbox's /etc/hosts, such as host.docker.internal:host-gateway.
-func NewDocker(host string, extraHosts ...string) (*Docker, error) {
+type DockerConfig struct {
+	// Host is a unix:// address. Empty means DOCKER_HOST, then
+	// /var/run/docker.sock.
+	Host string
+	// ExtraHosts are added to each sandbox's /etc/hosts, such as
+	// host.docker.internal:host-gateway.
+	ExtraHosts []string
+	// Join names services of the compose project that the caller runs in.
+	// Each one joins every sandbox's network, and the sandbox reaches it by
+	// its service name.
+	Join []string
+}
+
+func NewDocker(c DockerConfig) (*Docker, error) {
+	host := c.Host
 	if host == "" {
 		host = os.Getenv("DOCKER_HOST")
 	}
@@ -63,7 +74,7 @@ func NewDocker(host string, extraHosts ...string) (*Docker, error) {
 				return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 			},
 		}},
-		extraHosts: extraHosts,
+		c: c,
 	}, nil
 }
 
@@ -84,14 +95,14 @@ func (d *Docker) do(ctx context.Context, method, path string, query url.Values, 
 	if len(query) > 0 {
 		u += "?" + query.Encode()
 	}
-	req, err := http.NewRequestWithContext(ctx, method, u, body)
+	req, err := http.NewRequestWithContext(ctx, method, u, body) //nolint:gosec // the client dials only the Docker socket
 	if err != nil {
 		return nil, err
 	}
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
-	resp, err := d.client.Do(req)
+	resp, err := d.client.Do(req) //nolint:gosec // the client dials only the Docker socket
 	if err != nil {
 		return nil, err
 	}
@@ -153,6 +164,9 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 		return nil, fmt.Errorf("create sandbox network: %w", err)
 	}
 	s.networkID = network.ID
+	if err := s.join(ctx); err != nil {
+		return nil, err
+	}
 
 	env := make([]string, 0, len(spec.Env))
 	for k, v := range spec.Env {
@@ -181,7 +195,7 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 			"Memory":      memory,
 			"MemorySwap":  memory,
 			"PidsLimit":   pids,
-			"ExtraHosts":  d.extraHosts,
+			"ExtraHosts":  d.c.ExtraHosts,
 		},
 	}, &container)
 	if isNotFound(err) {
@@ -224,12 +238,61 @@ type dockerSandbox struct {
 	name        string
 	containerID string
 	networkID   string
+	joined      []string
 }
 
 func (s *dockerSandbox) ID() string { return s.name }
 
-func (s *dockerSandbox) Wait(ctx context.Context) (int, error) {
-	var r struct{ StatusCode int }
+// join finds each of the caller's compose services by its labels, so
+// recreated containers are found too.
+func (s *dockerSandbox) join(ctx context.Context) error {
+	if len(s.d.c.Join) == 0 {
+		return nil
+	}
+	var self struct {
+		Config struct{ Labels map[string]string }
+	}
+	if err := s.d.call(ctx, http.MethodGet, "/containers/"+os.Getenv("HOSTNAME")+"/json", nil, nil, &self); err != nil {
+		return fmt.Errorf("find this container's compose project: %w", err)
+	}
+	project := self.Config.Labels["com.docker.compose.project"]
+	if project == "" {
+		return errors.New("joining services needs the builder to run in compose")
+	}
+	for _, service := range s.d.c.Join {
+		filters, _ := json.Marshal(map[string][]string{"label": {
+			"com.docker.compose.project=" + project, "com.docker.compose.service=" + service,
+		}})
+		var found []struct{ ID string }
+		if err := s.d.call(ctx, http.MethodGet, "/containers/json", url.Values{"filters": {string(filters)}}, nil, &found); err != nil {
+			return err
+		}
+		if len(found) == 0 {
+			return fmt.Errorf("no running %s container in compose project %s", service, project)
+		}
+		for _, c := range found {
+			if err := s.d.call(ctx, http.MethodPost, "/networks/"+s.networkID+"/connect", nil, map[string]any{
+				"Container": c.ID, "EndpointConfig": map[string]any{"Aliases": []string{service}},
+			}, nil); err != nil {
+				return fmt.Errorf("join %s to the sandbox network: %w", service, err)
+			}
+			s.joined = append(s.joined, c.ID)
+		}
+	}
+	return nil
+}
+
+// Stop asks the sandbox to stop and kills it after grace.
+func (s *dockerSandbox) Stop(ctx context.Context, grace time.Duration) error {
+	err := s.d.call(ctx, http.MethodPost, "/containers/"+s.containerID+"/stop", url.Values{"t": {fmt.Sprint(int(grace.Seconds()))}}, nil, nil)
+	if isNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+func (s *dockerSandbox) Wait(ctx context.Context) (int32, error) {
+	var r struct{ StatusCode int32 }
 	if err := s.d.call(ctx, http.MethodPost, "/containers/"+s.containerID+"/wait", url.Values{"condition": {"not-running"}}, nil, &r); err != nil {
 		return -1, err
 	}
@@ -263,6 +326,12 @@ func (s *dockerSandbox) Remove(ctx context.Context) error {
 	var errs []error
 	if s.containerID != "" {
 		err := s.d.call(ctx, http.MethodDelete, "/containers/"+s.containerID, url.Values{"force": {"1"}, "v": {"1"}}, nil, nil)
+		if err != nil && !isNotFound(err) {
+			errs = append(errs, err)
+		}
+	}
+	for _, c := range s.joined {
+		err := s.d.call(ctx, http.MethodPost, "/networks/"+s.networkID+"/disconnect", nil, map[string]any{"Container": c, "Force": true}, nil)
 		if err != nil && !isNotFound(err) {
 			errs = append(errs, err)
 		}

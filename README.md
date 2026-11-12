@@ -17,7 +17,12 @@ docker compose up -d
 ```
 
 `make init` writes `.env` with new random secrets. Keep it out of git and back
-it up: it holds the keys to your data. Then open http://127.0.0.1:8080 and
+it up: it holds the keys to your data. After an upgrade, run `make init`
+again: it adds any secret that the new version needs and keeps the others.
+
+Compose also starts the built-in build server, `builder`. It starts a sandbox
+for each plan and apply. It is the only container with the Docker socket,
+which gives root on the host. Then open http://127.0.0.1:8080 and
 enter the setup code from this command:
 
 ```bash

@@ -27,6 +27,10 @@ type cli struct {
 	redact func([]byte) []byte
 }
 
+// lockTimeout lets a job wait for a lock that a canceled job still holds
+// while its engine stops.
+const lockTimeout = "-lock-timeout=5m"
+
 type event struct {
 	typ          string
 	resourceAddr string
@@ -44,7 +48,7 @@ func (c *cli) init(ctx context.Context) error {
 
 // plan reports whether the plan has changes.
 func (c *cli) plan(ctx context.Context, out string) (bool, error) {
-	code, err := c.stream(ctx, "plan", "-json", "-input=false", "-detailed-exitcode", "-out="+out)
+	code, err := c.stream(ctx, "plan", "-json", "-input=false", lockTimeout, "-detailed-exitcode", "-out="+out)
 	return code == 2, err
 }
 
@@ -59,7 +63,7 @@ func (c *cli) show(ctx context.Context, plan string) ([]byte, error) {
 }
 
 func (c *cli) apply(ctx context.Context, plan string) error {
-	_, err := c.stream(ctx, "apply", "-json", "-input=false", plan)
+	_, err := c.stream(ctx, "apply", "-json", "-input=false", lockTimeout, plan)
 	return err
 }
 

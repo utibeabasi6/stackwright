@@ -12,12 +12,16 @@ services:
       STACKWRIGHT_KEK_FILE: /run/secrets/kek
       STACKWRIGHT_S3_ACCESS_KEY_FILE: /run/secrets/s3_access_key
       STACKWRIGHT_S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
+      STACKWRIGHT_NATS_PASSWORD_FILE: /run/secrets/nats_password
+      STACKWRIGHT_BUILDER_TOKEN_FILE: /run/secrets/builder_token
       STACKWRIGHT_PUBLIC_URL: ${STACKWRIGHT_PUBLIC_URL:-http://127.0.0.1:8080}
-    secrets: [app_db_password, kek, s3_access_key, s3_secret_key]
+    secrets: [app_db_password, kek, s3_access_key, s3_secret_key, nats_password, builder_token]
     depends_on:
       migrate:
         condition: service_completed_successfully
       rustfs:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     ports:
       # Plain HTTP. Put a TLS proxy in front before publishing beyond this host.
@@ -28,6 +32,37 @@ services:
       timeout: 5s
       retries: 12
     restart: unless-stopped
+
+  # The built-in build server. It is the only container with the Docker
+  # socket, which is root on this host. It joins the server and RustFS to
+  # each sandbox's network (adr/0018).
+  builder:
+    build:
+      context: .
+      target: builder
+    image: stackwright/builder:dev
+    environment:
+      STACKWRIGHT_BUILDER_TOKEN_FILE: /run/secrets/builder_token
+      STACKWRIGHT_EXECUTOR_IMAGE: stackwright/executor:dev
+      STACKWRIGHT_SANDBOX_JOIN: stackwright,rustfs
+    secrets: [builder_token]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      stackwright:
+        condition: service_healthy
+      executor:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Builds the sandbox image, then exits.
+  executor:
+    build:
+      context: .
+      target: executor
+    image: stackwright/executor:dev
+    command: ["version"]
+    restart: "no"
 
   migrate:
     <<: *stackwright-image
@@ -100,6 +135,10 @@ secrets:
     environment: STACKWRIGHT_S3_ACCESS_KEY
   s3_secret_key:
     environment: STACKWRIGHT_S3_SECRET_KEY
+  nats_password:
+    environment: STACKWRIGHT_NATS_PASSWORD
+  builder_token:
+    environment: STACKWRIGHT_BUILDER_TOKEN
 
 volumes:
   postgres:

@@ -1,6 +1,7 @@
 # 0003 — NATS JetStream inside the control plane
 
-**Status:** Accepted, 2026-11-11.
+**Status:** Accepted, 2026-11-11. The job queue is superseded by
+[0020](0020-runs-postgres-queue.md); NATS carries fan-out only.
 
 ## Context
 

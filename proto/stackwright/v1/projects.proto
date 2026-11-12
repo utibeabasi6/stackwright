@@ -17,6 +17,7 @@ service ProjectService {
   rpc ArchiveProject(ArchiveProjectRequest) returns (ArchiveProjectResponse);
   rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
   rpc ArchiveWorkspace(ArchiveWorkspaceRequest) returns (ArchiveWorkspaceResponse);
+  rpc UpdateWorkspace(UpdateWorkspaceRequest) returns (UpdateWorkspaceResponse);
 }
 
 enum Engine {
@@ -47,6 +48,8 @@ message Project {
 message Workspace {
   string name = 1;
   google.protobuf.Timestamp created_at = 2;
+  // An apply starts after a plan with changes, with no approval.
+  bool auto_apply = 3;
 }
 
 message ListProjectsRequest {
@@ -129,3 +132,12 @@ message ArchiveWorkspaceRequest {
 }
 
 message ArchiveWorkspaceResponse {}
+
+message UpdateWorkspaceRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  bool auto_apply = 4;
+}
+
+message UpdateWorkspaceResponse {}

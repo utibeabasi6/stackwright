@@ -3,6 +3,8 @@ package jobs
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -43,6 +45,9 @@ type Service struct {
 	Presign *minio.Client
 	Bucket  string
 	Engines *engine.Mirror
+	// OnEnd runs in the transaction that ends a job, with the org setting.
+	// status is succeeded, failed or lost.
+	OnEnd func(ctx context.Context, tx pgx.Tx, jobID, status, msg string) error
 }
 
 type Request struct {
@@ -57,6 +62,7 @@ type Request struct {
 	// PlanJobID is the plan that an apply applies. The apply uses its source,
 	// engine and key.
 	PlanJobID string
+	RunID     string
 }
 
 func objectKey(orgID, jobID, name string) string {
@@ -75,7 +81,7 @@ func (s *Service) inOrg(ctx context.Context, orgID string, fn func(pgx.Tx) error
 // Create queues a job and returns the one-time ticket that its sandbox
 // claims it with.
 func (s *Service) Create(ctx context.Context, r Request) (jobID, ticket string, err error) {
-	var eng, version, platform string
+	var eng, version, platform, sourceSHA string
 	var sealedKey []byte
 	err = s.inOrg(ctx, r.OrgID, func(tx pgx.Tx) error {
 		switch r.Operation {
@@ -84,9 +90,9 @@ func (s *Service) Create(ctx context.Context, r Request) (jobID, ticket string, 
 			return tx.QueryRow(ctx, `SELECT p.engine, p.engine_version FROM workspaces w JOIN projects p ON p.id = w.project_id
 				WHERE w.id = $1 AND w.archived_at IS NULL AND p.archived_at IS NULL`, r.WorkspaceID).Scan(&eng, &version)
 		case v1.JobOperation_JOB_OPERATION_APPLY:
-			err := tx.QueryRow(ctx, `SELECT engine, engine_version, platform, artifact_key FROM jobs
+			err := tx.QueryRow(ctx, `SELECT engine, engine_version, platform, artifact_key, source_sha256 FROM jobs
 				WHERE id = $1 AND workspace_id = $2 AND operation = 'plan' AND status = 'succeeded' AND has_changes`,
-				r.PlanJobID, r.WorkspaceID).Scan(&eng, &version, &platform, &sealedKey)
+				r.PlanJobID, r.WorkspaceID).Scan(&eng, &version, &platform, &sealedKey, &sourceSHA)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrNoPlan
 			}
@@ -106,6 +112,8 @@ func (s *Service) Create(ctx context.Context, r Request) (jobID, ticket string, 
 		operation, planJobID := "apply", &r.PlanJobID
 		if r.Operation == v1.JobOperation_JOB_OPERATION_PLAN {
 			operation, planJobID = "plan", nil
+			sum := sha256.Sum256(r.Source)
+			sourceSHA = hex.EncodeToString(sum[:])
 			key := artifact.NewKey()
 			var err error
 			if sealedKey, err = s.KEK.Seal(ctx, tx, r.OrgID, key); err != nil {
@@ -122,8 +130,10 @@ func (s *Service) Create(ctx context.Context, r Request) (jobID, ticket string, 
 		}
 		deadline := time.Now().Add(timeLimit)
 		if _, err := tx.Exec(ctx, `INSERT INTO jobs (id, org_id, workspace_id, operation, plan_job_id, engine, engine_version, platform,
-			artifact_key, created_by, deadline) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif($10, '')::uuid, $11)`,
-			jobID, r.OrgID, r.WorkspaceID, operation, planJobID, eng, version, platform, sealedKey, r.CreatedBy, deadline); err != nil {
+			artifact_key, created_by, deadline, run_id, source_sha256)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif($10, '')::uuid, $11, nullif($12, '')::uuid, $13)`,
+			jobID, r.OrgID, r.WorkspaceID, operation, planJobID, eng, version, platform, sealedKey, r.CreatedBy, deadline,
+			r.RunID, sourceSHA); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO job_leases (job_id, org_id, workspace_id, ticket_hash, expires_at) VALUES ($1, $2, $3, $4, $5)`,
@@ -146,6 +156,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	var (
 		orgID, operation, eng, version, platform string
 		orgSlug, project, projectPath, workspace string
+		sourceSHA                                string
 		planJobID                                *string
 		sealedKey                                []byte
 		deadline                                 time.Time
@@ -154,8 +165,9 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		FROM workspaces w, projects p, orgs o
 		WHERE j.id = $1 AND j.status = 'queued' AND w.id = j.workspace_id AND p.id = w.project_id AND o.id = j.org_id
 		RETURNING j.org_id, j.operation, j.plan_job_id, j.engine, j.engine_version, j.platform, j.artifact_key, j.deadline,
-			o.slug, p.slug, p.path, w.name`, jobID).
-		Scan(&orgID, &operation, &planJobID, &eng, &version, &platform, &sealedKey, &deadline, &orgSlug, &project, &projectPath, &workspace)
+			j.source_sha256, o.slug, p.slug, p.path, w.name`, jobID).
+		Scan(&orgID, &operation, &planJobID, &eng, &version, &platform, &sealedKey, &deadline,
+			&sourceSHA, &orgSlug, &project, &projectPath, &workspace)
 	if err != nil {
 		return nil, fmt.Errorf("claim job %s: %w", jobID, err)
 	}
@@ -207,7 +219,11 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		if err != nil {
 			return nil, err
 		}
-		job.Inputs = append(job.Inputs, &v1.Download{Name: name, Url: u, JobId: sourceJob})
+		d := &v1.Download{Name: name, Url: u, JobId: sourceJob}
+		if name == "source.tar.gz" {
+			d.Sha256 = sourceSHA
+		}
+		job.Inputs = append(job.Inputs, d)
 	}
 	for _, name := range outputs {
 		u, err := s.Presign.PresignedPutObject(ctx, s.Bucket, objectKey(orgID, jobID, name), expires)
@@ -245,24 +261,89 @@ func (s *Service) ReadArtifact(ctx context.Context, tx pgx.Tx, jobID, name strin
 
 // Finish ends a job and releases any state lock it holds. tx needs the org
 // setting.
-func Finish(ctx context.Context, tx pgx.Tx, jobID string, succeeded bool, msg string, hasChanges bool) error {
+func (s *Service) Finish(ctx context.Context, tx pgx.Tx, jobID string, succeeded bool, msg string, hasChanges bool) error {
 	status := "failed"
 	if succeeded {
 		status = "succeeded"
 	}
-	return end(ctx, tx, jobID, status, msg, &hasChanges)
+	return s.end(ctx, tx, jobID, status, msg, &hasChanges)
 }
 
-func end(ctx context.Context, tx pgx.Tx, jobID, status, msg string, hasChanges *bool) error {
-	if _, err := tx.Exec(ctx, `UPDATE jobs SET status = $2, error = nullif($3, ''), has_changes = $4, finished_at = now()
-		WHERE id = $1 AND status IN ('queued', 'running')`, jobID, status, msg, hasChanges); err != nil {
+func (s *Service) end(ctx context.Context, tx pgx.Tx, jobID, status, msg string, hasChanges *bool) error {
+	tag, err := tx.Exec(ctx, `UPDATE jobs SET status = $2, error = nullif($3, ''), has_changes = $4, finished_at = now()
+		WHERE id = $1 AND status IN ('queued', 'running')`, jobID, status, msg, hasChanges)
+	if err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM state_locks WHERE job_id = $1`, jobID); err != nil {
 		return err
 	}
-	_, err := tx.Exec(ctx, `DELETE FROM job_leases WHERE job_id = $1`, jobID)
-	return err
+	if _, err := tx.Exec(ctx, `DELETE FROM job_leases WHERE job_id = $1`, jobID); err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 || s.OnEnd == nil {
+		return nil
+	}
+	return s.OnEnd(ctx, tx, jobID, status, msg)
+}
+
+// Abandon fails a job that its sandbox can no longer finish, such as one
+// whose sandbox exited first. A job that already ended is left alone.
+func (s *Service) Abandon(ctx context.Context, jobID, msg string) error {
+	var orgID string
+	err := s.Pool.QueryRow(ctx, `SELECT org_id FROM job_leases WHERE job_id = $1`, jobID).Scan(&orgID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return s.inOrg(ctx, orgID, func(tx pgx.Tx) error { return s.end(ctx, tx, jobID, "failed", msg, nil) })
+}
+
+// Event is one line an executor reported.
+type Event struct {
+	Seq          int64
+	Type         string
+	ResourceAddr string
+	Payload      string
+	At           time.Time
+}
+
+// RecordEvents stores events that are not stored yet. A job in a run also
+// gives each event its place in the run's timeline. It returns the run, or
+// "". tx needs the org setting.
+func RecordEvents(ctx context.Context, tx pgx.Tx, jobID, orgID string, events []Event) (string, error) {
+	var runID *string
+	if err := tx.QueryRow(ctx, `SELECT run_id FROM jobs WHERE id = $1`, jobID).Scan(&runID); err != nil {
+		return "", err
+	}
+	var last *int64
+	if runID != nil {
+		var l int64
+		if err := tx.QueryRow(ctx, `SELECT last_seq FROM runs WHERE id = $1 FOR UPDATE`, *runID).Scan(&l); err != nil {
+			return "", err
+		}
+		last = &l
+	}
+	n := len(events)
+	seqs, types, addrs, payloads, ats := make([]int64, n), make([]string, n), make([]string, n), make([]string, n), make([]time.Time, n)
+	for i, e := range events {
+		seqs[i], types[i], addrs[i], payloads[i], ats[i] = e.Seq, e.Type, e.ResourceAddr, e.Payload, e.At
+	}
+	tag, err := tx.Exec(ctx, `INSERT INTO job_events (job_id, org_id, seq, type, resource_addr, payload, at, run_seq)
+		SELECT $1, $2, e.seq, e.type, e.addr, e.payload::jsonb, e.at, $8::bigint + row_number() OVER (ORDER BY e.seq)
+		FROM unnest($3::bigint[], $4::text[], $5::text[], $6::text[], $7::timestamptz[]) AS e (seq, type, addr, payload, at)
+		WHERE NOT EXISTS (SELECT FROM job_events x WHERE x.job_id = $1 AND x.seq = e.seq)`,
+		jobID, orgID, seqs, types, addrs, payloads, ats, last)
+	if err != nil || runID == nil {
+		return "", err
+	}
+	if tag.RowsAffected() == 0 {
+		return *runID, nil
+	}
+	_, err = tx.Exec(ctx, `UPDATE runs SET last_seq = last_seq + $2, updated_at = now() WHERE id = $1`, *runID, tag.RowsAffected())
+	return *runID, err
 }
 
 // Reap ends the jobs whose sandbox stopped reporting, was never claimed, or
@@ -289,7 +370,7 @@ func (s *Service) Reap(ctx context.Context) error {
 		return err
 	}
 	for _, l := range all {
-		if err := s.inOrg(ctx, l.org, func(tx pgx.Tx) error { return end(ctx, tx, l.job, "lost", l.why, nil) }); err != nil {
+		if err := s.inOrg(ctx, l.org, func(tx pgx.Tx) error { return s.end(ctx, tx, l.job, "lost", l.why, nil) }); err != nil {
 			return err
 		}
 		slog.Info("job lost", "job", l.job, "reason", l.why)

@@ -17,7 +17,9 @@ import (
 	"github.com/stackwright/stackwright/internal/api"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/builders"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/runs"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/state"
 )
@@ -30,12 +32,16 @@ type Config struct {
 	Web       fs.FS
 	State     state.Store
 	Jobs      *jobs.Service
+	Runs      *runs.Orchestrator
+	Builders  *builders.Hub
+	// BuilderToken is the join token of the built-in builder.
+	BuilderToken string
 }
 
 func New(c Config) http.Handler {
 	cookies := auth.Cookies{Secure: strings.HasPrefix(c.PublicURL, "https://")}
 	signIn := &auth.SignIn{Pool: c.Pool, KEK: c.KEK, PublicURL: c.PublicURL, Cookies: cookies}
-	opts := connect.WithInterceptors(&authz.Interceptor{Pool: c.Pool})
+	opts := connect.WithInterceptors(&authz.Interceptor{Pool: c.Pool, BuilderToken: c.BuilderToken})
 
 	mux := http.NewServeMux()
 	serve := func(path string, h http.Handler) {
@@ -48,7 +54,9 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewProjectServiceHandler(api.Projects{}, opts))
 	serve(stackwrightv1connect.NewStateServiceHandler(&api.State{Store: c.State, PublicURL: c.PublicURL}, opts))
 	serve(stackwrightv1connect.NewTokenServiceHandler(api.Tokens{}, opts))
-	serve(stackwrightv1connect.NewExecutorServiceHandler(api.Executor{Jobs: c.Jobs}, opts))
+	serve(stackwrightv1connect.NewExecutorServiceHandler(api.Executor{Jobs: c.Jobs, Changed: c.Runs.Changed}, opts))
+	serve(stackwrightv1connect.NewRunServiceHandler(api.Runs{Pool: c.Pool, Orchestrator: c.Runs}, opts, connect.WithReadMaxBytes(48<<20)))
+	serve(stackwrightv1connect.NewBuilderServiceHandler(c.Builders, opts))
 	mux.Handle("/state/", state.Handler{Pool: c.Pool, Store: c.State})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)

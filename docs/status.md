@@ -10,7 +10,8 @@ commit that finishes a phase.
 | 1 | Done, reviewed 2026-11-11 |
 | 2 | Done, reviewed 2026-11-11 |
 | 3 | Done, reviewed 2026-11-11 |
-| 4 | Built, waiting for review |
+| 4 | Done, reviewed 2026-11-11 |
+| 5 | Built, waiting for review |
 
 ## Phase 0: Repository and compose
 
@@ -212,7 +213,7 @@ Decisions: [0018](adr/0018-docker-sandboxes.md).
 
 **Not verified:**
 - Nothing in the server starts sandboxes yet. Tests create jobs and start
-  sandboxes themselves; the built-in builder comes in phase 5.
+  sandboxes themselves; the built-in builder came in phase 5.
 - Sandboxes reach the test server and RustFS through `host.docker.internal`.
   On Linux that needs RustFS published on the bridge gateway, not only on
   127.0.0.1. CI has not run.
@@ -224,4 +225,56 @@ Decisions: [0018](adr/0018-docker-sandboxes.md).
   (adr/0018), also deferred to phase 22.
 - A job that fails after its source reached S3 leaves an orphan blob, as
   state does.
+
+## Phase 5: Runs, approvals and the timeline
+
+Decisions: [0020](adr/0020-runs-postgres-queue.md).
+
+**Verified on 2026-11-11**, in Go tests with a real builder in the test
+process, real Docker sandboxes, Postgres, NATS and RustFS:
+- A second run on a busy workspace stays Queued while the first waits for
+  approval, then starts when the first is applied. It plans no changes.
+- A state write between plan and approval makes the approval fail the run
+  with "plan is stale".
+- A reviewer approves. A viewer can neither approve nor cancel.
+- The approval is on the reviewer's Waiting on you and not on the viewer's,
+  and leaves it when the reviewer approves.
+- Canceling a run that waits for approval frees the workspace, and the
+  queued run starts.
+- The timeline: a viewer reads it from the start, stops after the first
+  engine event, and reconnects from its last seq. The events join with no
+  gap and no repeat, and match the run's last seq. The slowest engine event
+  arrived 98 to 160 ms after the executor emitted it.
+- A signed-out caller cannot watch a run. A builder with the wrong join
+  token is refused.
+- An uploaded `.tar.gz` plans; a project that is not a sample needs one, and
+  an upload that is not gzip is refused.
+- The audit test covers the five new writes; the policy tests cover the new
+  RPCs.
+
+On the compose stack, in the browser pane (OrbStack, dark and light):
+- The built-in builder connects over HTTP/2 without TLS, and each sandbox
+  reaches the server and RustFS through the joined network.
+- A plan of the sample on a workspace with state plans no changes. A plan on
+  a new workspace waits for approval with +1 ~0 −0, then "Approve and apply"
+  applies it. The timeline shows each step live.
+- The Waiting on you count shows 1, the page lists the approval, and both
+  clear after a reject.
+
+**Not verified:**
+- Reloading the browser mid-run. The page uses the same stream and cursor
+  that the Go test checks.
+- The 2 s target was measured from when the executor emitted an event to
+  when a Go client got it, not to the browser.
+- Canceling a running plan or apply. The builder then stops the sandbox with
+  a 60 s grace; no test covers that path yet.
+- More than one reviewer at once. The list is the same for each.
+
+**Known gaps:**
+- One server process: the dispatcher and the builder hub live in its memory
+  (adr/0020).
+- After a builder restart, sandboxes that were running finish their jobs,
+  but the builder does not remove them. Nothing cleans them up yet.
+- The run timeline shows engine lines as they arrive. Phase 9 draws the
+  plan as a graph.
 

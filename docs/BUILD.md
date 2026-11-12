@@ -29,6 +29,7 @@ Each decision has a record in [adr/](adr/).
 | State access | Personal tokens, checked against the user's role on every request | [0017](adr/0017-personal-tokens-for-state.md) |
 | Docker sandboxes | Our own Docker API client, secrets as files, an engine mirror in S3, open egress | [0018](adr/0018-docker-sandboxes.md) |
 | Terraform Stacks | Stackwright reads Stacks files and runs each component as a workspace; no HCP Terraform | [0019](adr/0019-terraform-stacks-files.md) |
+| Runs | A Postgres queue, NATS for fan-out only, code by upload until GitHub, sandboxes join the server's network | [0020](adr/0020-runs-postgres-queue.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; Terraform up to 1.5.7 | — |
@@ -321,15 +322,17 @@ typed events.
 
 **Build.**
 - `stackwright-builder`, built in: one container in compose, the only one
-  with the Docker socket. It holds an outbound gRPC stream to the server
+  with the Docker socket. It holds an outbound Connect stream to the server
   ([0008](adr/0008-build-server-channel.md)), authenticated with a join token
-  from `.env`, and starts sandboxes when told.
+  from `.env`, and starts sandboxes when told. It joins the server and RustFS
+  to each sandbox's network ([0020](adr/0020-runs-postgres-queue.md)).
+- Code for a run: an uploaded `.tar.gz`, or the sample project's own code.
 - The orchestrator: the run state machine in `runs`, every change an event.
 - One active run per workspace; others wait in Queued.
 - An apply uses only the stored plan, and refuses it if the state serial or
-  the commit changed.
-- Approval rules per workspace; approve, reject, cancel; auto-apply for
-  workspaces that allow it.
+  the code changed.
+- Approve, reject, cancel. One member with the reviewer role or above
+  approves, the run's author too. Auto-apply for workspaces that allow it.
 - The run page with its live timeline; the run bar on the workspace.
 - "Waiting on you" fills with approvals and failed runs.
 

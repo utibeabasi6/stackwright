@@ -22,14 +22,14 @@ func docker(t *testing.T) *sandbox.Docker {
 	if out, err := exec.Command("docker", "pull", "-q", busybox).CombinedOutput(); err != nil {
 		t.Fatalf("pull %s: %v: %s", busybox, err, out)
 	}
-	d, err := sandbox.NewDocker("")
+	d, err := sandbox.NewDocker(sandbox.DockerConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return d
 }
 
-func run(t *testing.T, d *sandbox.Docker, spec sandbox.Spec) (sandbox.Sandbox, int, string) {
+func run(t *testing.T, d *sandbox.Docker, spec sandbox.Spec) (sandbox.Sandbox, int32, string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()

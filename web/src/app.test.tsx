@@ -5,6 +5,7 @@ import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/rea
 import { routeTree } from "./router";
 import { Role } from "./gen/stackwright/v1/orgs_pb";
 import { Engine, Layout } from "./gen/stackwright/v1/projects_pb";
+import { RunStatus } from "./gen/stackwright/v1/runs_pb";
 
 const api = vi.hoisted(() => ({
   me: undefined as unknown,
@@ -12,6 +13,10 @@ const api = vi.hoisted(() => ({
   invites: [] as string[],
   projects: [] as unknown[],
   locked: false,
+  runs: [] as unknown[],
+  events: [] as unknown[],
+  approved: [] as number[],
+  created: [] as unknown[],
 }));
 
 vi.mock("./api", () => ({
@@ -49,6 +54,21 @@ vi.mock("./api", () => ({
   tokenApi: {
     listApiTokens: async () => ({ tokens: [] }),
     createApiToken: async () => ({ token: { id: "t1", name: "laptop" }, secret: "swt_secret-value" }),
+  },
+  runApi: {
+    listRuns: async () => ({ runs: api.runs }),
+    listWaiting: async () => ({ approvals: api.runs.filter((r) => (r as { status: number }).status === 3), failures: [] }),
+    createRun: async (req: unknown) => {
+      api.created.push(req);
+      return { run: { number: 7 } };
+    },
+    approveRun: async ({ number }: { number: number }) => {
+      api.approved.push(number);
+      return { run: { ...(api.runs[0] as object), status: 4 } };
+    },
+    watchRun: async function* () {
+      yield { run: api.runs[0], events: api.events };
+    },
   },
   projectApi: {
     listProjects: async () => ({ projects: api.projects }),
@@ -92,6 +112,10 @@ beforeEach(() => {
   api.invites = [];
   api.projects = [];
   api.locked = false;
+  api.runs = [];
+  api.events = [];
+  api.approved = [];
+  api.created = [];
   window.localStorage.clear();
 });
 
@@ -216,3 +240,70 @@ test("a new API token is shown once", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Make token" }));
   expect(await screen.findByLabelText("New token")).toHaveTextContent("swt_secret-value");
 });
+
+const waitingRun = {
+  id: "r1",
+  number: 1,
+  project: "network",
+  workspace: "prod",
+  status: RunStatus.NEEDS_APPROVAL,
+  source: "network.tar.gz",
+  hasChanges: true,
+  adds: 3,
+  changes: 1,
+  destroys: 0,
+  createdBy: "Owner",
+};
+
+test("a reviewer approves a run from its timeline", async () => {
+  signedInAs(Role.REVIEWER);
+  api.projects = [network];
+  api.runs = [waitingRun];
+  api.events = [
+    { seq: 1n, type: "run.queued", payload: '{"source":"network.tar.gz","plan_only":false}', actor: "Owner" },
+    {
+      seq: 2n,
+      type: "engine.planned_change",
+      resourceAddr: "aws_nat_gateway.main",
+      payload: '{"@message":"aws_nat_gateway.main: Plan to create","change":{"action":"create"}}',
+    },
+    { seq: 3n, type: "run.needs_approval", payload: "{}" },
+  ];
+  at("/a/projects/network/prod/runs/1");
+  const timeline = await screen.findByRole("list", { name: "Timeline" });
+  expect(await within(timeline).findByText("aws_nat_gateway.main: Plan to create")).toBeInTheDocument();
+  expect(within(timeline).getByText("Queued by Owner, from network.tar.gz")).toBeInTheDocument();
+  expect(screen.getByText("~ Needs approval")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Approve and apply" }));
+  expect(api.approved).toEqual([1]);
+});
+
+test("a viewer cannot approve or cancel", async () => {
+  signedInAs(Role.VIEWER);
+  api.projects = [network];
+  api.runs = [waitingRun];
+  at("/a/projects/network/prod/runs/1");
+  expect(await screen.findByText("Waits for a reviewer to approve or reject it.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Approve and apply" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Cancel run" })).not.toBeInTheDocument();
+});
+
+test("waiting approvals show in the toolbar and on Waiting on you", async () => {
+  signedInAs(Role.REVIEWER);
+  api.projects = [network];
+  api.runs = [waitingRun];
+  at("/a/inbox");
+  expect(await screen.findByText(/Run #1 waits for approval/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Review plan" })).toHaveAttribute("href", "/a/projects/network/prod/runs/1");
+  expect(await screen.findByLabelText("1 waiting")).toBeInTheDocument();
+});
+
+test("a writer starts a plan from the workspace", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [{ ...network, sample: true }];
+  at("/a/projects/network/prod");
+  await userEvent.click(await screen.findByRole("checkbox", { name: /Plan only/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Start plan" }));
+  expect(api.created).toMatchObject([{ org: "a", project: "network", workspace: "prod", planOnly: true }]);
+});
+

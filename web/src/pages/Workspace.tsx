@@ -7,6 +7,7 @@ import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { Layout } from "../gen/stackwright/v1/projects_pb";
 import { useShell } from "../me";
 import { useLoad } from "../useLoad";
+import { RunsPanel } from "./RunsPanel";
 import { StatePanel } from "./StatePanel";
 
 export function Workspace() {
@@ -77,11 +78,14 @@ export function Workspace() {
         </span>
       </div>
 
-      <section className="card next" aria-labelledby="next-h">
-        <span className="label">Next step</span>
-        <h2 id="next-h">Nothing waits on you here</h2>
-        <p className="muted">Runs, plans and state for this workspace show up here as they arrive.</p>
-      </section>
+      <RunsPanel
+        org={org}
+        project={project}
+        workspace={workspace}
+        sample={p.sample}
+        autoApply={ws.data?.workspace?.autoApply ?? false}
+        reload={ws.reload}
+      />
 
       <StatePanel org={org} project={project} workspace={workspace} engine={p.engine} admin={admin} />
 

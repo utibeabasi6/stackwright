@@ -17,6 +17,8 @@ const (
 	JobTicket
 	// Job takes a job token as the bearer token. Each call is a heartbeat.
 	Job
+	// Builder takes the builder join token as the bearer token.
+	Builder
 )
 
 type Rule struct {
@@ -60,6 +62,16 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.ProjectServiceArchiveProjectProcedure:      org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.ProjectServiceCreateWorkspaceProcedure:     org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.ProjectServiceArchiveWorkspaceProcedure:    org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.ProjectServiceUpdateWorkspaceProcedure:     org(v1.Role_ROLE_ADMIN),
+
+	stackwrightv1connect.RunServiceCreateRunProcedure:   org(v1.Role_ROLE_WRITER),
+	stackwrightv1connect.RunServiceListRunsProcedure:    org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.RunServiceGetRunProcedure:      org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.RunServiceWatchRunProcedure:    org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.RunServiceApproveRunProcedure:  org(v1.Role_ROLE_REVIEWER),
+	stackwrightv1connect.RunServiceRejectRunProcedure:   org(v1.Role_ROLE_REVIEWER),
+	stackwrightv1connect.RunServiceCancelRunProcedure:   org(v1.Role_ROLE_WRITER),
+	stackwrightv1connect.RunServiceListWaitingProcedure: org(v1.Role_ROLE_VIEWER),
 
 	stackwrightv1connect.StateServiceGetStateProcedure:          org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.StateServiceListStateVersionsProcedure: org(v1.Role_ROLE_VIEWER),
@@ -74,6 +86,8 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.ExecutorServiceClaimJobProcedure:     {Access: JobTicket},
 	stackwrightv1connect.ExecutorServiceReportEventsProcedure: {Access: Job},
 	stackwrightv1connect.ExecutorServiceFinishJobProcedure:    {Access: Job},
+
+	stackwrightv1connect.BuilderServiceConnectProcedure: {Access: Builder},
 }
 
 var rank = map[v1.Role]int{

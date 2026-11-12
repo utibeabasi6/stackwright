@@ -18,14 +18,18 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
+	"github.com/stackwright/stackwright/internal/builders"
+	"github.com/stackwright/stackwright/internal/config"
 	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/engine"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/runs"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/server"
 	"github.com/stackwright/stackwright/internal/state"
@@ -46,7 +50,7 @@ func runServer(args []string) error {
 	if err != nil {
 		return err
 	}
-	kekText, err := secretEnv("STACKWRIGHT_KEK")
+	kekText, err := config.Secret("STACKWRIGHT_KEK")
 	if err != nil {
 		return err
 	}
@@ -74,11 +78,31 @@ func runServer(args []string) error {
 	if err != nil {
 		return err
 	}
+	natsPassword, err := config.Secret("STACKWRIGHT_NATS_PASSWORD")
+	if err != nil {
+		return err
+	}
+	nc, err := nats.Connect(config.Env("STACKWRIGHT_NATS_URL", "nats://nats:4222"), nats.UserInfo("stackwright", natsPassword),
+		nats.MaxReconnects(-1))
+	if err != nil {
+		return fmt.Errorf("connect to NATS: %w", err)
+	}
+	defer nc.Close()
+	builderToken, err := config.Secret("STACKWRIGHT_BUILDER_TOKEN")
+	if err != nil {
+		return err
+	}
+
 	jobService := &jobs.Service{
 		Pool: pool, KEK: kek, S3: s3, Presign: presign, Bucket: bucket,
 		Engines: &engine.Mirror{Pool: pool, S3: s3, Bucket: bucket, HTTP: &http.Client{Timeout: 10 * time.Minute}},
 	}
+	hub := &builders.Hub{}
+	orchestrator := &runs.Orchestrator{Pool: pool, KEK: kek, S3: s3, Bucket: bucket, Jobs: jobService, Hub: hub, NATS: nc}
+	jobService.OnEnd = orchestrator.JobEnded
+	hub.OnExit = orchestrator.SandboxExited
 	go jobService.RunReaper(ctx, 5*time.Second)
+	go orchestrator.Run(ctx)
 
 	var web fs.FS
 	if *webDir != "" {
@@ -87,11 +111,15 @@ func runServer(args []string) error {
 	handler := server.New(server.Config{
 		Pool:      pool,
 		KEK:       kek,
-		PublicURL: strings.TrimRight(env("STACKWRIGHT_PUBLIC_URL", "http://127.0.0.1:8080"), "/"),
+		PublicURL: strings.TrimRight(config.Env("STACKWRIGHT_PUBLIC_URL", "http://127.0.0.1:8080"), "/"),
 		SetupCode: setupCode,
 		Web:       web,
 		State:     state.Store{S3: s3, Bucket: bucket, KEK: kek},
 		Jobs:      jobService,
+		Runs:      orchestrator,
+		Builders:  hub,
+
+		BuilderToken: builderToken,
 	})
 
 	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
@@ -105,7 +133,11 @@ func runServer(args []string) error {
 		handler = otelhttp.NewHandler(handler, "http")
 	}
 
-	srv := &http.Server{Addr: *listen, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+	// The builder's stream needs HTTP/2. Inside compose it runs without TLS.
+	var protocols http.Protocols
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+	srv := &http.Server{Addr: *listen, Handler: handler, ReadHeaderTimeout: 10 * time.Second, Protocols: &protocols}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -122,11 +154,11 @@ func runServer(args []string) error {
 // objectStore returns a client for the server and one that signs URLs for
 // sandboxes, which may reach S3 at another address.
 func objectStore(ctx context.Context) (client, presign *minio.Client, bucket string, err error) {
-	access, err := secretEnv("STACKWRIGHT_S3_ACCESS_KEY")
+	access, err := config.Secret("STACKWRIGHT_S3_ACCESS_KEY")
 	if err != nil {
 		return nil, nil, "", err
 	}
-	secret, err := secretEnv("STACKWRIGHT_S3_SECRET_KEY")
+	secret, err := config.Secret("STACKWRIGHT_S3_SECRET_KEY")
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -138,17 +170,17 @@ func objectStore(ctx context.Context) (client, presign *minio.Client, bucket str
 		return minio.New(u.Host, &minio.Options{
 			Creds:  credentials.NewStaticV4(access, secret, ""),
 			Secure: u.Scheme == "https",
-			Region: env("STACKWRIGHT_S3_REGION", "us-east-1"),
+			Region: config.Env("STACKWRIGHT_S3_REGION", "us-east-1"),
 		})
 	}
-	endpoint := env("STACKWRIGHT_S3_ENDPOINT", "http://rustfs:9000")
+	endpoint := config.Env("STACKWRIGHT_S3_ENDPOINT", "http://rustfs:9000")
 	if client, err = connect("STACKWRIGHT_S3_ENDPOINT", endpoint); err != nil {
 		return nil, nil, "", err
 	}
-	if presign, err = connect("STACKWRIGHT_S3_PUBLIC_URL", env("STACKWRIGHT_S3_PUBLIC_URL", endpoint)); err != nil {
+	if presign, err = connect("STACKWRIGHT_S3_PUBLIC_URL", config.Env("STACKWRIGHT_S3_PUBLIC_URL", endpoint)); err != nil {
 		return nil, nil, "", err
 	}
-	bucket = env("STACKWRIGHT_S3_BUCKET", "stackwright")
+	bucket = config.Env("STACKWRIGHT_S3_BUCKET", "stackwright")
 	exists, err := client.BucketExists(ctx, bucket)
 	if err == nil && !exists {
 		err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})

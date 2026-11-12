@@ -115,7 +115,7 @@ func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, er
 	for _, pr := range projects {
 		byID[pr.id] = pr.p
 	}
-	rows, err = tx.Query(ctx, `SELECT project_id, name, created_at FROM workspaces
+	rows, err = tx.Query(ctx, `SELECT project_id, name, created_at, auto_apply FROM workspaces
 		WHERE org_id = app_org_id() AND archived_at IS NULL ORDER BY name`)
 	if err != nil {
 		return nil, err
@@ -124,11 +124,12 @@ func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, er
 	for rows.Next() {
 		var projectID, name string
 		var created time.Time
-		if err := rows.Scan(&projectID, &name, &created); err != nil {
+		var autoApply bool
+		if err := rows.Scan(&projectID, &name, &created, &autoApply); err != nil {
 			return nil, err
 		}
 		if p := byID[projectID]; p != nil {
-			p.Workspaces = append(p.Workspaces, &v1.Workspace{Name: name, CreatedAt: timestamppb.New(created)})
+			p.Workspaces = append(p.Workspaces, &v1.Workspace{Name: name, CreatedAt: timestamppb.New(created), AutoApply: autoApply})
 		}
 	}
 	return projects, rows.Err()
@@ -371,4 +372,17 @@ func (Projects) ArchiveWorkspace(ctx context.Context, req *connect.Request[v1.Ar
 	}
 	s.Target("workspace:" + pr.p.Slug + "/" + req.Msg.Workspace)
 	return connect.NewResponse(&v1.ArchiveWorkspaceResponse{}), nil
+}
+
+func (Projects) UpdateWorkspace(ctx context.Context, req *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error) {
+	s := authz.ScopeFrom(ctx)
+	ws, err := workspaceID(ctx, s.Tx, req.Msg.Project, req.Msg.Workspace)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.Tx.Exec(ctx, `UPDATE workspaces SET auto_apply = $2 WHERE id = $1`, ws, req.Msg.AutoApply); err != nil {
+		return nil, authz.Internal(err)
+	}
+	s.Target(fmt.Sprintf("workspace:%s/%s auto_apply=%t", req.Msg.Project, req.Msg.Workspace, req.Msg.AutoApply))
+	return connect.NewResponse(&v1.UpdateWorkspaceResponse{}), nil
 }

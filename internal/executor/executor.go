@@ -30,6 +30,7 @@ import (
 
 var (
 	ErrEngineChecksum = errors.New("the engine binary does not match its checksum")
+	ErrInputChecksum  = errors.New("the input does not match the checksum the run recorded")
 	errNotFound       = errors.New("not found")
 )
 
@@ -146,9 +147,14 @@ func (r *runner) run(ctx context.Context) (err error) {
 		if err != nil {
 			return &stageError{"inputs", fmt.Errorf("%s: %w", in.GetName(), err)}
 		}
-		if inputs[in.GetName()], err = artifact.Open(job.GetArtifactKey(), in.GetJobId(), in.GetName(), sealed); err != nil {
+		plain, err := artifact.Open(job.GetArtifactKey(), in.GetJobId(), in.GetName(), sealed)
+		if err != nil {
 			return &stageError{"inputs", fmt.Errorf("%s: %w", in.GetName(), err)}
 		}
+		if sum := sha256.Sum256(plain); in.GetSha256() != "" && hex.EncodeToString(sum[:]) != in.GetSha256() {
+			return &stageError{"inputs", fmt.Errorf("%s: %w", in.GetName(), ErrInputChecksum)}
+		}
+		inputs[in.GetName()] = plain
 	}
 	if err := untar(inputs["source.tar.gz"], root); err != nil {
 		return &stageError{"source", err}

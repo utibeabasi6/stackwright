@@ -2,7 +2,10 @@
 // backend today; others implement Backend (adr/0007).
 package sandbox
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // FilesDir is where a sandbox finds Spec.Files.
 const FilesDir = "/run/stackwright"
@@ -27,8 +30,10 @@ type Backend interface {
 type Sandbox interface {
 	ID() string
 	// Wait returns the exit code.
-	Wait(ctx context.Context) (int, error)
+	Wait(ctx context.Context) (int32, error)
 	Logs(ctx context.Context) ([]byte, error)
+	// Stop asks the sandbox to stop and kills it after grace.
+	Stop(ctx context.Context, grace time.Duration) error
 	// Remove stops the sandbox at once and deletes everything it made.
 	Remove(ctx context.Context) error
 }

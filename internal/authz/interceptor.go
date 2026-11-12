@@ -2,6 +2,7 @@ package authz
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,6 +24,7 @@ type Scope struct {
 	Role   v1.Role
 	IP     string
 	target string
+	after  []func()
 }
 
 type scopeKey struct{}
@@ -52,8 +54,59 @@ func (s *Scope) Target(t string) {
 	s.target = t
 }
 
+// AfterCommit runs f once the request's transaction has committed.
+func (s *Scope) AfterCommit(f func()) {
+	s.after = append(s.after, f)
+}
+
+// AfterCommit runs f after the request's transaction commits, or now when
+// ctx carries no request, such as in a background loop.
+func AfterCommit(ctx context.Context, f func()) {
+	if s, ok := ctx.Value(scopeKey{}).(*Scope); ok && s.Tx != nil {
+		s.AfterCommit(f)
+		return
+	}
+	f()
+}
+
+// Read runs fn in a new transaction with the scope's user and org. A
+// streaming handler has no request transaction, and uses this instead.
+func (s *Scope) Read(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) error) error {
+	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.user_id', $1, true), set_config('stackwright.org_id', $2, true)`,
+			s.UserID, s.OrgID); err != nil {
+			return err
+		}
+		return fn(tx)
+	})
+}
+
 type Interceptor struct {
 	Pool *pgxpool.Pool
+	// BuilderToken is the join token that the built-in builder presents.
+	BuilderToken string
+}
+
+// checkOrg sets the scope's org from slug, if the user's role there is min
+// or above. s.Tx needs the user setting.
+func checkOrg(ctx context.Context, s *Scope, slug string, min v1.Role) error {
+	var orgID, role string
+	err := s.Tx.QueryRow(ctx, `SELECT o.id, m.role FROM orgs o JOIN memberships m ON m.org_id = o.id
+		WHERE o.slug = $1 AND m.user_id = app_user_id()`, slug).Scan(&orgID, &role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return connect.NewError(connect.CodeNotFound, errors.New("org not found"))
+	}
+	if err != nil {
+		return Internal(err)
+	}
+	s.Role = RoleFromDB(role)
+	if !AtLeast(s.Role, min) {
+		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("this needs the %s role or above", RoleToDB(min)))
+	}
+	if err := s.SetOrg(ctx, orgID); err != nil {
+		return Internal(err)
+	}
+	return nil
 }
 
 func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
@@ -82,6 +135,7 @@ func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		}
 
 		switch rule.Access {
+		case Public, SignedIn:
 		case InstanceAdmin:
 			var admin bool
 			if err := tx.QueryRow(ctx, `SELECT instance_admin FROM users WHERE id = $1`, user.ID).Scan(&admin); err != nil {
@@ -115,23 +169,11 @@ func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 			if !ok {
 				return nil, Internal(fmt.Errorf("%s is org-scoped but its request has no org", procedure))
 			}
-			var orgID, role string
-			err := tx.QueryRow(ctx, `SELECT o.id, m.role FROM orgs o JOIN memberships m ON m.org_id = o.id
-				WHERE o.slug = $1 AND m.user_id = app_user_id()`, msg.GetOrg()).Scan(&orgID, &role)
-			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, connect.NewError(connect.CodeNotFound, errors.New("org not found"))
+			if err := checkOrg(ctx, s, msg.GetOrg(), rule.Min); err != nil {
+				return nil, err
 			}
-			if err != nil {
-				return nil, Internal(err)
-			}
-			s.Role = RoleFromDB(role)
-			if !AtLeast(s.Role, rule.Min) {
-				return nil, connect.NewError(connect.CodePermissionDenied,
-					fmt.Errorf("this needs the %s role or above", RoleToDB(rule.Min)))
-			}
-			if err := s.SetOrg(ctx, orgID); err != nil {
-				return nil, Internal(err)
-			}
+		default:
+			return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("%s cannot be called this way", procedure))
 		}
 
 		resp, err := next(context.WithValue(ctx, scopeKey{}, s), req)
@@ -155,6 +197,9 @@ func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		if err := tx.Commit(ctx); err != nil {
 			return nil, Internal(err)
 		}
+		for _, f := range s.after {
+			f()
+		}
 		return resp, nil
 	}
 }
@@ -163,10 +208,62 @@ func (i *Interceptor) WrapStreamingClient(next connect.StreamingClientFunc) conn
 	return next
 }
 
-func (i *Interceptor) WrapStreamingHandler(connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
-	return func(_ context.Context, conn connect.StreamingHandlerConn) error {
-		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("%s: streaming has no policy yet", conn.Spec().Procedure))
+func (i *Interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		procedure := conn.Spec().Procedure
+		rule, ok := Policy[procedure]
+		switch {
+		case !ok:
+			return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("%s has no policy", procedure))
+		case rule.Access == Builder:
+			bearer, _ := strings.CutPrefix(conn.RequestHeader().Get("Authorization"), "Bearer ")
+			if i.BuilderToken == "" || subtle.ConstantTimeCompare([]byte(bearer), []byte(i.BuilderToken)) != 1 {
+				return connect.NewError(connect.CodeUnauthenticated, errors.New("the join token is wrong"))
+			}
+			return next(ctx, conn)
+		case rule.Access == InOrg && conn.Spec().StreamType == connect.StreamTypeServer:
+			user, signedIn := auth.UserFrom(ctx)
+			if !signedIn {
+				return connect.NewError(connect.CodeUnauthenticated, errors.New("not signed in"))
+			}
+			s := &Scope{UserID: user.ID, IP: user.IP}
+			checked := &orgCheckedConn{StreamingHandlerConn: conn, check: func(msg any) error {
+				m, ok := msg.(interface{ GetOrg() string })
+				if !ok {
+					return Internal(fmt.Errorf("%s is org-scoped but its request has no org", procedure))
+				}
+				return pgx.BeginFunc(ctx, i.Pool, func(tx pgx.Tx) error {
+					s.Tx = tx
+					defer func() { s.Tx = nil }()
+					if err := s.SetUser(ctx, user.ID); err != nil {
+						return Internal(err)
+					}
+					return checkOrg(ctx, s, m.GetOrg(), rule.Min)
+				})
+			}}
+			return next(context.WithValue(ctx, scopeKey{}, s), checked)
+		}
+		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("%s cannot be called this way", procedure))
 	}
+}
+
+// orgCheckedConn checks the org in a server stream's one request before the
+// handler sees it. Connect reads that request before it calls the handler.
+type orgCheckedConn struct {
+	connect.StreamingHandlerConn
+	check   func(any) error
+	checked bool
+}
+
+func (c *orgCheckedConn) Receive(msg any) error {
+	if err := c.StreamingHandlerConn.Receive(msg); err != nil {
+		return err
+	}
+	if c.checked {
+		return nil
+	}
+	c.checked = true
+	return c.check(msg)
 }
 
 func Internal(err error) error {

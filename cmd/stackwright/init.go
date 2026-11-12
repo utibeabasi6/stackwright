@@ -22,6 +22,7 @@ var initSecrets = []struct {
 	{"STACKWRIGHT_S3_ACCESS_KEY", password},
 	{"STACKWRIGHT_S3_SECRET_KEY", password},
 	{"STACKWRIGHT_KEK", func() string { return base64.StdEncoding.EncodeToString(randomBytes(32)) }},
+	{"STACKWRIGHT_BUILDER_TOKEN", password},
 }
 
 // NATS misreads an environment value that starts with a digit.

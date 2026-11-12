@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { Link, Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
-import { authApi, message, projectApi } from "./api";
+import { authApi, message, projectApi, runApi } from "./api";
 import type { GetMeResponse } from "./gen/stackwright/v1/auth_pb";
 import { Role } from "./gen/stackwright/v1/orgs_pb";
 import { ShellContext } from "./me";
@@ -32,6 +32,15 @@ export function Shell() {
   const projects = useLoad(`projects:${org}`, () =>
     org ? projectApi.listProjects({ org }).then((r) => r.projects) : Promise.resolve([]),
   );
+  const [waitingVersion, setWaitingVersion] = useState(0);
+  const reloadWaiting = useCallback(() => setWaitingVersion((v) => v + 1), []);
+  const waiting = useLoad(`waiting:${org}:${waitingVersion}`, () =>
+    org ? runApi.listWaiting({ org }).then((r) => r.approvals.length + r.failures.length) : Promise.resolve(0),
+  );
+  useEffect(() => {
+    const id = window.setInterval(reloadWaiting, 15000);
+    return () => window.clearInterval(id);
+  }, [reloadWaiting]);
   const { tabs, open, close } = useTabs(org);
   const openRef = useRef(open);
   openRef.current = open;
@@ -122,7 +131,7 @@ export function Shell() {
   };
 
   return (
-    <ShellContext.Provider value={{ me, projects: projects.data, reloadProjects: projects.reload, openTab }}>
+    <ShellContext.Provider value={{ me, projects: projects.data, reloadProjects: projects.reload, openTab, waitingVersion, reloadWaiting }}>
       <header className="shell">
         <div className="toolbar">
           <Link to="/" className="app">
@@ -154,8 +163,12 @@ export function Shell() {
               <Link
                 to="/$org/projects/$project/$workspace"
                 params={{ org, project: current.project, workspace: current.workspace }}
+                activeOptions={{ exact: true }}
               >
                 Overview
+              </Link>
+              <Link to="/$org/projects/$project/$workspace/runs" params={{ org, project: current.project, workspace: current.workspace }}>
+                Runs
               </Link>
             </nav>
           )}
@@ -167,6 +180,11 @@ export function Shell() {
               </Link>
               <Link to="/$org/inbox" params={{ org }}>
                 Waiting on you
+                {(waiting.data ?? 0) > 0 && (
+                  <span className="count" aria-label={`${waiting.data} waiting`}>
+                    {waiting.data}
+                  </span>
+                )}
               </Link>
               <button type="button" className="search" onClick={() => setPalette(true)}>
                 Search <kbd>⌘K</kbd>

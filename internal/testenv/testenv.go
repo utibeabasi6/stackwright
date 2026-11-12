@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/nats-io/nats.go"
 
 	"github.com/stackwright/stackwright/internal/db"
 )
@@ -99,4 +100,15 @@ func S3(t *testing.T) (*minio.Client, string) {
 		_ = c.RemoveBucket(ctx, bucket)
 	})
 	return c, bucket
+}
+
+func NATS(t *testing.T) *nats.Conn {
+	t.Helper()
+	Require(t)
+	nc, err := nats.Connect("nats://127.0.0.1:14222", nats.UserInfo("stackwright", os.Getenv("STACKWRIGHT_NATS_PASSWORD")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(nc.Close)
+	return nc
 }

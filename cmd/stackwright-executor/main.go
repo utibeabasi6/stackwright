@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -11,9 +12,14 @@ import (
 
 	"github.com/stackwright/stackwright/internal/executor"
 	"github.com/stackwright/stackwright/internal/sandbox"
+	"github.com/stackwright/stackwright/internal/version"
 )
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "version" {
+		fmt.Println(version.Version)
+		return
+	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

@@ -1,6 +1,9 @@
 import { Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { Shell } from "./Shell";
-import { BuildServers, Inbox } from "./pages/Empty";
+import { BuildServers } from "./pages/Empty";
+import { Inbox } from "./pages/Inbox";
+import { Run } from "./pages/Run";
+import { Runs } from "./pages/Runs";
 import { NewProject } from "./pages/NewProject";
 import { Projects } from "./pages/Projects";
 import { Workspace } from "./pages/Workspace";
@@ -34,6 +37,8 @@ export const routeTree = root.addChildren([
       createRoute({ getParentRoute: () => org, path: "build-servers", component: BuildServers }),
       createRoute({ getParentRoute: () => org, path: "projects/new", component: NewProject }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace", component: Workspace }),
+      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/runs", component: Runs }),
+      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/runs/$number", component: Run }),
       settings.addChildren([
         createRoute({ getParentRoute: () => settings, path: "/", component: General }),
         createRoute({ getParentRoute: () => settings, path: "members", component: Members }),

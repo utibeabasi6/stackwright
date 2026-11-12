@@ -8,6 +8,8 @@ export type ShellState = {
   projects: Project[] | undefined;
   reloadProjects: () => void;
   openTab: (t: Tab) => void;
+  waitingVersion: number;
+  reloadWaiting: () => void;
 };
 
 export const ShellContext = createContext<ShellState | undefined>(undefined);

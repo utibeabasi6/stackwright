@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/stackwright/stackwright/internal/config"
 	"github.com/stackwright/stackwright/internal/db"
 )
 
@@ -17,7 +18,7 @@ func runMigrate(args []string) error {
 	if err != nil {
 		return err
 	}
-	appPassword, err := secretEnv("STACKWRIGHT_APP_DB_PASSWORD")
+	appPassword, err := config.Secret("STACKWRIGHT_APP_DB_PASSWORD")
 	if err != nil {
 		return err
 	}
