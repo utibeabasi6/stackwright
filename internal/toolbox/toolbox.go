@@ -101,6 +101,12 @@ func (b *box) serve(ctx context.Context, client stackwrightv1connect.ToolboxServ
 			slog.Info("checkout ready", "branch", b.branch)
 			msg = &v1.ToolboxMessage{Body: &v1.ToolboxMessage_Ready{Ready: &v1.ToolboxReady{Dirty: b.dirty(ctx)}}}
 		case *v1.ToolboxOrder_Call:
+			if o.Call.GetName() == "pack" {
+				data, err := b.pack()
+				msg = b.result(ctx, o.Call.GetId(), fmt.Sprintf("%d bytes", len(data)), err)
+				msg.GetResult().Data = data
+				break
+			}
 			out, err := b.call(ctx, o.Call.GetName(), o.Call.GetArguments())
 			msg = b.result(ctx, o.Call.GetId(), out, err)
 		case *v1.ToolboxOrder_Commit:

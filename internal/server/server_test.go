@@ -142,7 +142,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 		Images:     map[string]string{"docker": executorImage}, ServerURL: public, BuiltInServerURL: public}
 	orch := &runs.Orchestrator{Pool: d.App, KEK: kek, S3: s3, Bucket: bucket, Jobs: js, Hub: hub, NATS: testenv.NATS(t)}
 	model := &scriptedModel{}
-	ag := &agent.Service{Pool: d.App, KEK: kek, Hub: hub, Jobs: js, Model: model, IdleAfter: time.Hour}
+	ag := &agent.Service{Pool: d.App, KEK: kek, Hub: hub, Model: model, IdleAfter: time.Hour}
 	js.OnEnd = orch.JobEnded
 	hub.OnExit = func(jobID string, st *v1.SandboxStatus) {
 		if agent.IsSandbox(jobID) {

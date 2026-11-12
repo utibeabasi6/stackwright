@@ -9,7 +9,14 @@ import { useShell } from "../me";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
 
-type Props = { org: string; project: string; workspace: string };
+type Props = {
+  org: string;
+  project: string;
+  workspace: string;
+  // ask is text from "Ask agent to fix", to send once the sessions load.
+  ask?: string;
+  onAsked: () => void;
+};
 
 type Tone = "busy" | "good" | "attention" | "muted" | "bad";
 
@@ -19,7 +26,7 @@ const status: Record<AgentSessionStatus, { text: string; tone: Tone }> = {
   [AgentSessionStatus.READY]: { text: "Ready", tone: "good" },
   [AgentSessionStatus.WORKING]: { text: "Working", tone: "busy" },
   [AgentSessionStatus.WAITING_FOR_ANSWER]: { text: "Waits for your answer", tone: "attention" },
-  [AgentSessionStatus.WAITING_FOR_APPROVAL]: { text: "Waits for a commit or discard", tone: "attention" },
+  [AgentSessionStatus.WAITING_FOR_APPROVAL]: { text: "Waits for your decision", tone: "attention" },
   [AgentSessionStatus.ASLEEP]: { text: "Asleep", tone: "muted" },
   [AgentSessionStatus.CLOSED]: { text: "Closed", tone: "muted" },
   [AgentSessionStatus.FAILED]: { text: "Failed", tone: "bad" },
@@ -37,9 +44,25 @@ const parse = (s: string): Payload => {
 };
 const text = (v: unknown) => (typeof v === "string" ? v : "");
 
+// canTake lists the statuses in which a session takes a new message.
+const canTake = [AgentSessionStatus.READY, AgentSessionStatus.ASLEEP, AgentSessionStatus.WAITING_FOR_ANSWER];
+
+// AskAgent sends an error to the agent. It shows only to writers, on
+// projects that the agent can work on.
+export function AskAgent({ org, project, prompt }: { org: string; project: string; prompt: string }) {
+  const { me, projects, askAgent } = useShell();
+  const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
+  if (!writer || !projects?.find((p) => p.slug === project)?.linkedRepo) return null;
+  return (
+    <button type="button" className="link ask-agent" onClick={() => askAgent(prompt)}>
+      Ask agent to fix
+    </button>
+  );
+}
+
 // AgentPanel is a chat with the agent about one workspace: its sessions, the
 // open one's conversation, and a composer that starts or continues one.
-export function AgentPanel({ org, project, workspace }: Props) {
+export function AgentPanel({ org, project, workspace, ask, onAsked }: Props) {
   const { me } = useShell();
   const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
   const settings = useLoad(`agent-settings:${org}`, () => agentApi.getAgentSettings({ org }).then((r) => r.settings));
@@ -50,6 +73,34 @@ export function AgentPanel({ org, project, workspace }: Props) {
   const [chosen, setChosen] = useState<string>();
   const [error, setError] = useState<string>();
   const current = chosen ?? sessions.data?.[0]?.id ?? "new";
+
+  const start = async (msg: string) => {
+    setError(undefined);
+    try {
+      const r = await agentApi.startSession({ org, project, workspace, message: msg });
+      sessions.reload();
+      setChosen(r.session?.id);
+      return true;
+    } catch (err) {
+      setError(message(err));
+      return false;
+    }
+  };
+
+  const list = sessions.data;
+  useEffect(() => {
+    if (!ask || !list || !writer) return;
+    onAsked();
+    const open = list.find((s) => canTake.includes(s.status));
+    if (!open) {
+      void start(ask);
+      return;
+    }
+    setChosen(open.id);
+    agentApi.sendMessage({ org, id: open.id, message: ask }).catch(() => start(ask));
+    // start changes on every render; the effect runs once for each ask.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ask, list, writer]);
 
   if (settings.data && !settings.data.hasKey) {
     return (
@@ -73,19 +124,6 @@ export function AgentPanel({ org, project, workspace }: Props) {
       </Notice>
     );
   }
-
-  const start = async (msg: string) => {
-    setError(undefined);
-    try {
-      const r = await agentApi.startSession({ org, project, workspace, message: msg });
-      sessions.reload();
-      setChosen(r.session?.id);
-      return true;
-    } catch (err) {
-      setError(message(err));
-      return false;
-    }
-  };
 
   const options = [
     ...(sessions.data ?? []).map((s) => ({ value: s.id, label: s.title })),
@@ -194,6 +232,11 @@ function Session({ org, id, writer, onChange }: { org: string; id: string; write
           <span className="mono" title="The session's branch">
             {session.branch}
           </span>
+          {session.prNumber > 0 && (
+            <a href={session.prUrl} target="_blank" rel="noreferrer noopener">
+              Pull request #{session.prNumber}
+            </a>
+          )}
           {session.spent > 0 && <span>${session.spent.toFixed(2)}</span>}
           {writer && !busy(session) && (
             <button
@@ -243,7 +286,7 @@ function Session({ org, id, writer, onChange }: { org: string; id: string; write
             waiting === AgentSessionStatus.WAITING_FOR_ANSWER
               ? "Answer the question"
               : waiting === AgentSessionStatus.WAITING_FOR_APPROVAL
-                ? "Commit or discard the proposal first"
+                ? "Decide on the proposal first"
                 : "Ask for a change"
           }
           disabled={waiting === AgentSessionStatus.WAITING_FOR_APPROVAL}
@@ -334,6 +377,14 @@ function toolLine(name: string, args: Payload): string {
       return "Ran validate";
     case "propose_commit":
       return "Proposed a commit";
+    case "run_plan":
+      return "Ran a plan";
+    case "plan_details":
+      return `Read the plan for ${text(args.address)}`;
+    case "state_lookup":
+      return `Looked up ${text(args.address)} in the state`;
+    case "propose_pull_request":
+      return "Proposed a pull request";
   }
   return name;
 }
@@ -400,7 +451,11 @@ function Step({ step, results, canDecide, decide }: StepProps) {
         </li>
       ) : null;
     case "proposal":
-      return <Proposal message={text(p.message)} diff={text(p.diff)} canDecide={canDecide} decide={decide} />;
+      return p.type === "pull_request" ? (
+        <PullRequest title={text(p.title)} body={text(p.body)} canDecide={canDecide} decide={decide} />
+      ) : (
+        <Proposal message={text(p.message)} diff={text(p.diff)} canDecide={canDecide} decide={decide} />
+      );
     case "decision":
     case "notice":
       return <li className="note">{text(p.text)}</li>;
@@ -472,6 +527,33 @@ function Proposal({ message: msg, diff, canDecide, decide }: { message: string; 
           </button>
           <button type="button" className="primary" onClick={() => decide(true)}>
             Commit and push
+          </button>
+        </div>
+      )}
+    </li>
+  );
+}
+
+type PullRequestProps = { title: string; body: string; canDecide: boolean; decide: (approve: boolean) => void };
+
+function PullRequest({ title, body, canDecide, decide }: PullRequestProps) {
+  return (
+    <li className="proposal" aria-label="Proposed pull request">
+      <h3>Open this pull request?</h3>
+      <p>
+        <strong>{title}</strong>
+      </p>
+      <div className="prose">
+        <Prose text={body} />
+      </div>
+      <p className="hint">It opens from the session's branch, ready for review, and names you as the person who approved it.</p>
+      {canDecide && (
+        <div className="row">
+          <button type="button" onClick={() => decide(false)}>
+            Decline
+          </button>
+          <button type="button" className="primary" onClick={() => decide(true)}>
+            Open pull request
           </button>
         </div>
       )}

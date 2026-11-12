@@ -102,6 +102,9 @@ message AgentSession {
   double spent = 11;
   string error = 12;
   int64 last_seq = 13;
+  // The pull request opened from the branch, or 0.
+  int32 pr_number = 14;
+  string pr_url = 15;
 }
 
 message AgentStep {
@@ -208,6 +211,8 @@ message ToolResult {
   bool error = 3;
   // The checkout has uncommitted changes after this call.
   bool dirty = 4;
+  // The "pack" call's .tar.gz of the checkout.
+  bytes data = 5;
 }
 
 message ToolboxOrder {

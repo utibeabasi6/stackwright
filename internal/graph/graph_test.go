@@ -141,7 +141,7 @@ func TestStripKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range cases {
-		if got := stripKeys(c.In); got != c.Want {
+		if got := StripKeys(c.In); got != c.Want {
 			t.Errorf("%s: %s, want %s", c.In, got, c.Want)
 		}
 	}

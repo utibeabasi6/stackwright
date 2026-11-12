@@ -33,6 +33,8 @@ export function origin(r: Pick<Run, "trigger" | "prNumber" | "branch" | "commitS
       return `pull request #${r.prNumber} · ${r.commitSha.slice(0, 7)}`;
     case "push":
       return `push to ${r.branch} · ${r.commitSha.slice(0, 7)}`;
+    case "agent":
+      return `the agent, on ${r.branch}`;
   }
   return r.source;
 }
@@ -45,7 +47,8 @@ export function changes(r: Pick<Run, "adds" | "changes" | "destroys">) {
   ];
 }
 
-type Line = { text: string; tone?: Tone; detail?: string };
+// fix is what to send the agent about an error.
+type Line = { text: string; tone?: Tone; detail?: string; fix?: string };
 
 type Diagnostic = {
   severity?: string;
@@ -117,7 +120,12 @@ export function describeEvent(e: RunEvent): Line {
       const d = (p.diagnostic ?? {}) as Diagnostic;
       const where = d.range?.filename ? ` (${d.range.filename}${d.range.start?.line ? `:${d.range.start.line}` : ""})` : "";
       const error = d.severity === "error";
-      return { text: `${error ? "! " : ""}${d.summary ?? "Diagnostic"}${where}`, detail: d.detail || undefined, tone: error ? "error" : "warn" };
+      return {
+        text: `${error ? "! " : ""}${d.summary ?? "Diagnostic"}${where}`,
+        detail: d.detail || undefined,
+        tone: error ? "error" : "warn",
+        fix: error ? `${d.summary ?? "Error"}${where}${d.detail ? `\n${d.detail}` : ""}` : undefined,
+      };
     }
     case "executor.finished":
       return { text: p.succeeded ? "Sandbox finished" : "Sandbox finished with an error", tone: p.succeeded ? undefined : "error" };

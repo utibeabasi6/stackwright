@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { graphApi, message, runApi } from "../api";
+import { AskAgent } from "../agent/AgentPanel";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run as RunType, type RunEvent } from "../gen/stackwright/v1/runs_pb";
 import { useShell } from "../me";
@@ -119,6 +120,7 @@ export function Run() {
                   {line.text}
                   {e.resourceAddr && !line.text.includes(e.resourceAddr) && <code> {e.resourceAddr}</code>}
                   {line.detail && <span className="detail">{line.detail}</span>}
+                  {line.fix && <AskAgent org={org} project={project} prompt={`Run #${number} hit this error. Fix the code.\n\n${line.fix}`} />}
                 </span>
               </li>
             );

@@ -399,10 +399,13 @@ type AgentSession struct {
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// The checkout has changes that nobody committed or discarded.
-	Dirty         bool    `protobuf:"varint,10,opt,name=dirty,proto3" json:"dirty,omitempty"`
-	Spent         float64 `protobuf:"fixed64,11,opt,name=spent,proto3" json:"spent,omitempty"`
-	Error         string  `protobuf:"bytes,12,opt,name=error,proto3" json:"error,omitempty"`
-	LastSeq       int64   `protobuf:"varint,13,opt,name=last_seq,json=lastSeq,proto3" json:"last_seq,omitempty"`
+	Dirty   bool    `protobuf:"varint,10,opt,name=dirty,proto3" json:"dirty,omitempty"`
+	Spent   float64 `protobuf:"fixed64,11,opt,name=spent,proto3" json:"spent,omitempty"`
+	Error   string  `protobuf:"bytes,12,opt,name=error,proto3" json:"error,omitempty"`
+	LastSeq int64   `protobuf:"varint,13,opt,name=last_seq,json=lastSeq,proto3" json:"last_seq,omitempty"`
+	// The pull request opened from the branch, or 0.
+	PrNumber      int32  `protobuf:"varint,14,opt,name=pr_number,json=prNumber,proto3" json:"pr_number,omitempty"`
+	PrUrl         string `protobuf:"bytes,15,opt,name=pr_url,json=prUrl,proto3" json:"pr_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -526,6 +529,20 @@ func (x *AgentSession) GetLastSeq() int64 {
 		return x.LastSeq
 	}
 	return 0
+}
+
+func (x *AgentSession) GetPrNumber() int32 {
+	if x != nil {
+		return x.PrNumber
+	}
+	return 0
+}
+
+func (x *AgentSession) GetPrUrl() string {
+	if x != nil {
+		return x.PrUrl
+	}
+	return ""
 }
 
 type AgentStep struct {
@@ -1524,7 +1541,9 @@ type ToolResult struct {
 	Output string                 `protobuf:"bytes,2,opt,name=output,proto3" json:"output,omitempty"`
 	Error  bool                   `protobuf:"varint,3,opt,name=error,proto3" json:"error,omitempty"`
 	// The checkout has uncommitted changes after this call.
-	Dirty         bool `protobuf:"varint,4,opt,name=dirty,proto3" json:"dirty,omitempty"`
+	Dirty bool `protobuf:"varint,4,opt,name=dirty,proto3" json:"dirty,omitempty"`
+	// The "pack" call's .tar.gz of the checkout.
+	Data          []byte `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1585,6 +1604,13 @@ func (x *ToolResult) GetDirty() bool {
 		return x.Dirty
 	}
 	return false
+}
+
+func (x *ToolResult) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
 }
 
 type ToolboxOrder struct {
@@ -1992,7 +2018,7 @@ const file_stackwright_v1_agent_proto_rawDesc = "" +
 	"\vmonthly_cap\x18\x06 \x01(\x01R\n" +
 	"monthlyCap\"U\n" +
 	"\x18SetAgentSettingsResponse\x129\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1d.stackwright.v1.AgentSettingsR\bsettings\"\xb2\x03\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1d.stackwright.v1.AgentSettingsR\bsettings\"\xe6\x03\n" +
 	"\fAgentSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x12\x1c\n" +
@@ -2010,7 +2036,9 @@ const file_stackwright_v1_agent_proto_rawDesc = "" +
 	" \x01(\bR\x05dirty\x12\x14\n" +
 	"\x05spent\x18\v \x01(\x01R\x05spent\x12\x14\n" +
 	"\x05error\x18\f \x01(\tR\x05error\x12\x19\n" +
-	"\blast_seq\x18\r \x01(\x03R\alastSeq\"\x8d\x01\n" +
+	"\blast_seq\x18\r \x01(\x03R\alastSeq\x12\x1b\n" +
+	"\tpr_number\x18\x0e \x01(\x05R\bprNumber\x12\x15\n" +
+	"\x06pr_url\x18\x0f \x01(\tR\x05prUrl\"\x8d\x01\n" +
 	"\tAgentStep\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x18\n" +
@@ -2066,13 +2094,14 @@ const file_stackwright_v1_agent_proto_rawDesc = "" +
 	"\x04body\"\x0e\n" +
 	"\fToolboxHello\"$\n" +
 	"\fToolboxReady\x12\x14\n" +
-	"\x05dirty\x18\x01 \x01(\bR\x05dirty\"`\n" +
+	"\x05dirty\x18\x01 \x01(\bR\x05dirty\"t\n" +
 	"\n" +
 	"ToolResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06output\x18\x02 \x01(\tR\x06output\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\bR\x05error\x12\x14\n" +
-	"\x05dirty\x18\x04 \x01(\bR\x05dirty\"\xef\x01\n" +
+	"\x05dirty\x18\x04 \x01(\bR\x05dirty\x12\x12\n" +
+	"\x04data\x18\x05 \x01(\fR\x04data\"\xef\x01\n" +
 	"\fToolboxOrder\x126\n" +
 	"\bcheckout\x18\x01 \x01(\v2\x18.stackwright.v1.CheckoutH\x00R\bcheckout\x12.\n" +
 	"\x04call\x18\x02 \x01(\v2\x18.stackwright.v1.ToolCallH\x00R\x04call\x125\n" +

@@ -6,6 +6,7 @@ import { routeTree } from "./router";
 import { Role } from "./gen/stackwright/v1/orgs_pb";
 import { Engine, Layout } from "./gen/stackwright/v1/projects_pb";
 import { RunStatus } from "./gen/stackwright/v1/runs_pb";
+import { AgentSessionStatus } from "./gen/stackwright/v1/agent_pb";
 
 const api = vi.hoisted(() => ({
   me: undefined as unknown,
@@ -22,6 +23,8 @@ const api = vi.hoisted(() => ({
   agentSteps: [] as unknown[],
   decisions: [] as unknown[],
   started: [] as string[],
+  sessionStatus: 5,
+  sent: [] as unknown[],
   variables: [] as unknown[],
   setVariables: [] as unknown[],
 }));
@@ -39,9 +42,15 @@ vi.mock("./api", () => ({
       return { session: { id: "s2" } };
     },
     getAgentSettings: async () => ({ settings: { hasKey: api.agentKey, monthlyCap: 50, spentThisMonth: 1.25 } }),
-    listSessions: async () => ({ sessions: api.agentSteps.length ? [{ id: "s1", title: "Add a random_pet named db" }] : [] }),
+    listSessions: async () => ({
+      sessions: api.agentSteps.length ? [{ id: "s1", title: "Add a random_pet named db", status: api.sessionStatus }] : [],
+    }),
+    sendMessage: async (req: unknown) => {
+      api.sent.push(req);
+      return {};
+    },
     watchSession: async function* () {
-      yield { session: { id: "s1", branch: "agent/add-db-s1", status: 5, spent: 0.12 }, steps: api.agentSteps };
+      yield { session: { id: "s1", branch: "agent/add-db-s1", status: api.sessionStatus, spent: 0.12 }, steps: api.agentSteps };
       await new Promise(() => {});
     },
     decideProposal: async (req: unknown) => {
@@ -212,6 +221,8 @@ beforeEach(() => {
   api.agentSteps = [];
   api.decisions = [];
   api.started = [];
+  api.sessionStatus = 5;
+  api.sent = [];
   api.variables = [];
   api.setVariables = [];
   window.localStorage.clear();
@@ -528,7 +539,7 @@ test("a proposed commit waits for a person, who commits and pushes it", async ()
   const panel = await screen.findByRole("complementary", { name: "Agent" });
   expect(await within(panel).findByText("Commit these changes?")).toBeInTheDocument();
   expect(within(panel).getByText("Read terraform.tfstate").closest("li")).toHaveClass("failed");
-  expect(within(panel).getByText("Waits for a commit or discard")).toBeInTheDocument();
+  expect(within(panel).getByText("Waits for your decision")).toBeInTheDocument();
   expect(within(within(panel).getByRole("listitem", { name: "Proposed commit" })).getByText("main.tf")).toBeInTheDocument();
   expect(within(panel).getByText("How it works:").tagName).toBe("STRONG");
   expect(within(panel).getByText("main.tf", { selector: "code" })).toBeInTheDocument();
@@ -629,6 +640,66 @@ test("a plan error shows its file, line and detail", async () => {
   const timeline = await screen.findByRole("list", { name: "Timeline" });
   expect(await within(timeline).findByText("! Unsupported argument (main.tf:3)")).toBeInTheDocument();
   expect(within(timeline).getByText('An argument named "nope" is not expected here.')).toBeInTheDocument();
+  expect(within(timeline).queryByRole("button", { name: "Ask agent to fix" })).not.toBeInTheDocument();
+});
+
+const planError = {
+  seq: 1n,
+  type: "engine.diagnostic",
+  payload: JSON.stringify({
+    diagnostic: { severity: "error", summary: "Unsupported argument", detail: "Not expected here.", range: { filename: "main.tf", start: { line: 3 } } },
+  }),
+};
+
+test("Ask agent to fix sends a plan error to the open session", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [{ ...network, linkedRepo: "acme/infra" }];
+  api.agentKey = true;
+  api.sessionStatus = AgentSessionStatus.READY;
+  api.agentSteps = [{ seq: 1n, kind: "user", payload: JSON.stringify({ text: "Add a random_pet named db" }) }];
+  api.runs = [{ ...waitingRun, status: RunStatus.FAILED }];
+  api.events = [planError];
+  at("/a/projects/network/prod/runs/1");
+  const timeline = await screen.findByRole("list", { name: "Timeline" });
+  await userEvent.click(await within(timeline).findByRole("button", { name: "Ask agent to fix" }));
+  expect(await screen.findByRole("complementary", { name: "Agent" })).toBeInTheDocument();
+  await waitFor(() => expect(api.sent).toHaveLength(1));
+  expect(api.sent[0]).toMatchObject({ org: "a", id: "s1", message: expect.stringContaining("Unsupported argument (main.tf:3)\nNot expected here.") });
+  expect(api.started).toEqual([]);
+});
+
+test("Ask agent to fix starts a session when none can take a message", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [{ ...network, linkedRepo: "acme/infra" }];
+  api.agentKey = true;
+  api.runs = [{ ...waitingRun, status: RunStatus.FAILED }];
+  api.events = [planError];
+  at("/a/projects/network/prod/runs/1");
+  const timeline = await screen.findByRole("list", { name: "Timeline" });
+  await userEvent.click(await within(timeline).findByRole("button", { name: "Ask agent to fix" }));
+  await waitFor(() => expect(api.started).toHaveLength(1));
+  expect(api.started[0]).toContain("Run #1 hit this error.");
+  expect(api.sent).toEqual([]);
+});
+
+test("a proposed pull request opens only when a person approves it", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [{ ...network, linkedRepo: "acme/infra" }];
+  api.agentKey = true;
+  api.agentSteps = [
+    { seq: 1n, kind: "user", payload: JSON.stringify({ text: "Open a pull request" }) },
+    { seq: 2n, kind: "proposal", payload: JSON.stringify({ type: "pull_request", title: "Add a random_pet", body: "Adds `random_pet.db`." }) },
+  ];
+  at("/a/projects/network/prod");
+  await screen.findByRole("heading", { name: "prod" });
+  await userEvent.click(screen.getByRole("button", { name: "Agent" }));
+  const panel = await screen.findByRole("complementary", { name: "Agent" });
+  const card = await within(panel).findByRole("listitem", { name: "Proposed pull request" });
+  expect(within(card).getByText("Open this pull request?")).toBeInTheDocument();
+  expect(within(card).getByText("random_pet.db", { selector: "code" })).toBeInTheDocument();
+  expect(api.decisions).toEqual([]);
+  await userEvent.click(within(card).getByRole("button", { name: "Open pull request" }));
+  expect(api.decisions).toMatchObject([{ org: "a", id: "s1", proposal: 2n, approve: true }]);
 });
 
 test("a new project picks the newest engine version and can start with a cloud account", async () => {

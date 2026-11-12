@@ -1,8 +1,10 @@
 package toolbox
 
 import (
+	"archive/tar"
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,6 +16,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/stackwright/stackwright/internal/toolbox/guard"
 )
 
 const (
@@ -22,27 +26,10 @@ const (
 	maxHits  = 200
 )
 
-// Refused reports why no tool may touch rel, a slash path from the
-// repository root, or "" when a tool may. The server asks the same before
-// it sends a call.
-func Refused(rel string) string {
-	for _, part := range strings.Split(path.Clean("/" + rel)[1:], "/") {
-		switch {
-		case part == ".git" || part == ".terraform":
-			return part + " is not for tools"
-		case strings.HasSuffix(part, ".tfstate") || strings.HasSuffix(part, ".tfstate.backup"):
-			return "state files hold secrets and are never read or written"
-		case part == ".env" || strings.HasPrefix(part, ".env."):
-			return ".env files hold secrets and are never read or written"
-		}
-	}
-	return ""
-}
-
 // inside returns rel's path under root, refusing paths that leave it.
 func inside(root, rel string) (string, error) {
 	clean := path.Clean("/" + filepath.ToSlash(rel))
-	if why := Refused(clean); why != "" {
+	if why := guard.Refused(clean); why != "" {
 		return "", fmt.Errorf("%w: %s: %s", ErrRefused, rel, why)
 	}
 	return filepath.Join(root, filepath.FromSlash(clean)), nil
@@ -113,7 +100,7 @@ func (b *box) list(rel string) (string, error) {
 		}
 		r, _ := filepath.Rel(b.repo, p)
 		r = filepath.ToSlash(r)
-		if r != "." && Refused(r) != "" {
+		if r != "." && guard.Refused(r) != "" {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
@@ -233,4 +220,46 @@ func (b *box) engineRun(ctx context.Context, args ...string) (string, error) {
 		return string(out), fmt.Errorf("%s %s failed: %w\n%s", filepath.Base(b.engine), args[0], err, out)
 	}
 	return string(out), nil
+}
+
+// pack returns the checkout as a .tar.gz for a plan, without the paths
+// that no tool may touch.
+func (b *box) pack() ([]byte, error) {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	err := filepath.WalkDir(b.repo, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || p == b.repo {
+			return err
+		}
+		rel, _ := filepath.Rel(b.repo, p)
+		if guard.Refused(filepath.ToSlash(rel)) != "" {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		data, err := os.ReadFile(p) //nolint:gosec // a walked path inside the checkout
+		if err != nil {
+			return err
+		}
+		if err := tw.WriteHeader(&tar.Header{Name: filepath.ToSlash(rel), Mode: 0o644, Size: int64(len(data)), Typeflag: tar.TypeReg}); err != nil {
+			return err
+		}
+		_, err = tw.Write(data)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+	if err := gz.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

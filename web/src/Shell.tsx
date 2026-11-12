@@ -49,17 +49,27 @@ export function Shell() {
   const [collapsed, setCollapsed] = useState(savedCollapsed);
   const [theme, setTheme] = useState<Theme>(savedTheme);
   const [agentShown, setAgentShown] = useState(savedAgent);
-  const toggleAgent = useCallback(() => {
+  const [ask, setAsk] = useState<string>();
+  const showAgent = useCallback((show: (shown: boolean) => boolean) => {
     setAgentShown((shown) => {
+      const next = show(shown);
       try {
-        if (shown) window.localStorage.removeItem(agentKey);
-        else window.localStorage.setItem(agentKey, "shown");
+        if (next) window.localStorage.setItem(agentKey, "shown");
+        else window.localStorage.removeItem(agentKey);
       } catch {
         // Storage can be refused; the choice then lasts until reload.
       }
-      return !shown;
+      return next;
     });
   }, []);
+  const toggleAgent = useCallback(() => showAgent((shown) => !shown), [showAgent]);
+  const askAgent = useCallback(
+    (text: string) => {
+      setAsk(text);
+      showAgent(() => true);
+    },
+    [showAgent],
+  );
   const toggleSidebar = useCallback(() => {
     setCollapsed((c) => {
       try {
@@ -171,7 +181,7 @@ export function Shell() {
   };
 
   return (
-    <ShellContext.Provider value={{ me, projects: projects.data, reloadProjects: projects.reload, waitingVersion, reloadWaiting }}>
+    <ShellContext.Provider value={{ me, projects: projects.data, reloadProjects: projects.reload, waitingVersion, reloadWaiting, askAgent }}>
       <div className="frame">
         <aside id="sidebar" className="sidebar" aria-label="Sidebar" hidden={collapsed}>
           <Link to="/" className="app">
@@ -293,7 +303,7 @@ export function Shell() {
             {ws && agentShown && (
               <aside id="agent" className="agent-panel" aria-label="Agent">
                 <h2>Agent</h2>
-                <AgentPanel org={ws.org} project={ws.project} workspace={ws.workspace} />
+                <AgentPanel org={ws.org} project={ws.project} workspace={ws.workspace} ask={ask} onAsked={() => setAsk(undefined)} />
               </aside>
             )}
           </div>

@@ -20,7 +20,6 @@ import (
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builders"
-	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/seal"
 )
 
@@ -35,6 +34,7 @@ var (
 	ErrNoToolbox   = errors.New("the session's sandbox is not connected")
 	ErrNoProposal  = errors.New("the session has no proposal waiting with that number")
 	ErrNotWaiting  = errors.New("the session waits for no approval")
+	errTurnTime    = errors.New("the turn ran out of time")
 	sandboxPrefix  = "agent-"
 	readyTimeout   = 5 * time.Minute
 	toolTimeout    = 6 * time.Minute
@@ -49,13 +49,32 @@ type Service struct {
 	Pool  *pgxpool.Pool
 	KEK   seal.KEK
 	Hub   *builders.Hub
-	Jobs  *jobs.Service
 	Model Model
+	Hooks Hooks
 	// IdleAfter is how long a sandbox with no changes stays up with no turn.
 	IdleAfter time.Duration
 
 	mu   sync.Mutex
 	live map[string]*live
+}
+
+// Hooks reach jobs, runs, state and GitHub. The agent package imports none
+// of their packages, so nothing in it can create an apply (adr/0031). The
+// server sets them.
+type Hooks struct {
+	EngineDownload func(ctx context.Context, eng, version, platform string, remote bool) (*v1.Download, error)
+	// Plan queues a plan-only agent run of source, a .tar.gz of the
+	// checkout, waits for it, and returns a report for the model.
+	Plan func(ctx context.Context, orgID, session, userID string, source []byte) (string, error)
+	// PlanDetails reports one resource's changes in a plan of the session's
+	// workspace, masked. Run 0 is the session's newest plan.
+	PlanDetails func(ctx context.Context, orgID, session string, run int32, address string) (string, error)
+	// StateLookup reports one resource in the state that the workspace's
+	// newest plan read, masked.
+	StateLookup func(ctx context.Context, orgID, session, address string) (string, error)
+	// OpenPullRequest opens the session's branch against its base, and
+	// returns the pull request's number and web address.
+	OpenPullRequest func(ctx context.Context, orgID, session, title, body string) (int, string, error)
 }
 
 // live is a session's in-process state.
@@ -222,7 +241,8 @@ func (s *Service) SetAgentSettings(ctx context.Context, req *connect.Request[v1.
 
 const sessionColumns = `s.id, p.slug, w.name, s.branch, s.status, s.title, coalesce(nullif(u.name, ''), u.email, ''),
 	s.created_at, s.updated_at, s.dirty,
-	(SELECT coalesce(sum(cost), 0)::float8 FROM agent_steps st WHERE st.session_id = s.id), coalesce(s.error, ''), s.last_seq
+	(SELECT coalesce(sum(cost), 0)::float8 FROM agent_steps st WHERE st.session_id = s.id), coalesce(s.error, ''), s.last_seq,
+	coalesce(s.pr_number, 0), coalesce(s.pr_url, '')
 	FROM agent_sessions s JOIN workspaces w ON w.id = s.workspace_id JOIN projects p ON p.id = w.project_id
 	LEFT JOIN users u ON u.id = s.created_by`
 
@@ -231,7 +251,7 @@ func scanSession(row pgx.CollectableRow) (*v1.AgentSession, error) {
 	var status string
 	var created, updated time.Time
 	err := row.Scan(&a.Id, &a.Project, &a.Workspace, &a.Branch, &status, &a.Title, &a.CreatedBy, &created, &updated, &a.Dirty,
-		&a.Spent, &a.Error, &a.LastSeq)
+		&a.Spent, &a.Error, &a.LastSeq, &a.PrNumber, &a.PrUrl)
 	a.Status = v1.AgentSessionStatus(v1.AgentSessionStatus_value["AGENT_SESSION_STATUS_"+strings.ToUpper(status)])
 	a.CreatedAt, a.UpdatedAt = timestamppb.New(created), timestamppb.New(updated)
 	return a, err
@@ -388,10 +408,11 @@ func (s *Service) DecideProposal(ctx context.Context, req *connect.Request[v1.De
 	sc := authz.ScopeFrom(ctx)
 	m := req.Msg
 	var status string
-	var message string
-	err := sc.Tx.QueryRow(ctx, `SELECT s.status, st.payload->>'message' FROM agent_sessions s
+	var p proposal
+	err := sc.Tx.QueryRow(ctx, `SELECT s.status, coalesce(st.payload->>'type', 'commit'), coalesce(st.payload->>'message', ''),
+		coalesce(st.payload->>'title', ''), coalesce(st.payload->>'body', '') FROM agent_sessions s
 		JOIN agent_steps st ON st.session_id = s.id AND st.seq = $2 AND st.kind = 'proposal'
-		WHERE s.id = $1 FOR UPDATE OF s`, m.Id, m.Proposal).Scan(&status, &message)
+		WHERE s.id = $1 FOR UPDATE OF s`, m.Id, m.Proposal).Scan(&status, &p.kind, &p.message, &p.title, &p.body)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, connectErr(ErrNoProposal)
 	}
@@ -405,7 +426,7 @@ func (s *Service) DecideProposal(ctx context.Context, req *connect.Request[v1.De
 	if err := sc.Tx.QueryRow(ctx, `SELECT coalesce(nullif(name, ''), email), email FROM users WHERE id = $1`, sc.UserID).Scan(&name, &email); err != nil {
 		return nil, authz.Internal(err)
 	}
-	if m.Approve {
+	if m.Approve && p.kind == "commit" {
 		// The Git proxy lets one push through for this row (adr/0030).
 		if _, err := sc.Tx.Exec(ctx, `INSERT INTO agent_approvals (session_id, org_id, proposal_seq, approved_by) VALUES ($1, $2, $3, $4)
 			ON CONFLICT DO NOTHING`, m.Id, sc.OrgID, m.Proposal, sc.UserID); err != nil {
@@ -420,13 +441,16 @@ func (s *Service) DecideProposal(ctx context.Context, req *connect.Request[v1.De
 		return nil, authz.Internal(err)
 	}
 	verb := "discard"
-	if m.Approve {
+	switch {
+	case m.Approve && p.kind == "pull_request":
+		verb = "open pull request"
+	case m.Approve:
 		verb = "commit and push"
 	}
 	sc.Target(fmt.Sprintf("agent proposal %d in session %s: %s", m.Proposal, m.Id, verb))
 	orgID, userID := sc.OrgID, sc.UserID
 	authz.AfterCommit(ctx, func() {
-		go s.carryOut(m.Id, orgID, userID, m.Proposal, m.Approve, message, name, email)
+		go s.carryOut(m.Id, orgID, userID, m.Proposal, m.Approve, p, name, email)
 	})
 	return connect.NewResponse(&v1.DecideProposalResponse{Session: session}), nil
 }

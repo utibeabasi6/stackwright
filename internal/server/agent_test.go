@@ -79,14 +79,14 @@ type agentWorld struct {
 	owner *client
 }
 
-func newAgentWorld(t *testing.T) *agentWorld {
+func newAgentWorld(t *testing.T, files map[string]string) *agentWorld {
 	t.Helper()
 	requireDocker(t)
 	w := start(t, nil, true)
 	owner := w.setup()
 	w.createApp(owner)
 	w.link(owner)
-	w.github.gitRepo("acme/infra", labFiles)
+	w.github.gitRepo("acme/infra", files)
 	owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "infra", "engine": "ENGINE_OPENTOFU",
 		"engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN", "repoUrl": "https://github.com/acme/infra"})
 	owner.must("AgentService/SetAgentSettings", map[string]any{"org": "a", "apiKey": "test-key",
@@ -113,7 +113,12 @@ func (w *agentWorld) status(id string) (status string, dirty bool, sandbox *stri
 
 func (w *agentWorld) waitStatus(id string, want ...string) {
 	w.t.Helper()
-	deadline := time.Now().Add(4 * time.Minute)
+	w.waitStatusFor(id, 4*time.Minute, want...)
+}
+
+func (w *agentWorld) waitStatusFor(id string, wait time.Duration, want ...string) {
+	w.t.Helper()
+	deadline := time.Now().Add(wait)
 	for {
 		status, _, _ := w.status(id)
 		if slices.Contains(want, status) {
@@ -186,7 +191,7 @@ resource "random_pet" "db" {}
 
 func TestAgentAddsAResourceAndCommitsOnlyWhenApproved(t *testing.T) {
 	t.Parallel()
-	w := newAgentWorld(t)
+	w := newAgentWorld(t, labFiles)
 	w.model.script(0.01,
 		use("list_files", map[string]any{}),
 		use("read_file", map[string]any{"path": "main.tf"}),
@@ -246,7 +251,7 @@ func TestAgentAddsAResourceAndCommitsOnlyWhenApproved(t *testing.T) {
 
 func TestAgentToolsRefuseStateAndEnvFiles(t *testing.T) {
 	t.Parallel()
-	w := newAgentWorld(t)
+	w := newAgentWorld(t, labFiles)
 	w.model.script(0,
 		use("read_file", map[string]any{"path": "terraform.tfstate"}),
 		use("read_file", map[string]any{"path": "./sub/../terraform.tfstate"}),
@@ -282,7 +287,7 @@ func TestAgentToolsRefuseStateAndEnvFiles(t *testing.T) {
 
 func TestAgentNeverPushesWithoutAnApproval(t *testing.T) {
 	t.Parallel()
-	w := newAgentWorld(t)
+	w := newAgentWorld(t, labFiles)
 	before := w.github.refs("acme/infra")
 	w.model.script(0,
 		use("list_files", map[string]any{}),
@@ -362,7 +367,7 @@ func TestAgentNeverPushesWithoutAnApproval(t *testing.T) {
 
 func TestAgentSandboxesStayWhileDirtyAndAreIsolated(t *testing.T) {
 	t.Parallel()
-	w := newAgentWorld(t)
+	w := newAgentWorld(t, labFiles)
 	w.model.script(0, use("write_file", map[string]any{"path": "only-a.tf", "content": randomPetDB}), say("Wrote it."))
 	a := w.startSession("Write only-a.tf")
 	w.waitStatus(a, "ready")
@@ -402,7 +407,7 @@ func TestAgentSandboxesStayWhileDirtyAndAreIsolated(t *testing.T) {
 
 func TestAgentStopMidToolLeavesTheBranchAlone(t *testing.T) {
 	t.Parallel()
-	w := newAgentWorld(t)
+	w := newAgentWorld(t, labFiles)
 	before := w.github.refs("acme/infra")
 	w.model.script(0,
 		use("write_file", map[string]any{"path": "stop.tf", "content": randomPetDB}),
@@ -436,7 +441,7 @@ func TestAgentStopMidToolLeavesTheBranchAlone(t *testing.T) {
 
 func TestAgentTurnEndsWhenTheSandboxExitsEarly(t *testing.T) {
 	t.Parallel()
-	w := newAgentWorld(t)
+	w := newAgentWorld(t, labFiles)
 	// The plain Alpine image has no toolbox command, so the sandbox exits at
 	// once, as one from an old builder did.
 	w.hub.Images = map[string]string{"docker": "alpine:3.22.2"}
@@ -460,7 +465,7 @@ func TestAgentTurnEndsWhenTheSandboxExitsEarly(t *testing.T) {
 
 func TestAgentCapAndMissingKey(t *testing.T) {
 	t.Parallel()
-	w := newAgentWorld(t)
+	w := newAgentWorld(t, labFiles)
 	w.owner.must("AgentService/SetAgentSettings", map[string]any{"org": "a", "turnModel": "anthropic/claude-opus-5.5",
 		"shortModel": "anthropic/claude-haiku-5.5", "monthlyCap": 0.05})
 	w.model.script(0.04, use("list_files", map[string]any{}), use("list_files", map[string]any{}), use("list_files", map[string]any{}))
@@ -498,7 +503,7 @@ func TestAgentRealModel(t *testing.T) {
 	if key == "" {
 		t.Skip("set STACKWRIGHT_TEST_OPENROUTER_KEY to run the agent against a real model")
 	}
-	w := newAgentWorld(t)
+	w := newAgentWorld(t, labFiles)
 	w.agent.Model = agent.OpenRouter{URL: "https://openrouter.ai/api/v1", HTTP: &http.Client{Timeout: 5 * time.Minute}}
 	w.owner.must("AgentService/SetAgentSettings", map[string]any{"org": "a", "apiKey": key,
 		"turnModel": "anthropic/claude-opus-5.5", "shortModel": "anthropic/claude-haiku-5.5", "monthlyCap": 3})

@@ -36,3 +36,4 @@ line to the old one that points to the new one.
 | [0028](0028-live-apply-and-replay.md) | Live apply and replay: the run page splits, one reducer, gaps capped at 2 s |
 | [0029](0029-sidebar-navigation.md) | A collapsible sidebar instead of the toolbar and workspace tabs; the plan graph on the run page only |
 | [0030](0030-agent-sessions.md) | Agent sessions: the toolbox, the Git proxy and the cap |
+| [0031](0031-agent-plans-and-pull-requests.md) | Agent plans are plan-only runs that nothing can apply; pull requests need a person |

@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"maps"
 	"net/http"
@@ -51,6 +52,7 @@ type fakeGitHub struct {
 	nextID       int64
 	comments     map[int64]string
 	commentPosts int
+	pulls        []fakePull
 	// gitRoot holds bare repositories, served with git http-backend.
 	gitRoot string
 	git     http.Handler
@@ -59,6 +61,12 @@ type fakeGitHub struct {
 type fakeRepo struct {
 	ID       int64
 	FullName string
+}
+
+type fakePull struct {
+	Path, Token             string
+	Head, Base, Title, Body string
+	Draft                   bool
 }
 
 type fakeCheck struct {
@@ -278,6 +286,12 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.HeadSHA = old.HeadSHA
 		f.checks[id] = &c
 		f.json(w, map[string]any{"id": id})
+	case r.Method == http.MethodPost && strings.HasSuffix(p, "/pulls"):
+		var in fakePull
+		_ = json.Unmarshal(body, &in)
+		in.Path, in.Token = p, strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		f.pulls = append(f.pulls, in)
+		f.json(w, map[string]any{"number": len(f.pulls), "html_url": fmt.Sprintf("%s%s/%d", f.srv.URL, strings.TrimPrefix(p, "/repos"), len(f.pulls))})
 	case r.Method == http.MethodPost && strings.HasSuffix(p, "/comments"):
 		f.nextID++
 		var in map[string]string

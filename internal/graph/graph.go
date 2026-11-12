@@ -113,7 +113,7 @@ func parse(planJSON, sourcesJSON []byte) (*builder, error) {
 	}
 	b.addModule("", &p.Configuration.RootModule)
 	for _, rc := range p.ResourceChanges {
-		module := stripKeys(rc.ModuleAddress)
+		module := StripKeys(rc.ModuleAddress)
 		id := join(module, resourceAddress(rc.Mode, rc.Type, rc.Name))
 		n := b.node(id, module, rc.Mode, rc.Type, rc.Name)
 		n.Instances++
@@ -243,7 +243,7 @@ func (b *builder) resolve(module, ref string, seen map[string]bool) []string {
 		return nil
 	}
 	seen[key] = true
-	parts := strings.Split(stripKeys(ref), ".")
+	parts := strings.Split(StripKeys(ref), ".")
 	if len(parts) < 2 {
 		return nil
 	}
@@ -321,9 +321,9 @@ func references(exprs ...json.RawMessage) []string {
 	}
 	all := slices.Clone(out)
 	return slices.DeleteFunc(out, func(ref string) bool {
-		bare := stripKeys(ref)
+		bare := StripKeys(ref)
 		return strings.HasPrefix(bare, "module.") && strings.Count(bare, ".") == 1 &&
-			slices.ContainsFunc(all, func(r string) bool { return strings.HasPrefix(stripKeys(r), bare+".") })
+			slices.ContainsFunc(all, func(r string) bool { return strings.HasPrefix(StripKeys(r), bare+".") })
 	})
 }
 
@@ -393,9 +393,10 @@ func callName(id string) string {
 	return id[strings.LastIndex(id, "module.")+len("module."):]
 }
 
-// stripKeys removes instance keys: `module.a["x.y"].b[0]` becomes
-// `module.a.b`. A key in quotes may hold dots and brackets.
-func stripKeys(addr string) string {
+// StripKeys removes instance keys, which gives an address's node id:
+// `module.a["x.y"].b[0]` becomes `module.a.b`. A key in quotes may hold
+// dots and brackets.
+func StripKeys(addr string) string {
 	var out strings.Builder
 	depth, quoted, escaped := 0, false, false
 	for _, c := range addr {

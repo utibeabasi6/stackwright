@@ -123,7 +123,7 @@ func (s *Service) checkoutOrder(ctx context.Context, id, orgID string) (*v1.Chec
 	if err != nil {
 		return nil, err
 	}
-	if c.Engine, err = s.Jobs.EngineDownload(ctx, eng, version, platform, remote); err != nil {
+	if c.Engine, err = s.Hooks.EngineDownload(ctx, eng, version, platform, remote); err != nil {
 		return nil, err
 	}
 	c.EngineName = "tofu"

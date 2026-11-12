@@ -149,12 +149,15 @@ type NewRun struct {
 	SourceName  string
 	SourceSHA   string
 	CreatedBy   string
-	// Trigger is "ui", "pull_request" or "push". The others need a commit.
-	Trigger   string
-	CommitSHA string
-	Branch    string
-	PRNumber  int
-	RepoID    string
+	// Trigger is "ui", "pull_request", "push" or "agent". Pull requests and
+	// pushes need a commit; an agent run needs AgentSessionID and is
+	// plan-only.
+	Trigger        string
+	AgentSessionID string
+	CommitSHA      string
+	Branch         string
+	PRNumber       int
+	RepoID         string
 }
 
 // Create queues a run. tx needs the org setting.
@@ -180,10 +183,11 @@ func (o *Orchestrator) Create(ctx context.Context, tx pgx.Tx, orgID string, r Ne
 		trigger = "ui"
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO runs (id, org_id, workspace_id, number, plan_only, source, source_sha256, created_by,
-		trigger, commit_sha, branch, pr_number, repo_id, source_key)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, nullif($8, '')::uuid, $9, nullif($10, ''), nullif($11, ''), nullif($12, 0), nullif($13, '')::uuid, nullif($14, ''))`,
+		trigger, commit_sha, branch, pr_number, repo_id, source_key, agent_session_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, nullif($8, '')::uuid, $9, nullif($10, ''), nullif($11, ''), nullif($12, 0), nullif($13, '')::uuid, nullif($14, ''),
+			nullif($15, '')::uuid)`,
 		runID, orgID, r.WorkspaceID, number, r.PlanOnly, r.SourceName, r.SourceSHA, r.CreatedBy,
-		trigger, r.CommitSHA, r.Branch, r.PRNumber, r.RepoID, r.SourceKey); err != nil {
+		trigger, r.CommitSHA, r.Branch, r.PRNumber, r.RepoID, r.SourceKey, r.AgentSessionID); err != nil {
 		return "", 0, err
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO run_queue (run_id, org_id) VALUES ($1, $2)`, runID, orgID); err != nil {

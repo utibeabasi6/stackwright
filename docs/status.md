@@ -768,3 +768,71 @@ and a coloured diff, and a composer pinned at the bottom where Enter sends
 and Shift+Enter breaks a line. Web tests cover the composer and the
 proposal; on the dev stack it was looked at in both themes with a real
 session.
+
+## Phase 12: Agent plans and pull requests
+
+Decisions: [0031](adr/0031-agent-plans-and-pull-requests.md).
+
+**Verified on 2026-11-12**, in Go tests with real Docker sandboxes, the fake
+GitHub's Git server, OpenTofu 1.10.7 and a scripted model:
+- The broken fixture (a misspelt argument and a reference to a resource
+  that does not exist) reaches a clean plan in 3 plans. Plans 1 and 2 fail
+  and their results name `main.tf` and its lines; plan 3 reports "1 to
+  add" and `create random_pet.web`. Each is a run with trigger `agent`,
+  plan-only, with the session's id.
+- An agent plan cannot be applied: `ApproveRun` answers
+  `failed_precondition`, and the database refuses, as check violations, a
+  status of `needs_approval`, `plan_only = false`, and an apply job written
+  by hand for its plan.
+- `go list -deps` of the agent package has no `api`, `server`, `runs`,
+  `jobs`, `state`, `github`, `executor` or `toolbox`. The test is part of
+  `make test-go`, which CI runs; CI itself has not run, as the repository
+  has no remote.
+- With a sensitive workspace variable and a real `random_password` from an
+  applied run: `plan_details` shows `result: (sensitive) -> (known after
+  apply)` and the changed `input.user`; `state_lookup` shows `result =
+  (sensitive)` and `input.password = (sensitive)`. Neither the variable nor
+  the generated password is anywhere in the stored transcript.
+- A pull request before a push is refused. After "Commit and push", a
+  proposed pull request waits; nothing reaches GitHub until "Open pull
+  request". Then the fake GitHub has one pull request from the session's
+  branch to main, not a draft, with the installation token, and its body
+  says "Owner approved opening it." No ref moved. A second one is refused.
+- Web tests: "Ask agent to fix" on a plan error sends the error to the
+  open session, or starts one when none can take a message; a viewer on
+  an unlinked project sees no button; the pull request card opens the pull
+  request only on a click.
+
+`go test -race ./...` passes. The three new engine tests run one at a
+time: run in parallel with the rest of the package, a plan sat in
+"planning" past the 4-minute wait in 2 of 4 runs. The timeline test's
+latency limit and the GitHub test's pull request comment each failed once. Alone, or with the package's other tests
+serial, they pass. Machine load is the likely cause; it is not proven.
+
+**Against the real model** (`TestAgentPlansRealModel`, Claude Opus 5.5
+through OpenRouter with the user's key, $0.027 over 5 model calls, one
+run):
+- On the broken fixture it ran a plan, read `main.tf`, fixed both errors
+  in one write, and the second plan was clean ("1 to add"). Both runs were
+  plan-only agent runs. It then proposed a commit, and nothing reached
+  GitHub before the approval.
+- Asked to open a pull request after the push, it proposed one with a
+  title and a body that lists both fixes and the plan. Nothing opened
+  until the approval; then the fake GitHub had one pull request, whose body
+  ends "Owner approved opening it."
+- One run shows that the path works, not how often the model gets there.
+  Phase 13's evals measure that.
+
+**Not verified:**
+- A live session on the dev stack: the Lima build server needs the new
+  executor image, whose toolbox can pack the checkout.
+- The 30-minute turn limit; only the code path is there.
+- A click on "Ask agent to fix" on the dev stack. On the AWS lab's failed
+  run #2, in the browser pane (dark), the button shows under the apply
+  error in the timeline and in the failed Lambda node's diagnostic; a
+  click would start a real session.
+
+**Known gaps:**
+- A turn that stops while its plan runs leaves the plan running; it ends
+  on its own.
+- `state_lookup` reads the state as the workspace's newest plan read it.

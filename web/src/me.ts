@@ -8,6 +8,9 @@ export type ShellState = {
   reloadProjects: () => void;
   waitingVersion: number;
   reloadWaiting: () => void;
+  // askAgent opens the agent panel and sends text to the workspace's newest
+  // session that can take a message, or starts one.
+  askAgent: (text: string) => void;
 };
 
 export const ShellContext = createContext<ShellState | undefined>(undefined);

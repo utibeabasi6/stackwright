@@ -17,6 +17,7 @@ import { graphApi } from "../api";
 import { PlanAction, type GetPlanGraphResponse, type PlanGroup, type SourceLocation } from "../gen/stackwright/v1/graph_pb";
 import { useLoad } from "../useLoad";
 import { actionInfo, countsText, summaryText } from "./actions";
+import { AskAgent } from "../agent/AgentPanel";
 import type { Diagnostic, NodeStatus } from "./apply";
 import { boxes, layout, nodeHeight, nodeWidth, place, visible, type Item, type Point, type View } from "./layout";
 
@@ -407,6 +408,11 @@ function NodePanel({ org, project, workspace, number, id, baseUrl, status, diagn
           <strong>{dg.summary}</strong>
           {dg.file && <div className="mono">{`${dg.file}:${dg.line}`}</div>}
           {dg.detail && <pre className="mono">{dg.detail}</pre>}
+          <AskAgent
+            org={org}
+            project={project}
+            prompt={`Applying ${id} in run #${number} failed. Fix the code if the code causes it.\n\n${dg.summary}${dg.file ? ` (${dg.file}:${dg.line})` : ""}${dg.detail ? `\n${dg.detail}` : ""}`}
+          />
         </div>
       ))}
       <SourceLink source={d.node.source} baseUrl={baseUrl} />

@@ -1458,3 +1458,8 @@ details.card summary {
   white-space: pre-wrap;
   color: var(--ink);
 }
+
+button.ask-agent {
+  display: block;
+  margin-top: var(--space-1);
+}

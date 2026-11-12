@@ -139,7 +139,7 @@ func runServer(args []string) error {
 	}
 	orchestrator := &runs.Orchestrator{Pool: pool, KEK: kek, S3: s3, Bucket: bucket, Jobs: jobService, Hub: hub, NATS: nc}
 	jobService.OnEnd = orchestrator.JobEnded
-	agentService := &agent.Service{Pool: pool, KEK: kek, Hub: hub, Jobs: jobService, IdleAfter: 30 * time.Minute,
+	agentService := &agent.Service{Pool: pool, KEK: kek, Hub: hub, IdleAfter: 30 * time.Minute,
 		Model: agent.OpenRouter{URL: strings.TrimRight(config.Env("STACKWRIGHT_OPENROUTER_URL", "https://openrouter.ai/api/v1"), "/"),
 			HTTP: &http.Client{Timeout: 10 * time.Minute}}}
 	hub.OnExit = func(jobID string, st *v1.SandboxStatus) {
