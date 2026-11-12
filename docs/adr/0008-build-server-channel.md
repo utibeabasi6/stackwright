@@ -1,6 +1,8 @@
 # 0008 — Build servers dial out over gRPC with mTLS
 
-**Status:** Accepted, 2026-11-11.
+**Status:** Accepted, 2026-11-11. [0021](0021-build-server-enrolment.md)
+supersedes "HTTPS on port 443" and "a trusted certificate": builders use
+port 8443 with Stackwright's own CA.
 
 ## Context
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/stackwright/stackwright/internal/executor"
@@ -24,6 +25,18 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	cache := ""
+	if fi, err := os.Stat(sandbox.CacheDir); err == nil && fi.IsDir() {
+		cache = sandbox.CacheDir
+	}
+	if len(os.Args) == 2 && os.Args[1] == "mirror" {
+		if err := mirror(ctx, cache); err != nil {
+			slog.Error("mirror providers", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	serverURL := os.Getenv("STACKWRIGHT_SERVER_URL")
 	ticketFile := filepath.Join(sandbox.FilesDir, "ticket")
 	ticket, err := os.ReadFile(ticketFile) //nolint:gosec // a fixed path
@@ -34,8 +47,29 @@ func main() {
 	if err := os.Remove(ticketFile); err != nil {
 		slog.Warn("remove the ticket file", "err", err)
 	}
-	if err := executor.Run(ctx, serverURL, string(ticket), "/work"); err != nil {
+	if err := executor.Run(ctx, serverURL, string(ticket), "/work", cache); err != nil {
 		slog.Error("job failed", "err", err)
 		os.Exit(1)
 	}
+}
+
+// mirror reads its engine as "sha256 name" and its providers one a line.
+func mirror(ctx context.Context, cache string) error {
+	if cache == "" {
+		return fmt.Errorf("no cache at %s", sandbox.CacheDir)
+	}
+	engine, err := os.ReadFile(filepath.Join(sandbox.FilesDir, "engine"))
+	if err != nil {
+		return err
+	}
+	providers, err := os.ReadFile(filepath.Join(sandbox.FilesDir, "providers"))
+	if err != nil {
+		return err
+	}
+	sha, name, ok := strings.Cut(strings.TrimSpace(string(engine)), " ")
+	if !ok {
+		return fmt.Errorf("engine file %q is not \"sha256 name\"", engine)
+	}
+	path := filepath.Join(cache, "engines", filepath.Base(sha), filepath.Base(name))
+	return executor.Mirror(ctx, path, sha, strings.Split(strings.TrimSpace(string(providers)), "\n"), cache, "/work")
 }

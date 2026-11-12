@@ -1,6 +1,7 @@
 # 0007 — Sandbox backends and build servers
 
-**Status:** Accepted, 2026-11-11.
+**Status:** Accepted, 2026-11-11. [0021](0021-build-server-enrolment.md)
+supersedes "installs Docker if it is missing": enrolment stops instead.
 
 ## Context
 

@@ -11,7 +11,8 @@ commit that finishes a phase.
 | 2 | Done, reviewed 2026-11-11 |
 | 3 | Done, reviewed 2026-11-11 |
 | 4 | Done, reviewed 2026-11-11 |
-| 5 | Built, waiting for review |
+| 5 | Done, reviewed 2026-11-12 |
+| 6 | Built, waiting for review |
 
 ## Phase 0: Repository and compose
 
@@ -278,3 +279,67 @@ On the compose stack, in the browser pane (OrbStack, dark and light):
 - The run timeline shows engine lines as they arrive. Phase 9 draws the
   plan as a graph.
 
+## Phase 6: Build servers
+
+Decisions: [0021](adr/0021-build-server-enrolment.md).
+
+**Verified on 2026-11-12**, in Go tests with the race detector, real Docker,
+Postgres, NATS and RustFS:
+- A container with sshd and the host's Docker socket is enrolled over SSH.
+  The install copies the builder, enrols it, starts it, and runs a test
+  sandbox. Three plans then run there.
+- A wrong host key stops the enrolment, and the builder is not on the host.
+  A host with no Docker stops it with "no Docker on", and nothing is
+  installed.
+- With builders labelled `region=eu` and `region=us`, a workspace that
+  requires `region=eu` runs on eu. A plan already on eu finishes after eu
+  starts draining. The next run waits with a `run.waiting` event and no
+  build server, then runs on eu after eu resumes.
+- A removed build server's stream closes within 5 s, it leaves the list, and
+  its certificate is refused on reconnect.
+- A builder two minor versions behind connects and shows the upgrade
+  warning. Three behind, or another major version, is refused.
+- A renewal on the stream returns a certificate from the CA for the same
+  server, lasting 24 hours, and records it.
+- `Connect` with no client certificate is refused on the server port and on
+  the builder port. An enrol token works once.
+- The third plan on the SSH host used the cached engine, and OpenTofu
+  installed `random` from the read-only provider cache ("unauthenticated",
+  which is how OpenTofu marks a filesystem mirror).
+- A sandbox cannot write the cache. A sandbox with no cache sees none. A
+  missing image is pulled; an image no registry has gives `ErrNoSuchImage`.
+- The audit test covers the six new writes; the policy tests cover the new
+  RPCs.
+
+On the compose stack, in the browser pane (OrbStack), with a Lima VM
+(`docker-rootful`, vz, aarch64, Docker 29.9.3, systemd):
+- The built-in builder enrols with the join token and connects over mTLS on
+  port 8443.
+- The VM was enrolled over SSH from the Enrol page, as the Lima user with
+  `sudo -n`, through Lima's forwarded SSH port. The fingerprint that
+  Stackwright showed matched `ssh-keygen -lf` on the VM. Every step passed,
+  the test sandbox too, and `stackwright-builder` is an active systemd
+  service on the VM.
+- With `host=lima` required on `sample › qa`, a plan ran on the VM: "on
+  build server lima", the engine from the VM's cache, and the state backend
+  reached at `host.lima.internal`.
+
+**Not verified:**
+- The join command script has not run on a machine. The tests cover its
+  token, pin and enrolment, not the shell script.
+- A renewal after a real 12 hours. The test sends the renewal message
+  itself.
+- On Linux Docker hosts, the tests reach the test server at
+  `host.docker.internal`, which OrbStack provides.
+- The VM was reached through Lima's forwarded port on the Mac, because the
+  server's container on OrbStack cannot reach the VM's vzNAT address. A
+  host on a real network was not tried.
+- The VM had the executor image loaded by hand. No registry has it yet.
+
+**Known gaps:**
+- The cache has no size limit and no eviction.
+- Providers are cached one job late (adr/0021).
+- `ScanHostKey` lets an org admin make the server connect to any host and
+  port. Phase 22 decides on a limit.
+- One server process holds the connected builders, as with the dispatcher.
+- Removing a build server does not uninstall the builder from the machine.

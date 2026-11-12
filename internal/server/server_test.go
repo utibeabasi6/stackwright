@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
@@ -27,6 +29,7 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/builder"
 	"github.com/stackwright/stackwright/internal/builders"
 	"github.com/stackwright/stackwright/internal/engine"
 	"github.com/stackwright/stackwright/internal/jobs"
@@ -42,7 +45,8 @@ const (
 	password  = "correct horse battery"
 	issuer    = "http://127.0.0.1:18071/default"
 
-	builderToken = "builder-test-token"
+	builderToken  = "builder-test-token"
+	serverVersion = "v0.6.0"
 )
 
 type world struct {
@@ -54,6 +58,9 @@ type world struct {
 	public string
 	jobs   *jobs.Service
 	runs   *runs.Orchestrator
+	hub    *builders.Hub
+	// builderLocal is the builder port as the test process reaches it.
+	builderLocal string
 }
 
 func newWorld(t *testing.T, web fstest.MapFS) *world {
@@ -63,6 +70,16 @@ func newWorld(t *testing.T, web fstest.MapFS) *world {
 // start with engines listens on every interface, so containers can reach the
 // server through host.docker.internal.
 func start(t *testing.T, web fstest.MapFS, engines bool) *world {
+	return startWith(t, web, engines, nil)
+}
+
+// startWith hands out binaries from the builder port. Without them, it hands
+// out an empty file, which is enough to make a join command.
+func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string]builders.Binary) *world {
+	if binaries == nil {
+		empty := builders.Binary{Path: "/dev/null", SHA256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+		binaries = map[string]builders.Binary{"linux_amd64": empty, "linux_arm64": empty}
+	}
 	d := testenv.New(t)
 	s3, bucket := testenv.S3(t)
 	key := make([]byte, 32)
@@ -96,21 +113,38 @@ func start(t *testing.T, web fstest.MapFS, engines bool) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	js := &jobs.Service{Pool: d.App, KEK: kek, S3: s3, Presign: presign, Bucket: bucket,
+	js := &jobs.Service{Pool: d.App, KEK: kek, S3: s3, Presign: presign, PresignRemote: presign, Bucket: bucket,
 		Engines: &engine.Mirror{Pool: d.App, S3: s3, Bucket: bucket, HTTP: http.DefaultClient}}
-	hub := &builders.Hub{}
+	ca, err := builders.LoadCA(context.Background(), d.App, kek)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bl, err := net.Listen("tcp", "0.0.0.0:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	builderPort := bl.Addr().(*net.TCPAddr).Port
+	hub := &builders.Hub{Pool: d.App, CA: ca, BuiltInToken: builderToken, Version: serverVersion,
+		BuilderURL: fmt.Sprintf("https://host.docker.internal:%d", builderPort),
+		Images:     map[string]string{"docker": executorImage}, ServerURL: public, BuiltInServerURL: public}
 	orch := &runs.Orchestrator{Pool: d.App, KEK: kek, S3: s3, Bucket: bucket, Jobs: js, Hub: hub, NATS: testenv.NATS(t)}
 	js.OnEnd, hub.OnExit = orch.JobEnded, orch.SandboxExited
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go orch.Run(ctx)
 	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
-		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, BuilderToken: builderToken}
+		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries}
 	if web != nil {
 		cfg.Web = web
 	}
 	srv.Config.Handler = server.New(cfg)
-	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public, jobs: js, runs: orch}
+	bsrv := &http.Server{Handler: server.NewBuilderPort(cfg), ReadHeaderTimeout: 10 * time.Second}
+	go func() {
+		_ = bsrv.Serve(tls.NewListener(bl, ca.TLSConfig([]string{"127.0.0.1", "host.docker.internal", "localhost"})))
+	}()
+	t.Cleanup(func() { _ = bsrv.Close() })
+	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public, jobs: js, runs: orch, hub: hub,
+		builderLocal: fmt.Sprintf("https://127.0.0.1:%d", builderPort)}
 }
 
 type client struct {
@@ -209,6 +243,7 @@ func methods() []method {
 		v1.File_stackwright_v1_instance_proto, v1.File_stackwright_v1_meta_proto,
 		v1.File_stackwright_v1_projects_proto, v1.File_stackwright_v1_state_proto,
 		v1.File_stackwright_v1_executor_proto, v1.File_stackwright_v1_runs_proto, v1.File_stackwright_v1_builder_proto,
+		v1.File_stackwright_v1_build_servers_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -555,6 +590,34 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 			owner.must(procedure, map[string]any{"org": "a", "project": "sample", "workspace": "dev", "number": i + 1})
 		})
 	}
+	org := map[string]any{"org": "a"}
+	var cmd string
+	step("BuildServerService/CreateJoinCommand", func() {
+		cmd = owner.must("BuildServerService/CreateJoinCommand", map[string]any{"org": "a", "name": "audited", "slots": 1})["command"].(string)
+	})
+	var id *builder.Identity
+	step("BuilderService/Enrol", func() {
+		var err error
+		if id, err = builder.Enrol(context.Background(), builder.PlainClient(w.srv.URL), joinToken.FindStringSubmatch(cmd)[1], 0, nil, "", ""); err != nil {
+			t.Fatal(err)
+		}
+	})
+	step("BuildServerService/UpdateBuildServer", func() {
+		owner.must("BuildServerService/UpdateBuildServer", map[string]any{"org": "a", "id": id.ServerID, "slots": 3})
+	})
+	step("BuildServerService/RemoveBuildServer", func() {
+		owner.must("BuildServerService/RemoveBuildServer", map[string]any{"org": "a", "id": id.ServerID})
+	})
+	step("BuildServerService/GetSSHKey", func() { owner.must("BuildServerService/GetSSHKey", org) })
+	port := fakeSSHHost(t)
+	step("BuildServerService/ScanHostKey", func() {
+		owner.must("BuildServerService/ScanHostKey", map[string]any{"org": "a", "host": "127.0.0.1", "port": port})
+	})
+	step("BuildServerService/EnrolOverSSH", func() {
+		if _, _, err := enrolOverSSH(owner, map[string]any{"name": "audited-ssh", "port": port, "hostKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"}); err == nil {
+			t.Error("enrol with a wrong host key passed")
+		}
+	})
 	second := w.client()
 	step("AuthService/SignIn", func() {
 		second.must("AuthService/SignIn", map[string]any{"email": "owner@a.test", "password": password})

@@ -33,12 +33,18 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// BuilderServiceEnrolProcedure is the fully-qualified name of the BuilderService's Enrol RPC.
+	BuilderServiceEnrolProcedure = "/stackwright.v1.BuilderService/Enrol"
 	// BuilderServiceConnectProcedure is the fully-qualified name of the BuilderService's Connect RPC.
 	BuilderServiceConnectProcedure = "/stackwright.v1.BuilderService/Connect"
 )
 
 // BuilderServiceClient is a client for the stackwright.v1.BuilderService service.
 type BuilderServiceClient interface {
+	// Enrol spends a one-time enrol token, or takes the built-in builder's
+	// join token, and signs the CSR. It needs no client certificate.
+	Enrol(context.Context, *connect.Request[v1.EnrolRequest]) (*connect.Response[v1.EnrolResponse], error)
+	// Connect needs the client certificate from Enrol.
 	Connect(context.Context) *connect.BidiStreamForClient[v1.ConnectRequest, v1.ConnectResponse]
 }
 
@@ -53,6 +59,12 @@ func NewBuilderServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	builderServiceMethods := v1.File_stackwright_v1_builder_proto.Services().ByName("BuilderService").Methods()
 	return &builderServiceClient{
+		enrol: connect.NewClient[v1.EnrolRequest, v1.EnrolResponse](
+			httpClient,
+			baseURL+BuilderServiceEnrolProcedure,
+			connect.WithSchema(builderServiceMethods.ByName("Enrol")),
+			connect.WithClientOptions(opts...),
+		),
 		connect: connect.NewClient[v1.ConnectRequest, v1.ConnectResponse](
 			httpClient,
 			baseURL+BuilderServiceConnectProcedure,
@@ -64,7 +76,13 @@ func NewBuilderServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // builderServiceClient implements BuilderServiceClient.
 type builderServiceClient struct {
+	enrol   *connect.Client[v1.EnrolRequest, v1.EnrolResponse]
 	connect *connect.Client[v1.ConnectRequest, v1.ConnectResponse]
+}
+
+// Enrol calls stackwright.v1.BuilderService.Enrol.
+func (c *builderServiceClient) Enrol(ctx context.Context, req *connect.Request[v1.EnrolRequest]) (*connect.Response[v1.EnrolResponse], error) {
+	return c.enrol.CallUnary(ctx, req)
 }
 
 // Connect calls stackwright.v1.BuilderService.Connect.
@@ -74,6 +92,10 @@ func (c *builderServiceClient) Connect(ctx context.Context) *connect.BidiStreamF
 
 // BuilderServiceHandler is an implementation of the stackwright.v1.BuilderService service.
 type BuilderServiceHandler interface {
+	// Enrol spends a one-time enrol token, or takes the built-in builder's
+	// join token, and signs the CSR. It needs no client certificate.
+	Enrol(context.Context, *connect.Request[v1.EnrolRequest]) (*connect.Response[v1.EnrolResponse], error)
+	// Connect needs the client certificate from Enrol.
 	Connect(context.Context, *connect.BidiStream[v1.ConnectRequest, v1.ConnectResponse]) error
 }
 
@@ -84,6 +106,12 @@ type BuilderServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewBuilderServiceHandler(svc BuilderServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	builderServiceMethods := v1.File_stackwright_v1_builder_proto.Services().ByName("BuilderService").Methods()
+	builderServiceEnrolHandler := connect.NewUnaryHandler(
+		BuilderServiceEnrolProcedure,
+		svc.Enrol,
+		connect.WithSchema(builderServiceMethods.ByName("Enrol")),
+		connect.WithHandlerOptions(opts...),
+	)
 	builderServiceConnectHandler := connect.NewBidiStreamHandler(
 		BuilderServiceConnectProcedure,
 		svc.Connect,
@@ -92,6 +120,8 @@ func NewBuilderServiceHandler(svc BuilderServiceHandler, opts ...connect.Handler
 	)
 	return "/stackwright.v1.BuilderService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case BuilderServiceEnrolProcedure:
+			builderServiceEnrolHandler.ServeHTTP(w, r)
 		case BuilderServiceConnectProcedure:
 			builderServiceConnectHandler.ServeHTTP(w, r)
 		default:
@@ -102,6 +132,10 @@ func NewBuilderServiceHandler(svc BuilderServiceHandler, opts ...connect.Handler
 
 // UnimplementedBuilderServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedBuilderServiceHandler struct{}
+
+func (UnimplementedBuilderServiceHandler) Enrol(context.Context, *connect.Request[v1.EnrolRequest]) (*connect.Response[v1.EnrolResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.BuilderService.Enrol is not implemented"))
+}
 
 func (UnimplementedBuilderServiceHandler) Connect(context.Context, *connect.BidiStream[v1.ConnectRequest, v1.ConnectResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.BuilderService.Connect is not implemented"))

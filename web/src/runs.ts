@@ -51,6 +51,15 @@ export function describeEvent(e: RunEvent): Line {
       return { text: `Queued${by}, from ${p.source}${p.plan_only ? ", plan only" : ""}` };
     case "run.planning":
       return { text: "The workspace is free; waiting for a build server" };
+    case "run.waiting": {
+      const labels = Object.entries((p.labels as Record<string, string>) ?? {}).map(([k, v]) => `${k}=${v}`);
+      return {
+        text: labels.length
+          ? `Waits for a build server with ${labels.join(", ")} and a free slot`
+          : "Waits for a build server with a free slot",
+        tone: "warn",
+      };
+    }
     case "run.dispatched":
       return { text: `Sent the ${p.operation} to build server ${p.build_server}` };
     case "run.summary":
@@ -76,7 +85,11 @@ export function describeEvent(e: RunEvent): Line {
     case "executor.started":
       return { text: `Sandbox started: ${engineNames[String(p.engine)] ?? p.engine} ${p.version}` };
     case "executor.engine_ready":
-      return { text: "The engine binary matches its signed checksum" };
+      return {
+        text: p.cached
+          ? "The engine binary from the build server's cache matches its signed checksum"
+          : "The engine binary matches its signed checksum",
+      };
     case "executor.failed":
       return { text: `! ${p.stage} failed: ${p.error}`, tone: "error" };
     case "executor.finished":

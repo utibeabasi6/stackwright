@@ -3,13 +3,22 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { message, projectApi, runApi } from "../api";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run } from "../gen/stackwright/v1/runs_pb";
+import { formatLabels, parseLabels } from "../labels";
 import { useShell } from "../me";
 import { runTitle, statusOf } from "../runs";
 import { useLoad } from "../useLoad";
 
-type Props = { org: string; project: string; workspace: string; sample: boolean; autoApply: boolean; reload: () => void };
+type Props = {
+  org: string;
+  project: string;
+  workspace: string;
+  sample: boolean;
+  autoApply: boolean;
+  requiredLabels: Record<string, string>;
+  reload: () => void;
+};
 
-export function RunsPanel({ org, project, workspace, sample, autoApply, reload }: Props) {
+export function RunsPanel({ org, project, workspace, sample, autoApply, requiredLabels, reload }: Props) {
   const { me, reloadWaiting } = useShell();
   const navigate = useNavigate();
   const runs = useLoad(`runs:${org}/${project}/${workspace}`, () => runApi.listRuns({ org, project, workspace }).then((r) => r.runs));
@@ -44,15 +53,20 @@ export function RunsPanel({ org, project, workspace, sample, autoApply, reload }
     }
   };
 
-  const setAutoApply = async (on: boolean) => {
+  const update = async (change: Parameters<typeof projectApi.updateWorkspace>[0]) => {
     setError(undefined);
     try {
-      await projectApi.updateWorkspace({ org, project, workspace, autoApply: on });
+      await projectApi.updateWorkspace({ org, project, workspace, ...change });
       reload();
     } catch (err) {
       setError(message(err));
     }
   };
+  const saveLabels = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    void update({ requiredLabels: { values: parseLabels(String(new FormData(e.currentTarget).get("labels"))) } });
+  };
+  const labels = formatLabels(requiredLabels);
 
   return (
     <>
@@ -101,7 +115,8 @@ export function RunsPanel({ org, project, workspace, sample, autoApply, reload }
                 <input name="planOnly" type="checkbox" /> Plan only, never apply
               </label>
               <p className="hint">
-                {autoApply ? "Auto-apply is on: a plan with changes applies with no approval." : "A plan with changes waits for a reviewer."}
+                {autoApply ? "Auto-apply is on: a plan with changes applies with no approval." : "A plan with changes waits for a reviewer."}{" "}
+                {labels ? `Runs go only to build servers with ${labels}.` : "Runs go to any build server."}
               </p>
               {error && <p className="error">{error}</p>}
               <div className="row">
@@ -111,10 +126,19 @@ export function RunsPanel({ org, project, workspace, sample, autoApply, reload }
               </div>
             </form>
             {role >= Role.ADMIN && (
-              <label className="check">
-                <input type="checkbox" checked={autoApply} onChange={(e) => setAutoApply(e.target.checked)} /> Auto-apply plans in this
-                workspace
-              </label>
+              <>
+                <label className="check">
+                  <input type="checkbox" checked={autoApply} onChange={(e) => update({ autoApply: e.target.checked })} /> Auto-apply plans
+                  in this workspace
+                </label>
+                <form className="row" onSubmit={saveLabels} key={labels}>
+                  <label className="field grow">
+                    <span>Build server labels this workspace requires</span>
+                    <input name="labels" defaultValue={labels} placeholder="region=eu" className="mono" />
+                  </label>
+                  <button type="submit">Save labels</button>
+                </form>
+              </>
             )}
           </section>
         )}

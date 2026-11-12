@@ -15,6 +15,13 @@ services:
       STACKWRIGHT_NATS_PASSWORD_FILE: /run/secrets/nats_password
       STACKWRIGHT_BUILDER_TOKEN_FILE: /run/secrets/builder_token
       STACKWRIGHT_PUBLIC_URL: ${STACKWRIGHT_PUBLIC_URL:-http://127.0.0.1:8080}
+      # Where remote build servers reach the builder port, and the server and
+      # S3 for their sandboxes (adr/0021).
+      STACKWRIGHT_BUILDER_URL: ${STACKWRIGHT_BUILDER_URL:-https://127.0.0.1:8443}
+      STACKWRIGHT_BUILDER_HOSTS: stackwright
+      STACKWRIGHT_SANDBOX_URL: ${STACKWRIGHT_SANDBOX_URL:-http://127.0.0.1:8080}
+      STACKWRIGHT_S3_PUBLIC_URL: ${STACKWRIGHT_S3_PUBLIC_URL:-http://127.0.0.1:9000}
+      STACKWRIGHT_EXECUTOR_IMAGE: ${STACKWRIGHT_EXECUTOR_IMAGE:-stackwright/executor:dev}
     secrets: [app_db_password, kek, s3_access_key, s3_secret_key, nats_password, builder_token]
     depends_on:
       migrate:
@@ -26,6 +33,10 @@ services:
     ports:
       # Plain HTTP. Put a TLS proxy in front before publishing beyond this host.
       - 127.0.0.1:8080:8080
+      # TLS from the builder CA, with client certificates. A proxy in front
+      # must pass TLS through. Publish it beyond this host for remote build
+      # servers.
+      - 127.0.0.1:8443:8443
     healthcheck:
       test: ["CMD", "/stackwright", "healthcheck"]
       interval: 5s
@@ -43,11 +54,14 @@ services:
     image: stackwright/builder:dev
     environment:
       STACKWRIGHT_BUILDER_TOKEN_FILE: /run/secrets/builder_token
-      STACKWRIGHT_EXECUTOR_IMAGE: stackwright/executor:dev
       STACKWRIGHT_SANDBOX_JOIN: stackwright,rustfs
+      STACKWRIGHT_BUILDER_CACHE: /cache
+      STACKWRIGHT_SANDBOX_CACHE: stackwright-builder-cache
+      STACKWRIGHT_BUILDER_LABELS: ${STACKWRIGHT_BUILDER_LABELS:-}
     secrets: [builder_token]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - builder-cache:/cache
     depends_on:
       stackwright:
         condition: service_healthy
@@ -115,6 +129,9 @@ services:
       RUSTFS_VOLUMES: /data
       RUSTFS_ADDRESS: 0.0.0.0:9000
       RUSTFS_CONSOLE_ENABLE: "false"
+    ports:
+      # Remote build servers' sandboxes fetch and upload here by presigned URL.
+      - 127.0.0.1:9000:9000
     volumes:
       - rustfs:/data
     healthcheck:
@@ -144,3 +161,5 @@ volumes:
   postgres:
   nats:
   rustfs:
+  builder-cache:
+    name: stackwright-builder-cache

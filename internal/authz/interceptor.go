@@ -2,11 +2,12 @@ package authz
 
 import (
 	"context"
-	"crypto/subtle"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -23,8 +24,12 @@ type Scope struct {
 	OrgID  string
 	Role   v1.Role
 	IP     string
-	target string
-	after  []func()
+	// BuildServerID is set for a builder's stream, and CertExpires to when
+	// its certificate ends.
+	BuildServerID string
+	CertExpires   time.Time
+	target        string
+	after         []func()
 }
 
 type scopeKey struct{}
@@ -83,8 +88,14 @@ func (s *Scope) Read(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) er
 
 type Interceptor struct {
 	Pool *pgxpool.Pool
-	// BuilderToken is the join token that the built-in builder presents.
-	BuilderToken string
+}
+
+type peerCertKey struct{}
+
+// WithPeerCertificate records a client certificate that the TLS handshake
+// verified against the builder CA.
+func WithPeerCertificate(ctx context.Context, cert *x509.Certificate) context.Context {
+	return context.WithValue(ctx, peerCertKey{}, cert)
 }
 
 // checkOrg sets the scope's org from slug, if the user's role there is min
@@ -216,11 +227,25 @@ func (i *Interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) co
 		case !ok:
 			return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("%s has no policy", procedure))
 		case rule.Access == Builder:
-			bearer, _ := strings.CutPrefix(conn.RequestHeader().Get("Authorization"), "Bearer ")
-			if i.BuilderToken == "" || subtle.ConstantTimeCompare([]byte(bearer), []byte(i.BuilderToken)) != 1 {
-				return connect.NewError(connect.CodeUnauthenticated, errors.New("the join token is wrong"))
+			cert, _ := ctx.Value(peerCertKey{}).(*x509.Certificate)
+			if cert == nil {
+				return connect.NewError(connect.CodeUnauthenticated, errors.New("a build server certificate is required"))
 			}
-			return next(ctx, conn)
+			s := &Scope{CertExpires: cert.NotAfter}
+			var orgID *string
+			err := i.Pool.QueryRow(ctx, `SELECT build_server_id, org_id FROM build_server_certs
+				WHERE serial = $1 AND build_server_id::text = $2 AND revoked_at IS NULL AND expires_at > now()`,
+				cert.SerialNumber.Text(16), cert.Subject.CommonName).Scan(&s.BuildServerID, &orgID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return connect.NewError(connect.CodeUnauthenticated, errors.New("the build server certificate is revoked or expired"))
+			}
+			if err != nil {
+				return Internal(err)
+			}
+			if orgID != nil {
+				s.OrgID = *orgID
+			}
+			return next(context.WithValue(ctx, scopeKey{}, s), conn)
 		case rule.Access == InOrg && conn.Spec().StreamType == connect.StreamTypeServer:
 			user, signedIn := auth.UserFrom(ctx)
 			if !signedIn {

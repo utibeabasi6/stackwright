@@ -10,6 +10,23 @@ import (
 // FilesDir is where a sandbox finds Spec.Files.
 const FilesDir = "/run/stackwright"
 
+// UID is the user that a sandbox's command runs as.
+const UID = 65532
+
+// CacheDir is where a sandbox finds the builder's cache, when Spec.Cache
+// asks for it.
+const CacheDir = "/cache"
+
+type CacheMode int
+
+const (
+	NoCache CacheMode = iota
+	CacheReadOnly
+	// CacheWritable is only for sandboxes that run the builder's own trusted
+	// commands, never a job's code.
+	CacheWritable
+)
+
 type Spec struct {
 	Image   string
 	Command []string
@@ -19,6 +36,7 @@ type Spec struct {
 	// here.
 	Files  map[string][]byte
 	Labels map[string]string
+	Cache  CacheMode
 }
 
 type Backend interface {

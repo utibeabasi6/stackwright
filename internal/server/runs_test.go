@@ -19,17 +19,33 @@ import (
 	"github.com/stackwright/stackwright/internal/sandbox"
 )
 
+// startBuilder starts the built-in builder in the test process.
 func (w *world) startBuilder(slots int32) {
+	w.t.Helper()
+	id, err := builder.Enrol(context.Background(), builder.PlainClient(w.srv.URL), builderToken, slots, nil, "", w.builderLocal)
+	if err != nil {
+		w.t.Fatal(err)
+	}
+	w.runBuilder(id)
+}
+
+// runBuilder runs a builder with id until the test ends, and waits until
+// it is connected.
+func (w *world) runBuilder(id *builder.Identity) {
 	w.t.Helper()
 	d, err := sandbox.NewDocker(sandbox.DockerConfig{ExtraHosts: []string{"host.docker.internal:host-gateway"}})
 	if err != nil {
 		w.t.Fatal(err)
 	}
-	b := &builder.Builder{Client: builder.Dial(w.srv.URL), Token: builderToken, Name: "test", Slots: slots,
-		Backend: d, Image: executorImage, ServerURL: w.public}
+	b := &builder.Builder{Identity: id, Backend: d, BackendName: "docker"}
 	ctx, cancel := context.WithCancel(context.Background())
 	w.t.Cleanup(cancel)
 	go b.Run(ctx)
+	wait, stop := context.WithTimeout(ctx, 30*time.Second)
+	defer stop()
+	if err := w.hub.WaitOnline(wait, id.ServerID); err != nil {
+		w.t.Fatalf("builder %s: %v", id.Name, err)
+	}
 }
 
 // runWorld has the sample project, a reviewer and a viewer, and a builder.
@@ -61,9 +77,19 @@ func dev(extra map[string]any) map[string]any {
 
 func (w *runWorld) waitRun(number int, statuses ...string) map[string]any {
 	w.t.Helper()
+	return w.waitFor(dev(nil), number, statuses...)
+}
+
+// waitFor waits until run number of workspace ws has one of statuses.
+func (w *runWorld) waitFor(ws map[string]any, number int, statuses ...string) map[string]any {
+	w.t.Helper()
 	deadline := time.Now().Add(4 * time.Minute)
 	for {
-		run := w.owner.must("RunService/GetRun", dev(map[string]any{"number": number}))["run"].(map[string]any)
+		req := map[string]any{"number": number}
+		for k, v := range ws {
+			req[k] = v
+		}
+		run := w.owner.must("RunService/GetRun", req)["run"].(map[string]any)
 		if slices.Contains(statuses, run["status"].(string)) {
 			return run
 		}
@@ -267,17 +293,6 @@ func TestRunTimelineIsLiveAndReplays(t *testing.T) {
 	}
 	if connect.CodeOf(stream.Err()) != connect.CodeUnauthenticated {
 		t.Errorf("signed out: %v", stream.Err())
-	}
-}
-
-func TestBuilderNeedsTheJoinToken(t *testing.T) {
-	w := newWorld(t, nil)
-	stream := builder.Dial(w.srv.URL).Connect(context.Background())
-	stream.RequestHeader().Set("Authorization", "Bearer wrong")
-	_ = stream.Send(&v1.ConnectRequest{Body: &v1.ConnectRequest_Hello{Hello: &v1.BuilderHello{Name: "evil", Platform: "linux_arm64", Slots: 1}}})
-	_, err := stream.Receive()
-	if connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Errorf("wrong token: %v", err)
 	}
 }
 

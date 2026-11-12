@@ -87,6 +87,7 @@ export function Run() {
             )}
             <span className="muted">
               {run.source} · started by {run.createdBy || "someone"}
+              {run.buildServer && ` · on build server ${run.buildServer}`}
             </span>
           </>
         )}

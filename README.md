@@ -29,6 +29,23 @@ enter the setup code from this command:
 docker compose logs stackwright | grep setup_code
 ```
 
+### Your own build servers
+
+Build servers are optional. To run jobs on more machines, enrol them from
+the Build servers page, over SSH or with a command you run on the machine.
+A build server needs Linux, Docker and systemd. It dials out to the
+Stackwright host, so set these in `.env` to addresses that it can reach:
+
+| Setting | Holds |
+| --- | --- |
+| `STACKWRIGHT_BUILDER_URL` | The builder port, such as `https://stackwright.example.com:8443`. It serves TLS from Stackwright's own CA, so a proxy in front must pass TLS through. |
+| `STACKWRIGHT_SANDBOX_URL` | The server, as the build server's sandboxes reach it. |
+| `STACKWRIGHT_S3_PUBLIC_URL` | The S3 endpoint, as those sandboxes reach it. |
+| `STACKWRIGHT_EXECUTOR_IMAGE` | The sandbox image that build servers pull. |
+
+Compose publishes the builder port and RustFS on 127.0.0.1 only. Publish
+them beyond this host for build servers on other machines.
+
 To reset a password when nobody can sign in:
 
 ```bash

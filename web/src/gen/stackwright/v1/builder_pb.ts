@@ -4,13 +4,93 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Download } from "./executor_pb";
+import { file_stackwright_v1_executor } from "./executor_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file stackwright/v1/builder.proto.
  */
 export const file_stackwright_v1_builder: GenFile = /*@__PURE__*/
-  fileDesc("ChxzdGFja3dyaWdodC92MS9idWlsZGVyLnByb3RvEg5zdGFja3dyaWdodC52MSKwAQoOQ29ubmVjdFJlcXVlc3QSLQoFaGVsbG8YASABKAsyHC5zdGFja3dyaWdodC52MS5CdWlsZGVySGVsbG9IABI1CgloZWFydGJlYXQYAiABKAsyIC5zdGFja3dyaWdodC52MS5CdWlsZGVySGVhcnRiZWF0SAASMAoHc2FuZGJveBgDIAEoCzIdLnN0YWNrd3JpZ2h0LnYxLlNhbmRib3hTdGF0dXNIAEIGCgRib2R5ImQKDEJ1aWxkZXJIZWxsbxIMCgRuYW1lGAEgASgJEhAKCHBsYXRmb3JtGAIgASgJEg0KBXNsb3RzGAMgASgFEg8KB3ZlcnNpb24YBCABKAkSFAoMcnVubmluZ19qb2JzGAUgAygJIhIKEEJ1aWxkZXJIZWFydGJlYXQizAEKDVNhbmRib3hTdGF0dXMSDgoGam9iX2lkGAEgASgJEjIKBXN0YXRlGAIgASgOMiMuc3RhY2t3cmlnaHQudjEuU2FuZGJveFN0YXR1cy5TdGF0ZRIRCglleGl0X2NvZGUYAyABKAUSDQoFZXJyb3IYBCABKAkiVQoFU3RhdGUSFQoRU1RBVEVfVU5TUEVDSUZJRUQQABIRCg1TVEFURV9TVEFSVEVEEAESEAoMU1RBVEVfRVhJVEVEEAISEAoMU1RBVEVfRkFJTEVEEAMidQoPQ29ubmVjdFJlc3BvbnNlEi0KBXN0YXJ0GAEgASgLMhwuc3RhY2t3cmlnaHQudjEuU3RhcnRTYW5kYm94SAASKwoEc3RvcBgCIAEoCzIbLnN0YWNrd3JpZ2h0LnYxLlN0b3BTYW5kYm94SABCBgoEYm9keSIuCgxTdGFydFNhbmRib3gSDgoGam9iX2lkGAEgASgJEg4KBnRpY2tldBgCIAEoCSIdCgtTdG9wU2FuZGJveBIOCgZqb2JfaWQYASABKAkyYAoOQnVpbGRlclNlcnZpY2USTgoHQ29ubmVjdBIeLnN0YWNrd3JpZ2h0LnYxLkNvbm5lY3RSZXF1ZXN0Gh8uc3RhY2t3cmlnaHQudjEuQ29ubmVjdFJlc3BvbnNlKAEwAULAAQoSY29tLnN0YWNrd3JpZ2h0LnYxQgxCdWlsZGVyUHJvdG9QAVpDZ2l0aHViLmNvbS9zdGFja3dyaWdodC9zdGFja3dyaWdodC9nZW4vc3RhY2t3cmlnaHQvdjE7c3RhY2t3cmlnaHR2MaICA1NYWKoCDlN0YWNrd3JpZ2h0LlYxygIOU3RhY2t3cmlnaHRcVjHiAhpTdGFja3dyaWdodFxWMVxHUEJNZXRhZGF0YeoCD1N0YWNrd3JpZ2h0OjpWMWIGcHJvdG8z");
+  fileDesc("ChxzdGFja3dyaWdodC92MS9idWlsZGVyLnByb3RvEg5zdGFja3dyaWdodC52MSKiAQoMRW5yb2xSZXF1ZXN0Eg0KBXRva2VuGAEgASgJEgsKA2NzchgCIAEoDBINCgVzbG90cxgDIAEoBRI4CgZsYWJlbHMYBCADKAsyKC5zdGFja3dyaWdodC52MS5FbnJvbFJlcXVlc3QuTGFiZWxzRW50cnkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJ4Cg1FbnJvbFJlc3BvbnNlEhcKD2J1aWxkX3NlcnZlcl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2NlcnRpZmljYXRlGAMgASgMEhYKDmNhX2NlcnRpZmljYXRlGAQgASgMEhMKC2J1aWxkZXJfdXJsGAUgASgJIuMBCg5Db25uZWN0UmVxdWVzdBItCgVoZWxsbxgBIAEoCzIcLnN0YWNrd3JpZ2h0LnYxLkJ1aWxkZXJIZWxsb0gAEjUKCWhlYXJ0YmVhdBgCIAEoCzIgLnN0YWNrd3JpZ2h0LnYxLkJ1aWxkZXJIZWFydGJlYXRIABIwCgdzYW5kYm94GAMgASgLMh0uc3RhY2t3cmlnaHQudjEuU2FuZGJveFN0YXR1c0gAEjEKBXJlbmV3GAQgASgLMiAuc3RhY2t3cmlnaHQudjEuUmVuZXdDZXJ0aWZpY2F0ZUgAQgYKBGJvZHkiZAoMQnVpbGRlckhlbGxvEhAKCHBsYXRmb3JtGAIgASgJEg8KB3ZlcnNpb24YBCABKAkSFAoMcnVubmluZ19qb2JzGAUgAygJEg8KB2JhY2tlbmQYBiABKAlKBAgBEAJKBAgDEAQiEgoQQnVpbGRlckhlYXJ0YmVhdCLMAQoNU2FuZGJveFN0YXR1cxIOCgZqb2JfaWQYASABKAkSMgoFc3RhdGUYAiABKA4yIy5zdGFja3dyaWdodC52MS5TYW5kYm94U3RhdHVzLlN0YXRlEhEKCWV4aXRfY29kZRgDIAEoBRINCgVlcnJvchgEIAEoCSJVCgVTdGF0ZRIVChFTVEFURV9VTlNQRUNJRklFRBAAEhEKDVNUQVRFX1NUQVJURUQQARIQCgxTVEFURV9FWElURUQQAhIQCgxTVEFURV9GQUlMRUQQAyIfChBSZW5ld0NlcnRpZmljYXRlEgsKA2NzchgBIAEoDCKMAQoPQ29ubmVjdFJlc3BvbnNlEi0KBXN0YXJ0GAEgASgLMhwuc3RhY2t3cmlnaHQudjEuU3RhcnRTYW5kYm94SAASKwoEc3RvcBgCIAEoCzIbLnN0YWNrd3JpZ2h0LnYxLlN0b3BTYW5kYm94SAASFQoLY2VydGlmaWNhdGUYAyABKAxIAEIGCgRib2R5IpwBCgxTdGFydFNhbmRib3gSDgoGam9iX2lkGAEgASgJEg4KBnRpY2tldBgCIAEoCRINCgVpbWFnZRgDIAEoCRISCgpzZXJ2ZXJfdXJsGAQgASgJEigKBmVuZ2luZRgFIAEoCzIYLnN0YWNrd3JpZ2h0LnYxLkRvd25sb2FkEhEKCXByb3ZpZGVycxgGIAMoCRIMCgR0ZXN0GAcgASgIIh0KC1N0b3BTYW5kYm94Eg4KBmpvYl9pZBgBIAEoCTKmAQoOQnVpbGRlclNlcnZpY2USRAoFRW5yb2wSHC5zdGFja3dyaWdodC52MS5FbnJvbFJlcXVlc3QaHS5zdGFja3dyaWdodC52MS5FbnJvbFJlc3BvbnNlEk4KB0Nvbm5lY3QSHi5zdGFja3dyaWdodC52MS5Db25uZWN0UmVxdWVzdBofLnN0YWNrd3JpZ2h0LnYxLkNvbm5lY3RSZXNwb25zZSgBMAFCwAEKEmNvbS5zdGFja3dyaWdodC52MUIMQnVpbGRlclByb3RvUAFaQ2dpdGh1Yi5jb20vc3RhY2t3cmlnaHQvc3RhY2t3cmlnaHQvZ2VuL3N0YWNrd3JpZ2h0L3YxO3N0YWNrd3JpZ2h0djGiAgNTWFiqAg5TdGFja3dyaWdodC5WMcoCDlN0YWNrd3JpZ2h0XFYx4gIaU3RhY2t3cmlnaHRcVjFcR1BCTWV0YWRhdGHqAg9TdGFja3dyaWdodDo6VjFiBnByb3RvMw", [file_stackwright_v1_executor]);
+
+/**
+ * @generated from message stackwright.v1.EnrolRequest
+ */
+export type EnrolRequest = Message<"stackwright.v1.EnrolRequest"> & {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token: string;
+
+  /**
+   * A PKCS #10 request, DER.
+   *
+   * @generated from field: bytes csr = 2;
+   */
+  csr: Uint8Array;
+
+  /**
+   * The built-in builder sets its slots and labels here. Other build
+   * servers get theirs when the enrol token is made.
+   *
+   * @generated from field: int32 slots = 3;
+   */
+  slots: number;
+
+  /**
+   * @generated from field: map<string, string> labels = 4;
+   */
+  labels: { [key: string]: string };
+};
+
+/**
+ * Describes the message stackwright.v1.EnrolRequest.
+ * Use `create(EnrolRequestSchema)` to create a new message.
+ */
+export const EnrolRequestSchema: GenMessage<EnrolRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_builder, 0);
+
+/**
+ * @generated from message stackwright.v1.EnrolResponse
+ */
+export type EnrolResponse = Message<"stackwright.v1.EnrolResponse"> & {
+  /**
+   * @generated from field: string build_server_id = 1;
+   */
+  buildServerId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * DER.
+   *
+   * @generated from field: bytes certificate = 3;
+   */
+  certificate: Uint8Array;
+
+  /**
+   * @generated from field: bytes ca_certificate = 4;
+   */
+  caCertificate: Uint8Array;
+
+  /**
+   * Where Connect is served, such as https://stackwright.example.com:8443.
+   *
+   * @generated from field: string builder_url = 5;
+   */
+  builderUrl: string;
+};
+
+/**
+ * Describes the message stackwright.v1.EnrolResponse.
+ * Use `create(EnrolResponseSchema)` to create a new message.
+ */
+export const EnrolResponseSchema: GenMessage<EnrolResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_builder, 1);
 
 /**
  * @generated from message stackwright.v1.ConnectRequest
@@ -37,6 +117,12 @@ export type ConnectRequest = Message<"stackwright.v1.ConnectRequest"> & {
      */
     value: SandboxStatus;
     case: "sandbox";
+  } | {
+    /**
+     * @generated from field: stackwright.v1.RenewCertificate renew = 4;
+     */
+    value: RenewCertificate;
+    case: "renew";
   } | { case: undefined; value?: undefined };
 };
 
@@ -45,7 +131,7 @@ export type ConnectRequest = Message<"stackwright.v1.ConnectRequest"> & {
  * Use `create(ConnectRequestSchema)` to create a new message.
  */
 export const ConnectRequestSchema: GenMessage<ConnectRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_builder, 0);
+  messageDesc(file_stackwright_v1_builder, 2);
 
 /**
  * The first message on a stream.
@@ -54,21 +140,11 @@ export const ConnectRequestSchema: GenMessage<ConnectRequest> = /*@__PURE__*/
  */
 export type BuilderHello = Message<"stackwright.v1.BuilderHello"> & {
   /**
-   * @generated from field: string name = 1;
-   */
-  name: string;
-
-  /**
    * Such as linux_arm64.
    *
    * @generated from field: string platform = 2;
    */
   platform: string;
-
-  /**
-   * @generated from field: int32 slots = 3;
-   */
-  slots: number;
 
   /**
    * @generated from field: string version = 4;
@@ -81,6 +157,13 @@ export type BuilderHello = Message<"stackwright.v1.BuilderHello"> & {
    * @generated from field: repeated string running_jobs = 5;
    */
   runningJobs: string[];
+
+  /**
+   * The sandbox backend, such as "docker".
+   *
+   * @generated from field: string backend = 6;
+   */
+  backend: string;
 };
 
 /**
@@ -88,7 +171,7 @@ export type BuilderHello = Message<"stackwright.v1.BuilderHello"> & {
  * Use `create(BuilderHelloSchema)` to create a new message.
  */
 export const BuilderHelloSchema: GenMessage<BuilderHello> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_builder, 1);
+  messageDesc(file_stackwright_v1_builder, 3);
 
 /**
  * @generated from message stackwright.v1.BuilderHeartbeat
@@ -101,7 +184,7 @@ export type BuilderHeartbeat = Message<"stackwright.v1.BuilderHeartbeat"> & {
  * Use `create(BuilderHeartbeatSchema)` to create a new message.
  */
 export const BuilderHeartbeatSchema: GenMessage<BuilderHeartbeat> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_builder, 2);
+  messageDesc(file_stackwright_v1_builder, 4);
 
 /**
  * @generated from message stackwright.v1.SandboxStatus
@@ -133,7 +216,7 @@ export type SandboxStatus = Message<"stackwright.v1.SandboxStatus"> & {
  * Use `create(SandboxStatusSchema)` to create a new message.
  */
 export const SandboxStatusSchema: GenMessage<SandboxStatus> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_builder, 3);
+  messageDesc(file_stackwright_v1_builder, 5);
 
 /**
  * @generated from enum stackwright.v1.SandboxStatus.State
@@ -164,7 +247,29 @@ export enum SandboxStatus_State {
  * Describes the enum stackwright.v1.SandboxStatus.State.
  */
 export const SandboxStatus_StateSchema: GenEnum<SandboxStatus_State> = /*@__PURE__*/
-  enumDesc(file_stackwright_v1_builder, 3, 0);
+  enumDesc(file_stackwright_v1_builder, 5, 0);
+
+/**
+ * A builder asks for a new certificate before half of its current one's
+ * life is gone.
+ *
+ * @generated from message stackwright.v1.RenewCertificate
+ */
+export type RenewCertificate = Message<"stackwright.v1.RenewCertificate"> & {
+  /**
+   * DER.
+   *
+   * @generated from field: bytes csr = 1;
+   */
+  csr: Uint8Array;
+};
+
+/**
+ * Describes the message stackwright.v1.RenewCertificate.
+ * Use `create(RenewCertificateSchema)` to create a new message.
+ */
+export const RenewCertificateSchema: GenMessage<RenewCertificate> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_builder, 6);
 
 /**
  * @generated from message stackwright.v1.ConnectResponse
@@ -185,6 +290,14 @@ export type ConnectResponse = Message<"stackwright.v1.ConnectResponse"> & {
      */
     value: StopSandbox;
     case: "stop";
+  } | {
+    /**
+     * A renewed client certificate, DER.
+     *
+     * @generated from field: bytes certificate = 3;
+     */
+    value: Uint8Array;
+    case: "certificate";
   } | { case: undefined; value?: undefined };
 };
 
@@ -193,7 +306,7 @@ export type ConnectResponse = Message<"stackwright.v1.ConnectResponse"> & {
  * Use `create(ConnectResponseSchema)` to create a new message.
  */
 export const ConnectResponseSchema: GenMessage<ConnectResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_builder, 4);
+  messageDesc(file_stackwright_v1_builder, 7);
 
 /**
  * @generated from message stackwright.v1.StartSandbox
@@ -208,6 +321,43 @@ export type StartSandbox = Message<"stackwright.v1.StartSandbox"> & {
    * @generated from field: string ticket = 2;
    */
   ticket: string;
+
+  /**
+   * The executor image for the builder's backend.
+   *
+   * @generated from field: string image = 3;
+   */
+  image: string;
+
+  /**
+   * The server's URL as the sandbox reaches it.
+   *
+   * @generated from field: string server_url = 4;
+   */
+  serverUrl: string;
+
+  /**
+   * The builder caches the engine. The executor checks its SHA-256 again.
+   *
+   * @generated from field: stackwright.v1.Download engine = 5;
+   */
+  engine?: Download | undefined;
+
+  /**
+   * Providers the workspace used last, such as
+   * "registry.opentofu.org/hashicorp/random 3.6.0". The builder caches them
+   * after the sandbox starts.
+   *
+   * @generated from field: repeated string providers = 6;
+   */
+  providers: string[];
+
+  /**
+   * A test sandbox runs the image's version command and reports its exit.
+   *
+   * @generated from field: bool test = 7;
+   */
+  test: boolean;
 };
 
 /**
@@ -215,7 +365,7 @@ export type StartSandbox = Message<"stackwright.v1.StartSandbox"> & {
  * Use `create(StartSandboxSchema)` to create a new message.
  */
 export const StartSandboxSchema: GenMessage<StartSandbox> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_builder, 5);
+  messageDesc(file_stackwright_v1_builder, 8);
 
 /**
  * The sandbox gets a graceful stop, so the engine can release its lock.
@@ -234,16 +384,29 @@ export type StopSandbox = Message<"stackwright.v1.StopSandbox"> & {
  * Use `create(StopSandboxSchema)` to create a new message.
  */
 export const StopSandboxSchema: GenMessage<StopSandbox> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_builder, 6);
+  messageDesc(file_stackwright_v1_builder, 9);
 
 /**
- * A builder holds one Connect stream open to the server. It authenticates
- * with the join token as its bearer token.
+ * Builders call this service on the builder port, which serves TLS from
+ * Stackwright's own CA (adr/0021).
  *
  * @generated from service stackwright.v1.BuilderService
  */
 export const BuilderService: GenService<{
   /**
+   * Enrol spends a one-time enrol token, or takes the built-in builder's
+   * join token, and signs the CSR. It needs no client certificate.
+   *
+   * @generated from rpc stackwright.v1.BuilderService.Enrol
+   */
+  enrol: {
+    methodKind: "unary";
+    input: typeof EnrolRequestSchema;
+    output: typeof EnrolResponseSchema;
+  },
+  /**
+   * Connect needs the client certificate from Enrol.
+   *
    * @generated from rpc stackwright.v1.BuilderService.Connect
    */
   connect: {

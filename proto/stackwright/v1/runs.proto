@@ -60,6 +60,8 @@ message Run {
   google.protobuf.Timestamp finished_at = 18;
   // The run's last event, for a reader that resumes.
   int64 last_seq = 19;
+  // The build server of the run's latest job.
+  string build_server = 20;
 }
 
 message RunEvent {

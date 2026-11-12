@@ -50,6 +50,8 @@ message Workspace {
   google.protobuf.Timestamp created_at = 2;
   // An apply starts after a plan with changes, with no approval.
   bool auto_apply = 3;
+  // A run goes only to a build server that has every one of these labels.
+  map<string, string> required_labels = 4;
 }
 
 message ListProjectsRequest {
@@ -137,7 +139,13 @@ message UpdateWorkspaceRequest {
   string org = 1;
   string project = 2;
   string workspace = 3;
-  bool auto_apply = 4;
+  optional bool auto_apply = 4;
+  Labels required_labels = 5;
+}
+
+// Labels wraps a map, so an update can tell "no change" from "none".
+message Labels {
+  map<string, string> values = 1;
 }
 
 message UpdateWorkspaceResponse {}

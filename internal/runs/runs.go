@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"sync"
 	"time"
 
@@ -26,6 +27,17 @@ import (
 	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/seal"
 )
+
+var lockEntry = regexp.MustCompile(`provider "([a-z0-9.-]+/[a-z0-9_-]+/[a-z0-9_-]+)" \{\s+version\s+=\s+"([0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z.+-]*)"`)
+
+// lockProviders lists a lock file's providers as "source version".
+func lockProviders(lock []byte) []string {
+	out := []string{}
+	for _, m := range lockEntry.FindAllSubmatch(lock, 100) {
+		out = append(out, string(m[1])+" "+string(m[2]))
+	}
+	return out
+}
 
 // Active is every status that holds its workspace.
 var Active = []string{"planning", "needs_approval", "applying"}
@@ -248,11 +260,37 @@ func (o *Orchestrator) step(ctx context.Context, runID, orgID string) error {
 }
 
 func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperation) error {
-	slot, ok := o.Hub.Reserve()
-	if !ok {
+	var labels map[string]string
+	var providers []string
+	platform := ""
+	if err := o.inOrg(ctx, r.orgID, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `SELECT required_labels, providers FROM workspaces WHERE id = $1`, r.workspaceID).
+			Scan(&labels, &providers); err != nil {
+			return err
+		}
+		if op == v1.JobOperation_JOB_OPERATION_APPLY {
+			return tx.QueryRow(ctx, `SELECT platform FROM jobs WHERE id = $1`, *r.planJobID).Scan(&platform)
+		}
 		return nil
+	}); err != nil {
+		return err
 	}
-	req := jobs.Request{OrgID: r.orgID, WorkspaceID: r.workspaceID, Operation: op, Platform: slot.Platform, RunID: r.id}
+	slot, ok := o.Hub.Reserve(r.orgID, labels, platform)
+	if !ok {
+		return o.inOrg(ctx, r.orgID, func(tx pgx.Tx) error {
+			var last string
+			if err := tx.QueryRow(ctx, `SELECT type FROM run_events WHERE run_id = $1 ORDER BY seq DESC LIMIT 1`, r.id).Scan(&last); err != nil {
+				return err
+			}
+			if last == "run.waiting" {
+				return nil
+			}
+			defer o.afterCommit(ctx, r.id)
+			return appendEvent(ctx, tx, r.id, "run.waiting", map[string]any{"labels": labels, "platform": platform}, "")
+		})
+	}
+	req := jobs.Request{OrgID: r.orgID, WorkspaceID: r.workspaceID, Operation: op, Platform: slot.Platform, RunID: r.id,
+		BuildServerID: slot.ID, Remote: slot.Remote}
 	if r.createdBy != nil {
 		req.CreatedBy = *r.createdBy
 	}
@@ -281,7 +319,8 @@ func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperatio
 		return err
 	}
 
-	jobID, ticket, err := o.Jobs.Create(ctx, req)
+	created, err := o.Jobs.Create(ctx, req)
+	jobID := created.ID
 	if err != nil {
 		slot.Release()
 		return o.inOrg(ctx, r.orgID, func(tx pgx.Tx) error {
@@ -303,7 +342,7 @@ func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperatio
 		slot.Release()
 		return errors.Join(err, o.Jobs.Abandon(ctx, jobID, "the job could not be recorded on its run"))
 	}
-	if err := slot.Start(jobID, ticket); err != nil {
+	if err := slot.Start(&v1.StartSandbox{JobId: jobID, Ticket: created.Ticket, Engine: created.Engine, Providers: providers}); err != nil {
 		return o.Jobs.Abandon(ctx, jobID, "the build server went away before the sandbox started")
 	}
 	o.Changed(r.id)
@@ -366,6 +405,16 @@ func (o *Orchestrator) JobEnded(ctx context.Context, tx pgx.Tx, jobID, status, m
 		}
 	default:
 		return nil
+	}
+
+	lock, err := o.Jobs.ReadArtifact(ctx, tx, jobID, "lock.hcl")
+	switch {
+	case err == nil || errors.Is(err, jobs.ErrNoArtifact):
+		if _, err := tx.Exec(ctx, `UPDATE workspaces SET providers = $2 WHERE id = $1`, workspaceID, lockProviders(lock)); err != nil {
+			return err
+		}
+	default:
+		slog.Warn("read the plan's lock file", "job", jobID, "err", err)
 	}
 
 	var adds, changes, destroys int

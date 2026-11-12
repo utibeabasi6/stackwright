@@ -34,14 +34,14 @@ type Config struct {
 	Jobs      *jobs.Service
 	Runs      *runs.Orchestrator
 	Builders  *builders.Hub
-	// BuilderToken is the join token of the built-in builder.
-	BuilderToken string
+	// Binaries are the builder binaries that the builder port hands out.
+	Binaries map[string]builders.Binary
 }
 
 func New(c Config) http.Handler {
 	cookies := auth.Cookies{Secure: strings.HasPrefix(c.PublicURL, "https://")}
 	signIn := &auth.SignIn{Pool: c.Pool, KEK: c.KEK, PublicURL: c.PublicURL, Cookies: cookies}
-	opts := connect.WithInterceptors(&authz.Interceptor{Pool: c.Pool, BuilderToken: c.BuilderToken})
+	opts := connect.WithInterceptors(&authz.Interceptor{Pool: c.Pool})
 
 	mux := http.NewServeMux()
 	serve := func(path string, h http.Handler) {
@@ -57,6 +57,7 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewExecutorServiceHandler(api.Executor{Jobs: c.Jobs, Changed: c.Runs.Changed}, opts))
 	serve(stackwrightv1connect.NewRunServiceHandler(api.Runs{Pool: c.Pool, Orchestrator: c.Runs}, opts, connect.WithReadMaxBytes(48<<20)))
 	serve(stackwrightv1connect.NewBuilderServiceHandler(c.Builders, opts))
+	serve(stackwrightv1connect.NewBuildServerServiceHandler(api.BuildServers{KEK: c.KEK, Hub: c.Builders, Binaries: c.Binaries}, opts))
 	mux.Handle("/state/", state.Handler{Pool: c.Pool, Store: c.State})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -86,11 +87,41 @@ func New(c Config) http.Handler {
 			files.ServeHTTP(w, r)
 		})
 	}
+	return secure(mux)
+}
+
+func secure(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "same-origin")
-		mux.ServeHTTP(w, r)
+		next.ServeHTTP(w, r)
 	})
+}
+
+// NewBuilderPort serves builders on the port whose TLS the builder CA
+// signs (adr/0021): Enrol, Connect with a client certificate, and the
+// builder binaries.
+func NewBuilderPort(c Config) http.Handler {
+	opts := connect.WithInterceptors(&authz.Interceptor{Pool: c.Pool})
+	mux := http.NewServeMux()
+	path, h := stackwrightv1connect.NewBuilderServiceHandler(c.Builders, opts)
+	mux.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.TLS != nil && len(r.TLS.VerifiedChains) > 0 {
+			r = r.WithContext(authz.WithPeerCertificate(r.Context(), r.TLS.VerifiedChains[0][0]))
+		}
+		h.ServeHTTP(w, r)
+	}))
+	mux.HandleFunc("GET /downloads/{name}", func(w http.ResponseWriter, r *http.Request) {
+		platform, ok := strings.CutPrefix(r.PathValue("name"), "stackwright-builder-")
+		bin, found := c.Binaries[platform]
+		if !ok || !found {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		http.ServeFile(w, r, bin.Path)
+	})
+	return secure(mux)
 }

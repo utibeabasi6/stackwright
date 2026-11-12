@@ -36,8 +36,9 @@ var (
 
 const mask = "(sensitive value)"
 
-// Run claims the job that ticket names and runs it in workDir.
-func Run(ctx context.Context, serverURL, ticket, workDir string) error {
+// Run claims the job that ticket names and runs it in workDir. cacheDir is
+// the builder's read-only cache, or empty.
+func Run(ctx context.Context, serverURL, ticket, workDir, cacheDir string) error {
 	serverURL = strings.TrimRight(serverURL, "/")
 	client := stackwrightv1connect.NewExecutorServiceClient(http.DefaultClient, serverURL)
 	claim := connect.NewRequest(&v1.ClaimJobRequest{})
@@ -56,7 +57,7 @@ func Run(ctx context.Context, serverURL, ticket, workDir string) error {
 	defer stopReporting()
 	go rep.run(reportCtx)
 
-	r := &runner{job: job, rep: rep, serverURL: serverURL, work: workDir}
+	r := &runner{job: job, rep: rep, serverURL: serverURL, work: workDir, cache: cacheDir}
 	r.emit("executor.started", map[string]any{
 		"operation": job.GetOperation().String(), "engine": job.GetEngine().String(), "version": job.GetEngineVersion(),
 	})
@@ -92,6 +93,7 @@ type runner struct {
 	rep        *reporter
 	serverURL  string
 	work       string
+	cache      string
 	log        bytes.Buffer
 	hasChanges bool
 }
@@ -121,21 +123,11 @@ func (r *runner) run(ctx context.Context) (err error) {
 	}()
 	job := r.job
 
-	bin, err := r.download(ctx, job.GetEngineBinary().GetUrl())
+	binPath, cached, err := r.engine(ctx)
 	if err != nil {
 		return &stageError{"engine", err}
 	}
-	if sum := sha256.Sum256(bin); hex.EncodeToString(sum[:]) != job.GetEngineBinary().GetSha256() {
-		return &stageError{"engine", ErrEngineChecksum}
-	}
-	binPath := filepath.Join(r.work, "bin", job.GetEngineBinary().GetName())
-	if err := os.MkdirAll(filepath.Dir(binPath), 0o700); err != nil {
-		return &stageError{"engine", err}
-	}
-	if err := os.WriteFile(binPath, bin, 0o700); err != nil { //nolint:gosec // the engine must be executable
-		return &stageError{"engine", err}
-	}
-	r.emit("executor.engine_ready", map[string]any{"sha256": job.GetEngineBinary().GetSha256()})
+	r.emit("executor.engine_ready", map[string]any{"sha256": job.GetEngineBinary().GetSha256(), "cached": cached})
 
 	root := filepath.Join(r.work, "src")
 	inputs := map[string][]byte{}
@@ -184,9 +176,16 @@ func (r *runner) run(ctx context.Context) (err error) {
 	if err := os.MkdirAll(home, 0o700); err != nil {
 		return &stageError{"source", err}
 	}
+	env := []string{"HOME=" + home, "TF_IN_AUTOMATION=1", "TF_INPUT=0", "TF_HTTP_PASSWORD=" + job.GetToken()}
+	if providers := filepath.Join(r.cache, "providers"); r.cache != "" && isDir(providers) {
+		config := filepath.Join(home, "cli.tfrc")
+		if err := os.WriteFile(config, fmt.Appendf(nil, "provider_installation {\n  filesystem_mirror {\n    path = %q\n  }\n  direct {}\n}\n", providers), 0o600); err != nil {
+			return &stageError{"source", err}
+		}
+		env = append(env, "TF_CLI_CONFIG_FILE="+config)
+	}
 	engine := &cli{
-		bin: binPath, dir: dir, initJSON: job.GetEngine() == v1.Engine_ENGINE_OPENTOFU, redact: r.redact,
-		env: []string{"HOME=" + home, "TF_IN_AUTOMATION=1", "TF_INPUT=0", "TF_HTTP_PASSWORD=" + job.GetToken()},
+		bin: binPath, dir: dir, initJSON: job.GetEngine() == v1.Engine_ENGINE_OPENTOFU, redact: r.redact, env: env,
 		line: func(e event) {
 			r.log.Write(e.payload)
 			r.log.WriteByte('\n')
@@ -227,6 +226,40 @@ func (r *runner) run(ctx context.Context) (err error) {
 		return &stageError{"artifacts", err}
 	}
 	return nil
+}
+
+func isDir(path string) bool {
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
+}
+
+// engine returns the engine's path: the builder's cached copy when its
+// SHA-256 matches, or else a download.
+func (r *runner) engine(ctx context.Context) (path string, cached bool, err error) {
+	d := r.job.GetEngineBinary()
+	if r.cache != "" {
+		path := filepath.Join(r.cache, "engines", d.GetSha256(), filepath.Base(d.GetName()))
+		if b, err := os.ReadFile(path); err == nil { //nolint:gosec // a path under the read-only cache
+			if sum := sha256.Sum256(b); hex.EncodeToString(sum[:]) == d.GetSha256() {
+				return path, true, nil
+			}
+		}
+	}
+	bin, err := r.download(ctx, d.GetUrl())
+	if err != nil {
+		return "", false, err
+	}
+	if sum := sha256.Sum256(bin); hex.EncodeToString(sum[:]) != d.GetSha256() {
+		return "", false, ErrEngineChecksum
+	}
+	path = filepath.Join(r.work, "bin", filepath.Base(d.GetName()))
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return "", false, err
+	}
+	if err := os.WriteFile(path, bin, 0o700); err != nil { //nolint:gosec // the engine must be executable
+		return "", false, err
+	}
+	return path, false, nil
 }
 
 func (r *runner) upload(ctx context.Context, name string, data []byte) error {

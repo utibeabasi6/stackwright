@@ -241,9 +241,11 @@ type Workspace struct {
 	Name      string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// An apply starts after a plan with changes, with no approval.
-	AutoApply     bool `protobuf:"varint,3,opt,name=auto_apply,json=autoApply,proto3" json:"auto_apply,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AutoApply bool `protobuf:"varint,3,opt,name=auto_apply,json=autoApply,proto3" json:"auto_apply,omitempty"`
+	// A run goes only to a build server that has every one of these labels.
+	RequiredLabels map[string]string `protobuf:"bytes,4,rep,name=required_labels,json=requiredLabels,proto3" json:"required_labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Workspace) Reset() {
@@ -295,6 +297,13 @@ func (x *Workspace) GetAutoApply() bool {
 		return x.AutoApply
 	}
 	return false
+}
+
+func (x *Workspace) GetRequiredLabels() map[string]string {
+	if x != nil {
+		return x.RequiredLabels
+	}
+	return nil
 }
 
 type ListProjectsRequest struct {
@@ -1154,13 +1163,14 @@ func (*ArchiveWorkspaceResponse) Descriptor() ([]byte, []int) {
 }
 
 type UpdateWorkspaceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
-	Project       string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
-	Workspace     string                 `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`
-	AutoApply     bool                   `protobuf:"varint,4,opt,name=auto_apply,json=autoApply,proto3" json:"auto_apply,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Org            string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Project        string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	Workspace      string                 `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	AutoApply      *bool                  `protobuf:"varint,4,opt,name=auto_apply,json=autoApply,proto3,oneof" json:"auto_apply,omitempty"`
+	RequiredLabels *Labels                `protobuf:"bytes,5,opt,name=required_labels,json=requiredLabels,proto3" json:"required_labels,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateWorkspaceRequest) Reset() {
@@ -1215,10 +1225,62 @@ func (x *UpdateWorkspaceRequest) GetWorkspace() string {
 }
 
 func (x *UpdateWorkspaceRequest) GetAutoApply() bool {
-	if x != nil {
-		return x.AutoApply
+	if x != nil && x.AutoApply != nil {
+		return *x.AutoApply
 	}
 	return false
+}
+
+func (x *UpdateWorkspaceRequest) GetRequiredLabels() *Labels {
+	if x != nil {
+		return x.RequiredLabels
+	}
+	return nil
+}
+
+// Labels wraps a map, so an update can tell "no change" from "none".
+type Labels struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Values        map[string]string      `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Labels) Reset() {
+	*x = Labels{}
+	mi := &file_stackwright_v1_projects_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Labels) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Labels) ProtoMessage() {}
+
+func (x *Labels) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_projects_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Labels.ProtoReflect.Descriptor instead.
+func (*Labels) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_projects_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *Labels) GetValues() map[string]string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
 }
 
 type UpdateWorkspaceResponse struct {
@@ -1229,7 +1291,7 @@ type UpdateWorkspaceResponse struct {
 
 func (x *UpdateWorkspaceResponse) Reset() {
 	*x = UpdateWorkspaceResponse{}
-	mi := &file_stackwright_v1_projects_proto_msgTypes[19]
+	mi := &file_stackwright_v1_projects_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1241,7 +1303,7 @@ func (x *UpdateWorkspaceResponse) String() string {
 func (*UpdateWorkspaceResponse) ProtoMessage() {}
 
 func (x *UpdateWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_projects_proto_msgTypes[19]
+	mi := &file_stackwright_v1_projects_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1254,7 +1316,7 @@ func (x *UpdateWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*UpdateWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_projects_proto_rawDescGZIP(), []int{19}
+	return file_stackwright_v1_projects_proto_rawDescGZIP(), []int{20}
 }
 
 var File_stackwright_v1_projects_proto protoreflect.FileDescriptor
@@ -1276,13 +1338,17 @@ const file_stackwright_v1_projects_proto_rawDesc = "" +
 	"workspaces\x129\n" +
 	"\n" +
 	"created_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"y\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x94\x02\n" +
 	"\tWorkspace\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"auto_apply\x18\x03 \x01(\bR\tautoApply\"'\n" +
+	"auto_apply\x18\x03 \x01(\bR\tautoApply\x12V\n" +
+	"\x0frequired_labels\x18\x04 \x03(\v2-.stackwright.v1.Workspace.RequiredLabelsEntryR\x0erequiredLabels\x1aA\n" +
+	"\x13RequiredLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"'\n" +
 	"\x13ListProjectsRequest\x12\x10\n" +
 	"\x03org\x18\x01 \x01(\tR\x03org\"K\n" +
 	"\x14ListProjectsResponse\x123\n" +
@@ -1335,13 +1401,20 @@ const file_stackwright_v1_projects_proto_rawDesc = "" +
 	"\x03org\x18\x01 \x01(\tR\x03org\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x12\x1c\n" +
 	"\tworkspace\x18\x03 \x01(\tR\tworkspace\"\x1a\n" +
-	"\x18ArchiveWorkspaceResponse\"\x81\x01\n" +
+	"\x18ArchiveWorkspaceResponse\"\xd6\x01\n" +
 	"\x16UpdateWorkspaceRequest\x12\x10\n" +
 	"\x03org\x18\x01 \x01(\tR\x03org\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x12\x1c\n" +
-	"\tworkspace\x18\x03 \x01(\tR\tworkspace\x12\x1d\n" +
+	"\tworkspace\x18\x03 \x01(\tR\tworkspace\x12\"\n" +
 	"\n" +
-	"auto_apply\x18\x04 \x01(\bR\tautoApply\"\x19\n" +
+	"auto_apply\x18\x04 \x01(\bH\x00R\tautoApply\x88\x01\x01\x12?\n" +
+	"\x0frequired_labels\x18\x05 \x01(\v2\x16.stackwright.v1.LabelsR\x0erequiredLabelsB\r\n" +
+	"\v_auto_apply\"\x7f\n" +
+	"\x06Labels\x12:\n" +
+	"\x06values\x18\x01 \x03(\v2\".stackwright.v1.Labels.ValuesEntryR\x06values\x1a9\n" +
+	"\vValuesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x19\n" +
 	"\x17UpdateWorkspaceResponse*K\n" +
 	"\x06Engine\x12\x16\n" +
 	"\x12ENGINE_UNSPECIFIED\x10\x00\x12\x13\n" +
@@ -1376,7 +1449,7 @@ func file_stackwright_v1_projects_proto_rawDescGZIP() []byte {
 }
 
 var file_stackwright_v1_projects_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_stackwright_v1_projects_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_stackwright_v1_projects_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_stackwright_v1_projects_proto_goTypes = []any{
 	(Engine)(0),                         // 0: stackwright.v1.Engine
 	(Layout)(0),                         // 1: stackwright.v1.Layout
@@ -1399,47 +1472,53 @@ var file_stackwright_v1_projects_proto_goTypes = []any{
 	(*ArchiveWorkspaceRequest)(nil),     // 18: stackwright.v1.ArchiveWorkspaceRequest
 	(*ArchiveWorkspaceResponse)(nil),    // 19: stackwright.v1.ArchiveWorkspaceResponse
 	(*UpdateWorkspaceRequest)(nil),      // 20: stackwright.v1.UpdateWorkspaceRequest
-	(*UpdateWorkspaceResponse)(nil),     // 21: stackwright.v1.UpdateWorkspaceResponse
-	(*timestamppb.Timestamp)(nil),       // 22: google.protobuf.Timestamp
+	(*Labels)(nil),                      // 21: stackwright.v1.Labels
+	(*UpdateWorkspaceResponse)(nil),     // 22: stackwright.v1.UpdateWorkspaceResponse
+	nil,                                 // 23: stackwright.v1.Workspace.RequiredLabelsEntry
+	nil,                                 // 24: stackwright.v1.Labels.ValuesEntry
+	(*timestamppb.Timestamp)(nil),       // 25: google.protobuf.Timestamp
 }
 var file_stackwright_v1_projects_proto_depIdxs = []int32{
 	0,  // 0: stackwright.v1.Project.engine:type_name -> stackwright.v1.Engine
 	1,  // 1: stackwright.v1.Project.layout:type_name -> stackwright.v1.Layout
 	3,  // 2: stackwright.v1.Project.workspaces:type_name -> stackwright.v1.Workspace
-	22, // 3: stackwright.v1.Project.created_at:type_name -> google.protobuf.Timestamp
-	22, // 4: stackwright.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
-	2,  // 5: stackwright.v1.ListProjectsResponse.projects:type_name -> stackwright.v1.Project
-	2,  // 6: stackwright.v1.GetWorkspaceResponse.project:type_name -> stackwright.v1.Project
-	3,  // 7: stackwright.v1.GetWorkspaceResponse.workspace:type_name -> stackwright.v1.Workspace
-	0,  // 8: stackwright.v1.CreateProjectRequest.engine:type_name -> stackwright.v1.Engine
-	1,  // 9: stackwright.v1.CreateProjectRequest.layout:type_name -> stackwright.v1.Layout
-	2,  // 10: stackwright.v1.CreateProjectResponse.project:type_name -> stackwright.v1.Project
-	2,  // 11: stackwright.v1.CreateSampleProjectResponse.project:type_name -> stackwright.v1.Project
-	2,  // 12: stackwright.v1.UpdateProjectResponse.project:type_name -> stackwright.v1.Project
-	3,  // 13: stackwright.v1.CreateWorkspaceResponse.workspace:type_name -> stackwright.v1.Workspace
-	4,  // 14: stackwright.v1.ProjectService.ListProjects:input_type -> stackwright.v1.ListProjectsRequest
-	6,  // 15: stackwright.v1.ProjectService.GetWorkspace:input_type -> stackwright.v1.GetWorkspaceRequest
-	8,  // 16: stackwright.v1.ProjectService.CreateProject:input_type -> stackwright.v1.CreateProjectRequest
-	10, // 17: stackwright.v1.ProjectService.CreateSampleProject:input_type -> stackwright.v1.CreateSampleProjectRequest
-	12, // 18: stackwright.v1.ProjectService.UpdateProject:input_type -> stackwright.v1.UpdateProjectRequest
-	14, // 19: stackwright.v1.ProjectService.ArchiveProject:input_type -> stackwright.v1.ArchiveProjectRequest
-	16, // 20: stackwright.v1.ProjectService.CreateWorkspace:input_type -> stackwright.v1.CreateWorkspaceRequest
-	18, // 21: stackwright.v1.ProjectService.ArchiveWorkspace:input_type -> stackwright.v1.ArchiveWorkspaceRequest
-	20, // 22: stackwright.v1.ProjectService.UpdateWorkspace:input_type -> stackwright.v1.UpdateWorkspaceRequest
-	5,  // 23: stackwright.v1.ProjectService.ListProjects:output_type -> stackwright.v1.ListProjectsResponse
-	7,  // 24: stackwright.v1.ProjectService.GetWorkspace:output_type -> stackwright.v1.GetWorkspaceResponse
-	9,  // 25: stackwright.v1.ProjectService.CreateProject:output_type -> stackwright.v1.CreateProjectResponse
-	11, // 26: stackwright.v1.ProjectService.CreateSampleProject:output_type -> stackwright.v1.CreateSampleProjectResponse
-	13, // 27: stackwright.v1.ProjectService.UpdateProject:output_type -> stackwright.v1.UpdateProjectResponse
-	15, // 28: stackwright.v1.ProjectService.ArchiveProject:output_type -> stackwright.v1.ArchiveProjectResponse
-	17, // 29: stackwright.v1.ProjectService.CreateWorkspace:output_type -> stackwright.v1.CreateWorkspaceResponse
-	19, // 30: stackwright.v1.ProjectService.ArchiveWorkspace:output_type -> stackwright.v1.ArchiveWorkspaceResponse
-	21, // 31: stackwright.v1.ProjectService.UpdateWorkspace:output_type -> stackwright.v1.UpdateWorkspaceResponse
-	23, // [23:32] is the sub-list for method output_type
-	14, // [14:23] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	25, // 3: stackwright.v1.Project.created_at:type_name -> google.protobuf.Timestamp
+	25, // 4: stackwright.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
+	23, // 5: stackwright.v1.Workspace.required_labels:type_name -> stackwright.v1.Workspace.RequiredLabelsEntry
+	2,  // 6: stackwright.v1.ListProjectsResponse.projects:type_name -> stackwright.v1.Project
+	2,  // 7: stackwright.v1.GetWorkspaceResponse.project:type_name -> stackwright.v1.Project
+	3,  // 8: stackwright.v1.GetWorkspaceResponse.workspace:type_name -> stackwright.v1.Workspace
+	0,  // 9: stackwright.v1.CreateProjectRequest.engine:type_name -> stackwright.v1.Engine
+	1,  // 10: stackwright.v1.CreateProjectRequest.layout:type_name -> stackwright.v1.Layout
+	2,  // 11: stackwright.v1.CreateProjectResponse.project:type_name -> stackwright.v1.Project
+	2,  // 12: stackwright.v1.CreateSampleProjectResponse.project:type_name -> stackwright.v1.Project
+	2,  // 13: stackwright.v1.UpdateProjectResponse.project:type_name -> stackwright.v1.Project
+	3,  // 14: stackwright.v1.CreateWorkspaceResponse.workspace:type_name -> stackwright.v1.Workspace
+	21, // 15: stackwright.v1.UpdateWorkspaceRequest.required_labels:type_name -> stackwright.v1.Labels
+	24, // 16: stackwright.v1.Labels.values:type_name -> stackwright.v1.Labels.ValuesEntry
+	4,  // 17: stackwright.v1.ProjectService.ListProjects:input_type -> stackwright.v1.ListProjectsRequest
+	6,  // 18: stackwright.v1.ProjectService.GetWorkspace:input_type -> stackwright.v1.GetWorkspaceRequest
+	8,  // 19: stackwright.v1.ProjectService.CreateProject:input_type -> stackwright.v1.CreateProjectRequest
+	10, // 20: stackwright.v1.ProjectService.CreateSampleProject:input_type -> stackwright.v1.CreateSampleProjectRequest
+	12, // 21: stackwright.v1.ProjectService.UpdateProject:input_type -> stackwright.v1.UpdateProjectRequest
+	14, // 22: stackwright.v1.ProjectService.ArchiveProject:input_type -> stackwright.v1.ArchiveProjectRequest
+	16, // 23: stackwright.v1.ProjectService.CreateWorkspace:input_type -> stackwright.v1.CreateWorkspaceRequest
+	18, // 24: stackwright.v1.ProjectService.ArchiveWorkspace:input_type -> stackwright.v1.ArchiveWorkspaceRequest
+	20, // 25: stackwright.v1.ProjectService.UpdateWorkspace:input_type -> stackwright.v1.UpdateWorkspaceRequest
+	5,  // 26: stackwright.v1.ProjectService.ListProjects:output_type -> stackwright.v1.ListProjectsResponse
+	7,  // 27: stackwright.v1.ProjectService.GetWorkspace:output_type -> stackwright.v1.GetWorkspaceResponse
+	9,  // 28: stackwright.v1.ProjectService.CreateProject:output_type -> stackwright.v1.CreateProjectResponse
+	11, // 29: stackwright.v1.ProjectService.CreateSampleProject:output_type -> stackwright.v1.CreateSampleProjectResponse
+	13, // 30: stackwright.v1.ProjectService.UpdateProject:output_type -> stackwright.v1.UpdateProjectResponse
+	15, // 31: stackwright.v1.ProjectService.ArchiveProject:output_type -> stackwright.v1.ArchiveProjectResponse
+	17, // 32: stackwright.v1.ProjectService.CreateWorkspace:output_type -> stackwright.v1.CreateWorkspaceResponse
+	19, // 33: stackwright.v1.ProjectService.ArchiveWorkspace:output_type -> stackwright.v1.ArchiveWorkspaceResponse
+	22, // 34: stackwright.v1.ProjectService.UpdateWorkspace:output_type -> stackwright.v1.UpdateWorkspaceResponse
+	26, // [26:35] is the sub-list for method output_type
+	17, // [17:26] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_stackwright_v1_projects_proto_init() }
@@ -1447,13 +1526,14 @@ func file_stackwright_v1_projects_proto_init() {
 	if File_stackwright_v1_projects_proto != nil {
 		return
 	}
+	file_stackwright_v1_projects_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stackwright_v1_projects_proto_rawDesc), len(file_stackwright_v1_projects_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   20,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

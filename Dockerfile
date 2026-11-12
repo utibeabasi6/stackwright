@@ -16,6 +16,11 @@ COPY gen gen
 COPY fixtures fixtures
 ARG VERSION=dev
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" -o /out/ ./cmd/stackwright ./cmd/stackwright-executor ./cmd/stackwright-builder
+# Remote build servers download these from the builder port (adr/0021).
+RUN for arch in amd64 arm64; do \
+      CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" \
+        -o /out/downloads/stackwright-builder-linux_$arch ./cmd/stackwright-builder; \
+    done
 RUN mkdir -p /out/files
 
 FROM gcr.io/distroless/static-debian12:nonroot AS executor
@@ -33,5 +38,6 @@ COPY --from=go /out/stackwright /stackwright
 ENTRYPOINT ["/stackwright"]
 
 FROM binary
+COPY --from=go /out/downloads /downloads
 COPY --from=web /src/web/dist /srv/web
 CMD ["server", "--web", "/srv/web"]

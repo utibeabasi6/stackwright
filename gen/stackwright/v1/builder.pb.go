@@ -70,7 +70,156 @@ func (x SandboxStatus_State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SandboxStatus_State.Descriptor instead.
 func (SandboxStatus_State) EnumDescriptor() ([]byte, []int) {
-	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{3, 0}
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{5, 0}
+}
+
+type EnrolRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Token string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	// A PKCS #10 request, DER.
+	Csr []byte `protobuf:"bytes,2,opt,name=csr,proto3" json:"csr,omitempty"`
+	// The built-in builder sets its slots and labels here. Other build
+	// servers get theirs when the enrol token is made.
+	Slots         int32             `protobuf:"varint,3,opt,name=slots,proto3" json:"slots,omitempty"`
+	Labels        map[string]string `protobuf:"bytes,4,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnrolRequest) Reset() {
+	*x = EnrolRequest{}
+	mi := &file_stackwright_v1_builder_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnrolRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnrolRequest) ProtoMessage() {}
+
+func (x *EnrolRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_builder_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnrolRequest.ProtoReflect.Descriptor instead.
+func (*EnrolRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *EnrolRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *EnrolRequest) GetCsr() []byte {
+	if x != nil {
+		return x.Csr
+	}
+	return nil
+}
+
+func (x *EnrolRequest) GetSlots() int32 {
+	if x != nil {
+		return x.Slots
+	}
+	return 0
+}
+
+func (x *EnrolRequest) GetLabels() map[string]string {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+type EnrolResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BuildServerId string                 `protobuf:"bytes,1,opt,name=build_server_id,json=buildServerId,proto3" json:"build_server_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// DER.
+	Certificate   []byte `protobuf:"bytes,3,opt,name=certificate,proto3" json:"certificate,omitempty"`
+	CaCertificate []byte `protobuf:"bytes,4,opt,name=ca_certificate,json=caCertificate,proto3" json:"ca_certificate,omitempty"`
+	// Where Connect is served, such as https://stackwright.example.com:8443.
+	BuilderUrl    string `protobuf:"bytes,5,opt,name=builder_url,json=builderUrl,proto3" json:"builder_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnrolResponse) Reset() {
+	*x = EnrolResponse{}
+	mi := &file_stackwright_v1_builder_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnrolResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnrolResponse) ProtoMessage() {}
+
+func (x *EnrolResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_builder_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnrolResponse.ProtoReflect.Descriptor instead.
+func (*EnrolResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *EnrolResponse) GetBuildServerId() string {
+	if x != nil {
+		return x.BuildServerId
+	}
+	return ""
+}
+
+func (x *EnrolResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EnrolResponse) GetCertificate() []byte {
+	if x != nil {
+		return x.Certificate
+	}
+	return nil
+}
+
+func (x *EnrolResponse) GetCaCertificate() []byte {
+	if x != nil {
+		return x.CaCertificate
+	}
+	return nil
+}
+
+func (x *EnrolResponse) GetBuilderUrl() string {
+	if x != nil {
+		return x.BuilderUrl
+	}
+	return ""
 }
 
 type ConnectRequest struct {
@@ -80,6 +229,7 @@ type ConnectRequest struct {
 	//	*ConnectRequest_Hello
 	//	*ConnectRequest_Heartbeat
 	//	*ConnectRequest_Sandbox
+	//	*ConnectRequest_Renew
 	Body          isConnectRequest_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -87,7 +237,7 @@ type ConnectRequest struct {
 
 func (x *ConnectRequest) Reset() {
 	*x = ConnectRequest{}
-	mi := &file_stackwright_v1_builder_proto_msgTypes[0]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -99,7 +249,7 @@ func (x *ConnectRequest) String() string {
 func (*ConnectRequest) ProtoMessage() {}
 
 func (x *ConnectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_builder_proto_msgTypes[0]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -112,7 +262,7 @@ func (x *ConnectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectRequest.ProtoReflect.Descriptor instead.
 func (*ConnectRequest) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{0}
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ConnectRequest) GetBody() isConnectRequest_Body {
@@ -149,6 +299,15 @@ func (x *ConnectRequest) GetSandbox() *SandboxStatus {
 	return nil
 }
 
+func (x *ConnectRequest) GetRenew() *RenewCertificate {
+	if x != nil {
+		if x, ok := x.Body.(*ConnectRequest_Renew); ok {
+			return x.Renew
+		}
+	}
+	return nil
+}
+
 type isConnectRequest_Body interface {
 	isConnectRequest_Body()
 }
@@ -165,29 +324,35 @@ type ConnectRequest_Sandbox struct {
 	Sandbox *SandboxStatus `protobuf:"bytes,3,opt,name=sandbox,proto3,oneof"`
 }
 
+type ConnectRequest_Renew struct {
+	Renew *RenewCertificate `protobuf:"bytes,4,opt,name=renew,proto3,oneof"`
+}
+
 func (*ConnectRequest_Hello) isConnectRequest_Body() {}
 
 func (*ConnectRequest_Heartbeat) isConnectRequest_Body() {}
 
 func (*ConnectRequest_Sandbox) isConnectRequest_Body() {}
 
+func (*ConnectRequest_Renew) isConnectRequest_Body() {}
+
 // The first message on a stream.
 type BuilderHello struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Such as linux_arm64.
 	Platform string `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
-	Slots    int32  `protobuf:"varint,3,opt,name=slots,proto3" json:"slots,omitempty"`
 	Version  string `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
 	// Jobs whose sandboxes still run, after a reconnect.
-	RunningJobs   []string `protobuf:"bytes,5,rep,name=running_jobs,json=runningJobs,proto3" json:"running_jobs,omitempty"`
+	RunningJobs []string `protobuf:"bytes,5,rep,name=running_jobs,json=runningJobs,proto3" json:"running_jobs,omitempty"`
+	// The sandbox backend, such as "docker".
+	Backend       string `protobuf:"bytes,6,opt,name=backend,proto3" json:"backend,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BuilderHello) Reset() {
 	*x = BuilderHello{}
-	mi := &file_stackwright_v1_builder_proto_msgTypes[1]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -199,7 +364,7 @@ func (x *BuilderHello) String() string {
 func (*BuilderHello) ProtoMessage() {}
 
 func (x *BuilderHello) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_builder_proto_msgTypes[1]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -212,14 +377,7 @@ func (x *BuilderHello) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuilderHello.ProtoReflect.Descriptor instead.
 func (*BuilderHello) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *BuilderHello) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *BuilderHello) GetPlatform() string {
@@ -227,13 +385,6 @@ func (x *BuilderHello) GetPlatform() string {
 		return x.Platform
 	}
 	return ""
-}
-
-func (x *BuilderHello) GetSlots() int32 {
-	if x != nil {
-		return x.Slots
-	}
-	return 0
 }
 
 func (x *BuilderHello) GetVersion() string {
@@ -250,6 +401,13 @@ func (x *BuilderHello) GetRunningJobs() []string {
 	return nil
 }
 
+func (x *BuilderHello) GetBackend() string {
+	if x != nil {
+		return x.Backend
+	}
+	return ""
+}
+
 type BuilderHeartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -258,7 +416,7 @@ type BuilderHeartbeat struct {
 
 func (x *BuilderHeartbeat) Reset() {
 	*x = BuilderHeartbeat{}
-	mi := &file_stackwright_v1_builder_proto_msgTypes[2]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -270,7 +428,7 @@ func (x *BuilderHeartbeat) String() string {
 func (*BuilderHeartbeat) ProtoMessage() {}
 
 func (x *BuilderHeartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_builder_proto_msgTypes[2]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -283,7 +441,7 @@ func (x *BuilderHeartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuilderHeartbeat.ProtoReflect.Descriptor instead.
 func (*BuilderHeartbeat) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{2}
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{4}
 }
 
 type SandboxStatus struct {
@@ -298,7 +456,7 @@ type SandboxStatus struct {
 
 func (x *SandboxStatus) Reset() {
 	*x = SandboxStatus{}
-	mi := &file_stackwright_v1_builder_proto_msgTypes[3]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -310,7 +468,7 @@ func (x *SandboxStatus) String() string {
 func (*SandboxStatus) ProtoMessage() {}
 
 func (x *SandboxStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_builder_proto_msgTypes[3]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -323,7 +481,7 @@ func (x *SandboxStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SandboxStatus.ProtoReflect.Descriptor instead.
 func (*SandboxStatus) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{3}
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SandboxStatus) GetJobId() string {
@@ -354,12 +512,60 @@ func (x *SandboxStatus) GetError() string {
 	return ""
 }
 
+// A builder asks for a new certificate before half of its current one's
+// life is gone.
+type RenewCertificate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// DER.
+	Csr           []byte `protobuf:"bytes,1,opt,name=csr,proto3" json:"csr,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenewCertificate) Reset() {
+	*x = RenewCertificate{}
+	mi := &file_stackwright_v1_builder_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenewCertificate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenewCertificate) ProtoMessage() {}
+
+func (x *RenewCertificate) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_builder_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenewCertificate.ProtoReflect.Descriptor instead.
+func (*RenewCertificate) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RenewCertificate) GetCsr() []byte {
+	if x != nil {
+		return x.Csr
+	}
+	return nil
+}
+
 type ConnectResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Body:
 	//
 	//	*ConnectResponse_Start
 	//	*ConnectResponse_Stop
+	//	*ConnectResponse_Certificate
 	Body          isConnectResponse_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -367,7 +573,7 @@ type ConnectResponse struct {
 
 func (x *ConnectResponse) Reset() {
 	*x = ConnectResponse{}
-	mi := &file_stackwright_v1_builder_proto_msgTypes[4]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -379,7 +585,7 @@ func (x *ConnectResponse) String() string {
 func (*ConnectResponse) ProtoMessage() {}
 
 func (x *ConnectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_builder_proto_msgTypes[4]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -392,7 +598,7 @@ func (x *ConnectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectResponse.ProtoReflect.Descriptor instead.
 func (*ConnectResponse) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{4}
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ConnectResponse) GetBody() isConnectResponse_Body {
@@ -420,6 +626,15 @@ func (x *ConnectResponse) GetStop() *StopSandbox {
 	return nil
 }
 
+func (x *ConnectResponse) GetCertificate() []byte {
+	if x != nil {
+		if x, ok := x.Body.(*ConnectResponse_Certificate); ok {
+			return x.Certificate
+		}
+	}
+	return nil
+}
+
 type isConnectResponse_Body interface {
 	isConnectResponse_Body()
 }
@@ -432,21 +647,40 @@ type ConnectResponse_Stop struct {
 	Stop *StopSandbox `protobuf:"bytes,2,opt,name=stop,proto3,oneof"`
 }
 
+type ConnectResponse_Certificate struct {
+	// A renewed client certificate, DER.
+	Certificate []byte `protobuf:"bytes,3,opt,name=certificate,proto3,oneof"`
+}
+
 func (*ConnectResponse_Start) isConnectResponse_Body() {}
 
 func (*ConnectResponse_Stop) isConnectResponse_Body() {}
 
+func (*ConnectResponse_Certificate) isConnectResponse_Body() {}
+
 type StartSandbox struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
-	Ticket        string                 `protobuf:"bytes,2,opt,name=ticket,proto3" json:"ticket,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	JobId  string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	Ticket string                 `protobuf:"bytes,2,opt,name=ticket,proto3" json:"ticket,omitempty"`
+	// The executor image for the builder's backend.
+	Image string `protobuf:"bytes,3,opt,name=image,proto3" json:"image,omitempty"`
+	// The server's URL as the sandbox reaches it.
+	ServerUrl string `protobuf:"bytes,4,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
+	// The builder caches the engine. The executor checks its SHA-256 again.
+	Engine *Download `protobuf:"bytes,5,opt,name=engine,proto3" json:"engine,omitempty"`
+	// Providers the workspace used last, such as
+	// "registry.opentofu.org/hashicorp/random 3.6.0". The builder caches them
+	// after the sandbox starts.
+	Providers []string `protobuf:"bytes,6,rep,name=providers,proto3" json:"providers,omitempty"`
+	// A test sandbox runs the image's version command and reports its exit.
+	Test          bool `protobuf:"varint,7,opt,name=test,proto3" json:"test,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartSandbox) Reset() {
 	*x = StartSandbox{}
-	mi := &file_stackwright_v1_builder_proto_msgTypes[5]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -458,7 +692,7 @@ func (x *StartSandbox) String() string {
 func (*StartSandbox) ProtoMessage() {}
 
 func (x *StartSandbox) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_builder_proto_msgTypes[5]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -471,7 +705,7 @@ func (x *StartSandbox) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSandbox.ProtoReflect.Descriptor instead.
 func (*StartSandbox) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{5}
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *StartSandbox) GetJobId() string {
@@ -488,6 +722,41 @@ func (x *StartSandbox) GetTicket() string {
 	return ""
 }
 
+func (x *StartSandbox) GetImage() string {
+	if x != nil {
+		return x.Image
+	}
+	return ""
+}
+
+func (x *StartSandbox) GetServerUrl() string {
+	if x != nil {
+		return x.ServerUrl
+	}
+	return ""
+}
+
+func (x *StartSandbox) GetEngine() *Download {
+	if x != nil {
+		return x.Engine
+	}
+	return nil
+}
+
+func (x *StartSandbox) GetProviders() []string {
+	if x != nil {
+		return x.Providers
+	}
+	return nil
+}
+
+func (x *StartSandbox) GetTest() bool {
+	if x != nil {
+		return x.Test
+	}
+	return false
+}
+
 // The sandbox gets a graceful stop, so the engine can release its lock.
 type StopSandbox struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -498,7 +767,7 @@ type StopSandbox struct {
 
 func (x *StopSandbox) Reset() {
 	*x = StopSandbox{}
-	mi := &file_stackwright_v1_builder_proto_msgTypes[6]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +779,7 @@ func (x *StopSandbox) String() string {
 func (*StopSandbox) ProtoMessage() {}
 
 func (x *StopSandbox) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_builder_proto_msgTypes[6]
+	mi := &file_stackwright_v1_builder_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -523,7 +792,7 @@ func (x *StopSandbox) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopSandbox.ProtoReflect.Descriptor instead.
 func (*StopSandbox) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{6}
+	return file_stackwright_v1_builder_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StopSandbox) GetJobId() string {
@@ -537,18 +806,33 @@ var File_stackwright_v1_builder_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_builder_proto_rawDesc = "" +
 	"\n" +
-	"\x1cstackwright/v1/builder.proto\x12\x0estackwright.v1\"\xcb\x01\n" +
+	"\x1cstackwright/v1/builder.proto\x12\x0estackwright.v1\x1a\x1dstackwright/v1/executor.proto\"\xc9\x01\n" +
+	"\fEnrolRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12\x10\n" +
+	"\x03csr\x18\x02 \x01(\fR\x03csr\x12\x14\n" +
+	"\x05slots\x18\x03 \x01(\x05R\x05slots\x12@\n" +
+	"\x06labels\x18\x04 \x03(\v2(.stackwright.v1.EnrolRequest.LabelsEntryR\x06labels\x1a9\n" +
+	"\vLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb5\x01\n" +
+	"\rEnrolResponse\x12&\n" +
+	"\x0fbuild_server_id\x18\x01 \x01(\tR\rbuildServerId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vcertificate\x18\x03 \x01(\fR\vcertificate\x12%\n" +
+	"\x0eca_certificate\x18\x04 \x01(\fR\rcaCertificate\x12\x1f\n" +
+	"\vbuilder_url\x18\x05 \x01(\tR\n" +
+	"builderUrl\"\x85\x02\n" +
 	"\x0eConnectRequest\x124\n" +
 	"\x05hello\x18\x01 \x01(\v2\x1c.stackwright.v1.BuilderHelloH\x00R\x05hello\x12@\n" +
 	"\theartbeat\x18\x02 \x01(\v2 .stackwright.v1.BuilderHeartbeatH\x00R\theartbeat\x129\n" +
-	"\asandbox\x18\x03 \x01(\v2\x1d.stackwright.v1.SandboxStatusH\x00R\asandboxB\x06\n" +
-	"\x04body\"\x91\x01\n" +
-	"\fBuilderHello\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
-	"\bplatform\x18\x02 \x01(\tR\bplatform\x12\x14\n" +
-	"\x05slots\x18\x03 \x01(\x05R\x05slots\x12\x18\n" +
+	"\asandbox\x18\x03 \x01(\v2\x1d.stackwright.v1.SandboxStatusH\x00R\asandbox\x128\n" +
+	"\x05renew\x18\x04 \x01(\v2 .stackwright.v1.RenewCertificateH\x00R\x05renewB\x06\n" +
+	"\x04body\"\x8d\x01\n" +
+	"\fBuilderHello\x12\x1a\n" +
+	"\bplatform\x18\x02 \x01(\tR\bplatform\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12!\n" +
-	"\frunning_jobs\x18\x05 \x03(\tR\vrunningJobs\"\x12\n" +
+	"\frunning_jobs\x18\x05 \x03(\tR\vrunningJobs\x12\x18\n" +
+	"\abackend\x18\x06 \x01(\tR\abackendJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04\"\x12\n" +
 	"\x10BuilderHeartbeat\"\xeb\x01\n" +
 	"\rSandboxStatus\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x129\n" +
@@ -559,17 +843,27 @@ const file_stackwright_v1_builder_proto_rawDesc = "" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSTATE_STARTED\x10\x01\x12\x10\n" +
 	"\fSTATE_EXITED\x10\x02\x12\x10\n" +
-	"\fSTATE_FAILED\x10\x03\"\x82\x01\n" +
+	"\fSTATE_FAILED\x10\x03\"$\n" +
+	"\x10RenewCertificate\x12\x10\n" +
+	"\x03csr\x18\x01 \x01(\fR\x03csr\"\xa6\x01\n" +
 	"\x0fConnectResponse\x124\n" +
 	"\x05start\x18\x01 \x01(\v2\x1c.stackwright.v1.StartSandboxH\x00R\x05start\x121\n" +
-	"\x04stop\x18\x02 \x01(\v2\x1b.stackwright.v1.StopSandboxH\x00R\x04stopB\x06\n" +
-	"\x04body\"=\n" +
+	"\x04stop\x18\x02 \x01(\v2\x1b.stackwright.v1.StopSandboxH\x00R\x04stop\x12\"\n" +
+	"\vcertificate\x18\x03 \x01(\fH\x00R\vcertificateB\x06\n" +
+	"\x04body\"\xd6\x01\n" +
 	"\fStartSandbox\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x16\n" +
-	"\x06ticket\x18\x02 \x01(\tR\x06ticket\"$\n" +
+	"\x06ticket\x18\x02 \x01(\tR\x06ticket\x12\x14\n" +
+	"\x05image\x18\x03 \x01(\tR\x05image\x12\x1d\n" +
+	"\n" +
+	"server_url\x18\x04 \x01(\tR\tserverUrl\x120\n" +
+	"\x06engine\x18\x05 \x01(\v2\x18.stackwright.v1.DownloadR\x06engine\x12\x1c\n" +
+	"\tproviders\x18\x06 \x03(\tR\tproviders\x12\x12\n" +
+	"\x04test\x18\a \x01(\bR\x04test\"$\n" +
 	"\vStopSandbox\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId2`\n" +
-	"\x0eBuilderService\x12N\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId2\xa6\x01\n" +
+	"\x0eBuilderService\x12D\n" +
+	"\x05Enrol\x12\x1c.stackwright.v1.EnrolRequest\x1a\x1d.stackwright.v1.EnrolResponse\x12N\n" +
 	"\aConnect\x12\x1e.stackwright.v1.ConnectRequest\x1a\x1f.stackwright.v1.ConnectResponse(\x010\x01B\xc0\x01\n" +
 	"\x12com.stackwright.v1B\fBuilderProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
@@ -586,31 +880,41 @@ func file_stackwright_v1_builder_proto_rawDescGZIP() []byte {
 }
 
 var file_stackwright_v1_builder_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_stackwright_v1_builder_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_stackwright_v1_builder_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_stackwright_v1_builder_proto_goTypes = []any{
 	(SandboxStatus_State)(0), // 0: stackwright.v1.SandboxStatus.State
-	(*ConnectRequest)(nil),   // 1: stackwright.v1.ConnectRequest
-	(*BuilderHello)(nil),     // 2: stackwright.v1.BuilderHello
-	(*BuilderHeartbeat)(nil), // 3: stackwright.v1.BuilderHeartbeat
-	(*SandboxStatus)(nil),    // 4: stackwright.v1.SandboxStatus
-	(*ConnectResponse)(nil),  // 5: stackwright.v1.ConnectResponse
-	(*StartSandbox)(nil),     // 6: stackwright.v1.StartSandbox
-	(*StopSandbox)(nil),      // 7: stackwright.v1.StopSandbox
+	(*EnrolRequest)(nil),     // 1: stackwright.v1.EnrolRequest
+	(*EnrolResponse)(nil),    // 2: stackwright.v1.EnrolResponse
+	(*ConnectRequest)(nil),   // 3: stackwright.v1.ConnectRequest
+	(*BuilderHello)(nil),     // 4: stackwright.v1.BuilderHello
+	(*BuilderHeartbeat)(nil), // 5: stackwright.v1.BuilderHeartbeat
+	(*SandboxStatus)(nil),    // 6: stackwright.v1.SandboxStatus
+	(*RenewCertificate)(nil), // 7: stackwright.v1.RenewCertificate
+	(*ConnectResponse)(nil),  // 8: stackwright.v1.ConnectResponse
+	(*StartSandbox)(nil),     // 9: stackwright.v1.StartSandbox
+	(*StopSandbox)(nil),      // 10: stackwright.v1.StopSandbox
+	nil,                      // 11: stackwright.v1.EnrolRequest.LabelsEntry
+	(*Download)(nil),         // 12: stackwright.v1.Download
 }
 var file_stackwright_v1_builder_proto_depIdxs = []int32{
-	2, // 0: stackwright.v1.ConnectRequest.hello:type_name -> stackwright.v1.BuilderHello
-	3, // 1: stackwright.v1.ConnectRequest.heartbeat:type_name -> stackwright.v1.BuilderHeartbeat
-	4, // 2: stackwright.v1.ConnectRequest.sandbox:type_name -> stackwright.v1.SandboxStatus
-	0, // 3: stackwright.v1.SandboxStatus.state:type_name -> stackwright.v1.SandboxStatus.State
-	6, // 4: stackwright.v1.ConnectResponse.start:type_name -> stackwright.v1.StartSandbox
-	7, // 5: stackwright.v1.ConnectResponse.stop:type_name -> stackwright.v1.StopSandbox
-	1, // 6: stackwright.v1.BuilderService.Connect:input_type -> stackwright.v1.ConnectRequest
-	5, // 7: stackwright.v1.BuilderService.Connect:output_type -> stackwright.v1.ConnectResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	11, // 0: stackwright.v1.EnrolRequest.labels:type_name -> stackwright.v1.EnrolRequest.LabelsEntry
+	4,  // 1: stackwright.v1.ConnectRequest.hello:type_name -> stackwright.v1.BuilderHello
+	5,  // 2: stackwright.v1.ConnectRequest.heartbeat:type_name -> stackwright.v1.BuilderHeartbeat
+	6,  // 3: stackwright.v1.ConnectRequest.sandbox:type_name -> stackwright.v1.SandboxStatus
+	7,  // 4: stackwright.v1.ConnectRequest.renew:type_name -> stackwright.v1.RenewCertificate
+	0,  // 5: stackwright.v1.SandboxStatus.state:type_name -> stackwright.v1.SandboxStatus.State
+	9,  // 6: stackwright.v1.ConnectResponse.start:type_name -> stackwright.v1.StartSandbox
+	10, // 7: stackwright.v1.ConnectResponse.stop:type_name -> stackwright.v1.StopSandbox
+	12, // 8: stackwright.v1.StartSandbox.engine:type_name -> stackwright.v1.Download
+	1,  // 9: stackwright.v1.BuilderService.Enrol:input_type -> stackwright.v1.EnrolRequest
+	3,  // 10: stackwright.v1.BuilderService.Connect:input_type -> stackwright.v1.ConnectRequest
+	2,  // 11: stackwright.v1.BuilderService.Enrol:output_type -> stackwright.v1.EnrolResponse
+	8,  // 12: stackwright.v1.BuilderService.Connect:output_type -> stackwright.v1.ConnectResponse
+	11, // [11:13] is the sub-list for method output_type
+	9,  // [9:11] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_stackwright_v1_builder_proto_init() }
@@ -618,14 +922,17 @@ func file_stackwright_v1_builder_proto_init() {
 	if File_stackwright_v1_builder_proto != nil {
 		return
 	}
-	file_stackwright_v1_builder_proto_msgTypes[0].OneofWrappers = []any{
+	file_stackwright_v1_executor_proto_init()
+	file_stackwright_v1_builder_proto_msgTypes[2].OneofWrappers = []any{
 		(*ConnectRequest_Hello)(nil),
 		(*ConnectRequest_Heartbeat)(nil),
 		(*ConnectRequest_Sandbox)(nil),
+		(*ConnectRequest_Renew)(nil),
 	}
-	file_stackwright_v1_builder_proto_msgTypes[4].OneofWrappers = []any{
+	file_stackwright_v1_builder_proto_msgTypes[7].OneofWrappers = []any{
 		(*ConnectResponse_Start)(nil),
 		(*ConnectResponse_Stop)(nil),
+		(*ConnectResponse_Certificate)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -633,7 +940,7 @@ func file_stackwright_v1_builder_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stackwright_v1_builder_proto_rawDesc), len(file_stackwright_v1_builder_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

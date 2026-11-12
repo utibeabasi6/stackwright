@@ -17,7 +17,8 @@ const (
 	JobTicket
 	// Job takes a job token as the bearer token. Each call is a heartbeat.
 	Job
-	// Builder takes the builder join token as the bearer token.
+	// Builder takes a build server's client certificate, which the builder
+	// port's TLS handshake verified.
 	Builder
 )
 
@@ -87,7 +88,16 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.ExecutorServiceReportEventsProcedure: {Access: Job},
 	stackwrightv1connect.ExecutorServiceFinishJobProcedure:    {Access: Job},
 
+	stackwrightv1connect.BuilderServiceEnrolProcedure:   {Access: Public},
 	stackwrightv1connect.BuilderServiceConnectProcedure: {Access: Builder},
+
+	stackwrightv1connect.BuildServerServiceListBuildServersProcedure:  org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.BuildServerServiceUpdateBuildServerProcedure: org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.BuildServerServiceRemoveBuildServerProcedure: org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.BuildServerServiceGetSSHKeyProcedure:         org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.BuildServerServiceScanHostKeyProcedure:       org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.BuildServerServiceEnrolOverSSHProcedure:      org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.BuildServerServiceCreateJoinCommandProcedure: org(v1.Role_ROLE_ADMIN),
 }
 
 var rank = map[v1.Role]int{

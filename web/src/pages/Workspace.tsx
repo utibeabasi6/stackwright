@@ -84,6 +84,7 @@ export function Workspace() {
         workspace={workspace}
         sample={p.sample}
         autoApply={ws.data?.workspace?.autoApply ?? false}
+        requiredLabels={ws.data?.workspace?.requiredLabels ?? {}}
         reload={ws.reload}
       />
 

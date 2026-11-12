@@ -19,7 +19,7 @@ Each decision has a record in [adr/](adr/).
 | Blob storage | Any S3-compatible store, required; RustFS in compose | [0005](adr/0005-s3-required-rustfs-in-compose.md) |
 | Agent | Go, inside the server; models through OpenRouter | [0006](adr/0006-agent-in-go-through-openrouter.md) |
 | Sandboxes | A backend interface; Docker first; build servers optional | [0007](adr/0007-sandbox-backends-and-build-servers.md) |
-| Build server channel | Outbound gRPC stream with mTLS; no WireGuard now | [0008](adr/0008-build-server-channel.md) |
+| Build server channel | Outbound gRPC stream with mTLS; no WireGuard now | [0008](adr/0008-build-server-channel.md), [0021](adr/0021-build-server-enrolment.md) |
 | Sign-in | Local accounts and OIDC; the first admin needs a setup code | [0009](adr/0009-local-accounts-and-oidc.md) |
 | Database logins | Migrations as the owner; requests as `stackwright_app`, which row-level security binds | [0012](adr/0012-two-database-logins.md) |
 | Accounts | Invite only; providers managed in Settings by instance admins, secrets sealed | [0013](adr/0013-sign-in-providers-and-accounts.md) |
@@ -30,6 +30,7 @@ Each decision has a record in [adr/](adr/).
 | Docker sandboxes | Our own Docker API client, secrets as files, an engine mirror in S3, open egress | [0018](adr/0018-docker-sandboxes.md) |
 | Terraform Stacks | Stackwright reads Stacks files and runs each component as a workspace; no HCP Terraform | [0019](adr/0019-terraform-stacks-files.md) |
 | Runs | A Postgres queue, NATS for fan-out only, code by upload until GitHub, sandboxes join the server's network | [0020](adr/0020-runs-postgres-queue.md) |
+| Build servers | Port 8443 with Stackwright's own CA, a static builder binary under systemd, executor images from a registry, a cache only the builder writes, no Docker install | [0021](adr/0021-build-server-enrolment.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; Terraform up to 1.5.7 | — |
@@ -353,13 +354,17 @@ typed events.
 **Goal.** A user enrols their own machine, and jobs run there.
 
 **Build.**
-- mTLS on the builder stream from phase 5
-  ([0008](adr/0008-build-server-channel.md)); certificates issued at
-  enrolment, short lived, renewed on the stream.
-- Enrol over SSH: the org's SSH key, the host key check, the install, a test
-  sandbox. Enrol with a join command for machines SSH cannot reach.
+- mTLS on the builder stream from phase 5, on a builder port with
+  Stackwright's own CA ([0008](adr/0008-build-server-channel.md),
+  [0021](adr/0021-build-server-enrolment.md)); certificates issued at
+  enrolment, 24 hours long, renewed on the stream.
+- Enrol over SSH: the org's SSH key, the host key check, the install of the
+  builder binary as a systemd service, a test sandbox. A host with no Docker
+  stops the enrolment before anything is installed. Enrol with a join
+  command for machines SSH cannot reach.
 - Labels, slots, draining, remove; placement by free slot and labels.
-- A local cache for engine binaries and provider plugins on each builder.
+- A local cache for engine binaries and provider plugins on each builder,
+  written only by the builder and read-only in job sandboxes.
 - The Build servers page and the enrol flow from the screens.
 
 **Done when.**

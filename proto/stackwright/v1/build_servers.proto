@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stackwright/v1/projects.proto";
+
+service BuildServerService {
+  rpc ListBuildServers(ListBuildServersRequest) returns (ListBuildServersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc UpdateBuildServer(UpdateBuildServerRequest) returns (UpdateBuildServerResponse);
+  // RemoveBuildServer revokes the server's certificates and closes its
+  // stream at once. It does not uninstall the builder.
+  rpc RemoveBuildServer(RemoveBuildServerRequest) returns (RemoveBuildServerResponse);
+  // GetSSHKey returns the org's public key, and makes the key on first use.
+  rpc GetSSHKey(GetSSHKeyRequest) returns (GetSSHKeyResponse);
+  // ScanHostKey reads a host's SSH key, for the user to confirm.
+  rpc ScanHostKey(ScanHostKeyRequest) returns (ScanHostKeyResponse);
+  // EnrolOverSSH installs the builder on a host and runs a test sandbox. It
+  // sends one message for each step.
+  rpc EnrolOverSSH(EnrolOverSSHRequest) returns (stream EnrolOverSSHResponse);
+  rpc CreateJoinCommand(CreateJoinCommandRequest) returns (CreateJoinCommandResponse);
+}
+
+message BuildServer {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_ONLINE = 1;
+    STATUS_OFFLINE = 2;
+    STATUS_DRAINING = 3;
+  }
+  string id = 1;
+  string name = 2;
+  bool built_in = 3;
+  Status status = 4;
+  map<string, string> labels = 5;
+  int32 slots = 6;
+  int32 running = 7;
+  string platform = 8;
+  string version = 9;
+  // Set when the builder is older than the server.
+  string upgrade = 10;
+  // "builtin", "command" or "ssh".
+  string enrolled_via = 11;
+  string ssh_host = 12;
+  google.protobuf.Timestamp last_seen_at = 13;
+  google.protobuf.Timestamp created_at = 14;
+}
+
+message ListBuildServersRequest {
+  string org = 1;
+}
+
+message ListBuildServersResponse {
+  repeated BuildServer build_servers = 1;
+}
+
+message UpdateBuildServerRequest {
+  string org = 1;
+  string id = 2;
+  Labels labels = 3;
+  optional int32 slots = 4;
+  optional bool draining = 5;
+}
+
+message UpdateBuildServerResponse {
+  BuildServer build_server = 1;
+}
+
+message RemoveBuildServerRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message RemoveBuildServerResponse {}
+
+message GetSSHKeyRequest {
+  string org = 1;
+}
+
+message GetSSHKeyResponse {
+  // One authorized_keys line.
+  string public_key = 1;
+}
+
+message ScanHostKeyRequest {
+  string org = 1;
+  string host = 2;
+  int32 port = 3;
+}
+
+message ScanHostKeyResponse {
+  // One known_hosts key, such as "ssh-ed25519 AAAA...".
+  string host_key = 1;
+  // Such as SHA256:abc..., as ssh-keygen -lf prints it.
+  string fingerprint = 2;
+}
+
+message EnrolOverSSHRequest {
+  string org = 1;
+  string name = 2;
+  string host = 3;
+  int32 port = 4;
+  string user = 5;
+  // The host key from ScanHostKey that the user confirmed.
+  string host_key = 6;
+  map<string, string> labels = 7;
+  int32 slots = 8;
+}
+
+message EnrolOverSSHResponse {
+  // Such as "Checking Docker".
+  string step = 1;
+  bool done = 2;
+  BuildServer build_server = 3;
+}
+
+message CreateJoinCommandRequest {
+  string org = 1;
+  string name = 2;
+  map<string, string> labels = 3;
+  int32 slots = 4;
+}
+
+message CreateJoinCommandResponse {
+  // A shell script for root on the build server. It holds a one-time token.
+  string command = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}

@@ -17,6 +17,7 @@ const api = vi.hoisted(() => ({
   events: [] as unknown[],
   approved: [] as number[],
   created: [] as unknown[],
+  updates: [] as unknown[],
 }));
 
 vi.mock("./api", () => ({
@@ -70,6 +71,30 @@ vi.mock("./api", () => ({
       yield { run: api.runs[0], events: api.events };
     },
   },
+  buildServerApi: {
+    listBuildServers: async () => ({
+      buildServers: [
+        { id: "b0", name: "built-in", builtIn: true, status: 1, labels: {}, slots: 2, running: 1, version: "v0.6.0" },
+        {
+          id: "b1",
+          name: "build-lab",
+          status: 3,
+          labels: { site: "lab" },
+          slots: 4,
+          running: 1,
+          version: "v0.4.0",
+          upgrade: "Builder v0.4.0 is older than the server (v0.6.0). Upgrade it.",
+          sshHost: "192.168.1.40",
+        },
+      ],
+    }),
+    updateBuildServer: async (req: unknown) => {
+      api.updates.push(req);
+      return {};
+    },
+    getSSHKey: async () => ({ publicKey: "ssh-ed25519 AAAAkey stackwright-a" }),
+    createJoinCommand: async () => ({ command: "echo 'swe_abcdefghijklmnop' | stackwright-builder enrol" }),
+  },
   projectApi: {
     listProjects: async () => ({ projects: api.projects }),
     getWorkspace: async ({ project, workspace }: { project: string; workspace: string }) => {
@@ -116,6 +141,7 @@ beforeEach(() => {
   api.events = [];
   api.approved = [];
   api.created = [];
+  api.updates = [];
   window.localStorage.clear();
 });
 
@@ -307,3 +333,36 @@ test("a writer starts a plan from the workspace", async () => {
   expect(api.created).toMatchObject([{ org: "a", project: "network", workspace: "prod", planOnly: true }]);
 });
 
+
+test("build servers show their status, labels and upgrade warning", async () => {
+  signedInAs(Role.ADMIN);
+  at("/a/build-servers");
+  expect(await screen.findByText("Same host as Stackwright")).toBeInTheDocument();
+  expect(screen.getByText("2 servers · 2 of 6 sandbox slots in use")).toBeInTheDocument();
+  expect(screen.getByText("~ Draining")).toBeInTheDocument();
+  expect(screen.getByText(/older than the server/)).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(1);
+  await userEvent.click(screen.getByRole("button", { name: "Resume" }));
+  expect(api.updates).toMatchObject([{ org: "a", id: "b1", draining: false }]);
+});
+
+test("a viewer sees build servers but cannot change them", async () => {
+  signedInAs(Role.VIEWER);
+  at("/a/build-servers");
+  expect(await screen.findByText("build-lab")).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Enrol a server" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Drain" })).not.toBeInTheDocument();
+});
+
+test("a join command hides its token until revealed", async () => {
+  signedInAs(Role.ADMIN);
+  at("/a/build-servers/enrol");
+  await userEvent.click(await screen.findByRole("tab", { name: "Run a command on the server" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "Name" }), "lab");
+  await userEvent.click(screen.getByRole("button", { name: "Make the command" }));
+  const command = await screen.findByLabelText("Join command");
+  expect(command.textContent).toContain("swe_abcd…");
+  expect(command.textContent).not.toContain("abcdefghijklmnop");
+  await userEvent.click(screen.getByRole("button", { name: "Reveal" }));
+  expect(command.textContent).toContain("swe_abcdefghijklmnop");
+});

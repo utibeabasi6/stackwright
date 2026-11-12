@@ -250,6 +250,41 @@ button:disabled {
   font-weight: 600;
 }
 
+.tabs button[role="tab"] {
+  min-height: auto;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-muted);
+}
+
+.tabs button[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.enrol {
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+
+.enrol > form {
+  flex: 999 1 520px;
+}
+
+.enrol > aside {
+  flex: 1 1 280px;
+  max-width: 400px;
+}
+
+.enrol aside ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
 .auth-page {
   min-height: 100vh;
   display: flex;
@@ -635,4 +670,9 @@ details.card summary {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.prose p,
+.prose ul {
+  margin: 0;
 }

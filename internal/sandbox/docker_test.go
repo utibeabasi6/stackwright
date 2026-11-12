@@ -111,3 +111,39 @@ func TestDockerSandboxMissingImage(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestDockerSandboxCacheIsReadOnly(t *testing.T) {
+	volume := "stackwright-test-cache-" + strings.ToLower(time.Now().Format("150405.000000"))
+	volume = strings.ReplaceAll(volume, ".", "")
+	t.Cleanup(func() { _ = exec.Command("docker", "volume", "rm", "-f", volume).Run() })
+	d := docker(t)
+	cached, err := sandbox.NewDocker(sandbox.DockerConfig{Cache: volume})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, code, logs := run(t, cached, sandbox.Spec{Image: busybox, Cache: sandbox.CacheReadOnly,
+		Command: []string{"sh", "-c", `ls -d /cache && (touch /cache/x 2>/dev/null && echo wrote || echo cache-read-only)`}})
+	if code != 0 || !strings.Contains(logs, "cache-read-only") {
+		t.Errorf("read-only cache: exit %d: %s", code, logs)
+	}
+	_, _, logs = run(t, d, sandbox.Spec{Image: busybox, Command: []string{"sh", "-c", `ls -d /cache 2>/dev/null || echo no-cache`}})
+	if !strings.Contains(logs, "no-cache") {
+		t.Errorf("a sandbox with no cache sees one: %s", logs)
+	}
+	if _, err := d.Start(context.Background(), sandbox.Spec{Image: busybox, Cache: sandbox.CacheReadOnly}); err == nil {
+		t.Error("a builder with no cache started a sandbox that wants one")
+	}
+}
+
+func TestDockerPullsAMissingImage(t *testing.T) {
+	const image = "busybox:1.36.1"
+	d := docker(t)
+	_ = exec.Command("docker", "rmi", image).Run()
+	_, code, logs := run(t, d, sandbox.Spec{Image: image, Command: []string{"true"}})
+	if code != 0 {
+		t.Errorf("exit %d: %s", code, logs)
+	}
+	if _, err := d.Start(context.Background(), sandbox.Spec{Image: "stackwright/no-such-image:missing"}); !errors.Is(err, sandbox.ErrNoSuchImage) {
+		t.Errorf("an image no registry has: %v", err)
+	}
+}

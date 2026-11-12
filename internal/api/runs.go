@@ -37,7 +37,8 @@ type Runs struct {
 const runColumns = `r.id, r.number, p.slug, w.name, r.status, r.plan_only, r.source, r.source_sha256,
 	coalesce(r.has_changes, false), coalesce(r.adds, 0), coalesce(r.changes, 0), coalesce(r.destroys, 0), coalesce(r.error, ''),
 	coalesce(nullif(cu.name, ''), cu.email, ''), coalesce(nullif(du.name, ''), du.email, ''),
-	r.created_at, r.updated_at, r.finished_at, r.last_seq
+	r.created_at, r.updated_at, r.finished_at, r.last_seq,
+	coalesce((SELECT b.name FROM jobs j JOIN build_servers b ON b.id = j.build_server_id WHERE j.id = coalesce(r.apply_job_id, r.plan_job_id)), '')
 	FROM runs r JOIN workspaces w ON w.id = r.workspace_id JOIN projects p ON p.id = w.project_id
 	LEFT JOIN users cu ON cu.id = r.created_by LEFT JOIN users du ON du.id = r.decided_by`
 
@@ -47,7 +48,7 @@ func scanRun(row pgx.CollectableRow) (*v1.Run, error) {
 	var created, updated time.Time
 	var finished *time.Time
 	err := row.Scan(&r.Id, &r.Number, &r.Project, &r.Workspace, &status, &r.PlanOnly, &r.Source, &r.SourceSha256,
-		&r.HasChanges, &r.Adds, &r.Changes, &r.Destroys, &r.Error, &r.CreatedBy, &r.DecidedBy, &created, &updated, &finished, &r.LastSeq)
+		&r.HasChanges, &r.Adds, &r.Changes, &r.Destroys, &r.Error, &r.CreatedBy, &r.DecidedBy, &created, &updated, &finished, &r.LastSeq, &r.BuildServer)
 	r.Status = v1.RunStatus(v1.RunStatus_value["RUN_STATUS_"+strings.ToUpper(status)])
 	r.CreatedAt, r.UpdatedAt = timestamppb.New(created), timestamppb.New(updated)
 	if finished != nil {

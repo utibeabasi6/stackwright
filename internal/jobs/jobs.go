@@ -34,17 +34,22 @@ const (
 	timeLimit      = 2 * time.Hour
 )
 
-var ErrNoPlan = errors.New("an apply needs a succeeded plan with changes, of the same workspace")
+var (
+	ErrNoPlan     = errors.New("an apply needs a succeeded plan with changes, of the same workspace")
+	ErrNoArtifact = errors.New("the job did not upload this artifact")
+)
 
 type Service struct {
 	Pool *pgxpool.Pool
 	KEK  seal.KEK
 	S3   *minio.Client
-	// Presign signs the URLs that sandboxes use. Its endpoint is the one
-	// they reach, which can differ from S3's.
-	Presign *minio.Client
-	Bucket  string
-	Engines *engine.Mirror
+	// Presign signs URLs for the built-in builder and its sandboxes, and
+	// PresignRemote for other build servers. Each endpoint is the one they
+	// reach, which can differ from S3's.
+	Presign       *minio.Client
+	PresignRemote *minio.Client
+	Bucket        string
+	Engines       *engine.Mirror
 	// OnEnd runs in the transaction that ends a job, with the org setting.
 	// status is succeeded, failed or lost.
 	OnEnd func(ctx context.Context, tx pgx.Tx, jobID, status, msg string) error
@@ -63,6 +68,24 @@ type Request struct {
 	// engine and key.
 	PlanJobID string
 	RunID     string
+	// BuildServerID runs the job. Remote is false for the built-in one.
+	BuildServerID string
+	Remote        bool
+}
+
+// Created is a queued job and what its builder needs to start it.
+type Created struct {
+	ID     string
+	Ticket string
+	// Engine is presigned for the builder, which caches it.
+	Engine *v1.Download
+}
+
+func (s *Service) presigner(remote bool) *minio.Client {
+	if remote {
+		return s.PresignRemote
+	}
+	return s.Presign
 }
 
 func objectKey(orgID, jobID, name string) string {
@@ -80,10 +103,10 @@ func (s *Service) inOrg(ctx context.Context, orgID string, fn func(pgx.Tx) error
 
 // Create queues a job and returns the one-time ticket that its sandbox
 // claims it with.
-func (s *Service) Create(ctx context.Context, r Request) (jobID, ticket string, err error) {
+func (s *Service) Create(ctx context.Context, r Request) (Created, error) {
 	var eng, version, platform, sourceSHA string
 	var sealedKey []byte
-	err = s.inOrg(ctx, r.OrgID, func(tx pgx.Tx) error {
+	err := s.inOrg(ctx, r.OrgID, func(tx pgx.Tx) error {
 		switch r.Operation {
 		case v1.JobOperation_JOB_OPERATION_PLAN:
 			platform = r.Platform
@@ -101,13 +124,18 @@ func (s *Service) Create(ctx context.Context, r Request) (jobID, ticket string, 
 		return fmt.Errorf("unknown job operation %s", r.Operation)
 	})
 	if err != nil {
-		return "", "", err
+		return Created{}, err
 	}
-	if _, err := s.Engines.Ensure(ctx, eng, version, platform); err != nil {
-		return "", "", fmt.Errorf("engine %s %s: %w", eng, version, err)
+	bin, err := s.Engines.Ensure(ctx, eng, version, platform)
+	if err != nil {
+		return Created{}, fmt.Errorf("engine %s %s: %w", eng, version, err)
+	}
+	binURL, err := s.presigner(r.Remote).PresignedGetObject(ctx, s.Bucket, bin.ObjectKey, time.Hour, url.Values{})
+	if err != nil {
+		return Created{}, err
 	}
 
-	jobID, ticket = uuid.NewString(), auth.RandomToken()
+	jobID, ticket := uuid.NewString(), auth.RandomToken()
 	err = s.inOrg(ctx, r.OrgID, func(tx pgx.Tx) error {
 		operation, planJobID := "apply", &r.PlanJobID
 		if r.Operation == v1.JobOperation_JOB_OPERATION_PLAN {
@@ -130,10 +158,10 @@ func (s *Service) Create(ctx context.Context, r Request) (jobID, ticket string, 
 		}
 		deadline := time.Now().Add(timeLimit)
 		if _, err := tx.Exec(ctx, `INSERT INTO jobs (id, org_id, workspace_id, operation, plan_job_id, engine, engine_version, platform,
-			artifact_key, created_by, deadline, run_id, source_sha256)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif($10, '')::uuid, $11, nullif($12, '')::uuid, $13)`,
+			artifact_key, created_by, deadline, run_id, source_sha256, build_server_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif($10, '')::uuid, $11, nullif($12, '')::uuid, $13, nullif($14, '')::uuid)`,
 			jobID, r.OrgID, r.WorkspaceID, operation, planJobID, eng, version, platform, sealedKey, r.CreatedBy, deadline,
-			r.RunID, sourceSHA); err != nil {
+			r.RunID, sourceSHA, r.BuildServerID); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO job_leases (job_id, org_id, workspace_id, ticket_hash, expires_at) VALUES ($1, $2, $3, $4, $5)`,
@@ -141,9 +169,9 @@ func (s *Service) Create(ctx context.Context, r Request) (jobID, ticket string, 
 		return err
 	})
 	if err != nil {
-		return "", "", err
+		return Created{}, err
 	}
-	return jobID, ticket, nil
+	return Created{ID: jobID, Ticket: ticket, Engine: &v1.Download{Name: bin.Name, Url: binURL.String(), Sha256: bin.SHA256}}, nil
 }
 
 // Claim starts a job whose ticket the caller spent, and returns everything
@@ -157,6 +185,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		orgID, operation, eng, version, platform string
 		orgSlug, project, projectPath, workspace string
 		sourceSHA                                string
+		remote                                   bool
 		planJobID                                *string
 		sealedKey                                []byte
 		deadline                                 time.Time
@@ -165,9 +194,10 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		FROM workspaces w, projects p, orgs o
 		WHERE j.id = $1 AND j.status = 'queued' AND w.id = j.workspace_id AND p.id = w.project_id AND o.id = j.org_id
 		RETURNING j.org_id, j.operation, j.plan_job_id, j.engine, j.engine_version, j.platform, j.artifact_key, j.deadline,
-			j.source_sha256, o.slug, p.slug, p.path, w.name`, jobID).
+			j.source_sha256, o.slug, p.slug, p.path, w.name,
+			EXISTS (SELECT FROM build_servers b WHERE b.id = j.build_server_id AND b.org_id IS NOT NULL)`, jobID).
 		Scan(&orgID, &operation, &planJobID, &eng, &version, &platform, &sealedKey, &deadline,
-			&sourceSHA, &orgSlug, &project, &projectPath, &workspace)
+			&sourceSHA, &orgSlug, &project, &projectPath, &workspace, &remote)
 	if err != nil {
 		return nil, fmt.Errorf("claim job %s: %w", jobID, err)
 	}
@@ -182,8 +212,9 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	}
 
 	expires := time.Until(deadline)
+	presign := s.presigner(remote)
 	get := func(objKey string) (string, error) {
-		u, err := s.Presign.PresignedGetObject(ctx, s.Bucket, objKey, expires, url.Values{})
+		u, err := presign.PresignedGetObject(ctx, s.Bucket, objKey, expires, url.Values{})
 		if err != nil {
 			return "", err
 		}
@@ -226,7 +257,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		job.Inputs = append(job.Inputs, d)
 	}
 	for _, name := range outputs {
-		u, err := s.Presign.PresignedPutObject(ctx, s.Bucket, objectKey(orgID, jobID, name), expires)
+		u, err := presign.PresignedPutObject(ctx, s.Bucket, objectKey(orgID, jobID, name), expires)
 		if err != nil {
 			return nil, err
 		}
@@ -253,7 +284,9 @@ func (s *Service) ReadArtifact(ctx context.Context, tx pgx.Tx, jobID, name strin
 	}
 	defer func() { _ = obj.Close() }()
 	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(obj); err != nil {
+	if _, err := buf.ReadFrom(obj); minio.ToErrorResponse(err).Code == "NoSuchKey" {
+		return nil, fmt.Errorf("%w: %s", ErrNoArtifact, name)
+	} else if err != nil {
 		return nil, err
 	}
 	return artifact.Open(key, jobID, name, buf.Bytes())

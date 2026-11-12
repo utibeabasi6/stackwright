@@ -114,7 +114,9 @@ type Run struct {
 	UpdatedAt    *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	FinishedAt   *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
 	// The run's last event, for a reader that resumes.
-	LastSeq       int64 `protobuf:"varint,19,opt,name=last_seq,json=lastSeq,proto3" json:"last_seq,omitempty"`
+	LastSeq int64 `protobuf:"varint,19,opt,name=last_seq,json=lastSeq,proto3" json:"last_seq,omitempty"`
+	// The build server of the run's latest job.
+	BuildServer   string `protobuf:"bytes,20,opt,name=build_server,json=buildServer,proto3" json:"build_server,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -280,6 +282,13 @@ func (x *Run) GetLastSeq() int64 {
 		return x.LastSeq
 	}
 	return 0
+}
+
+func (x *Run) GetBuildServer() string {
+	if x != nil {
+		return x.BuildServer
+	}
+	return ""
 }
 
 type RunEvent struct {
@@ -1280,7 +1289,7 @@ var File_stackwright_v1_runs_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x19stackwright/v1/runs.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xff\x04\n" +
+	"\x19stackwright/v1/runs.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x05\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06number\x18\x02 \x01(\x05R\x06number\x12\x18\n" +
@@ -1307,7 +1316,8 @@ const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12;\n" +
 	"\vfinished_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12\x19\n" +
-	"\blast_seq\x18\x13 \x01(\x03R\alastSeq\"\xb1\x01\n" +
+	"\blast_seq\x18\x13 \x01(\x03R\alastSeq\x12!\n" +
+	"\fbuild_server\x18\x14 \x01(\tR\vbuildServer\"\xb1\x01\n" +
 	"\bRunEvent\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12#\n" +

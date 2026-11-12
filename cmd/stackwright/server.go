@@ -39,6 +39,7 @@ import (
 func runServer(args []string) error {
 	fl := flag.NewFlagSet("server", flag.ExitOnError)
 	listen := fl.String("listen", ":8080", "address to serve on")
+	builderListen := fl.String("builder-listen", ":8443", "address to serve builders on, with TLS from the builder CA")
 	webDir := fl.String("web", "", "folder with the built web app")
 	_ = fl.Parse(args)
 
@@ -74,7 +75,7 @@ func runServer(args []string) error {
 		slog.Warn("this instance has no admin yet; open it in a browser and enter the setup code", "setup_code", setupCode)
 	}
 
-	s3, presign, bucket, err := objectStore(ctx)
+	s3, presign, presignRemote, bucket, err := objectStore(ctx)
 	if err != nil {
 		return err
 	}
@@ -92,12 +93,39 @@ func runServer(args []string) error {
 	if err != nil {
 		return err
 	}
+	ca, err := builders.LoadCA(ctx, pool, kek)
+	if err != nil {
+		return err
+	}
+	binaries, err := builders.LoadBinaries(config.Env("STACKWRIGHT_DOWNLOADS", "/downloads"))
+	if err != nil {
+		return err
+	}
+	publicURL := strings.TrimRight(config.Env("STACKWRIGHT_PUBLIC_URL", "http://127.0.0.1:8080"), "/")
+	public, err := url.Parse(publicURL)
+	if err != nil || public.Host == "" {
+		return fmt.Errorf("STACKWRIGHT_PUBLIC_URL %q is not a URL", publicURL)
+	}
+	builderURL := strings.TrimRight(config.Env("STACKWRIGHT_BUILDER_URL", "https://"+public.Hostname()+":8443"), "/")
+	bu, err := url.Parse(builderURL)
+	if err != nil || bu.Scheme != "https" || bu.Host == "" {
+		return fmt.Errorf("STACKWRIGHT_BUILDER_URL %q is not https://host:port", builderURL)
+	}
+	hosts := []string{bu.Hostname()}
+	if extra := config.Env("STACKWRIGHT_BUILDER_HOSTS", ""); extra != "" {
+		hosts = append(hosts, strings.Split(extra, ",")...)
+	}
 
 	jobService := &jobs.Service{
-		Pool: pool, KEK: kek, S3: s3, Presign: presign, Bucket: bucket,
+		Pool: pool, KEK: kek, S3: s3, Presign: presign, PresignRemote: presignRemote, Bucket: bucket,
 		Engines: &engine.Mirror{Pool: pool, S3: s3, Bucket: bucket, HTTP: &http.Client{Timeout: 10 * time.Minute}},
 	}
-	hub := &builders.Hub{}
+	hub := &builders.Hub{
+		Pool: pool, CA: ca, BuiltInToken: builderToken, BuilderURL: builderURL, Version: version.Version,
+		Images:           map[string]string{"docker": config.Env("STACKWRIGHT_EXECUTOR_IMAGE", "ghcr.io/stackwright/executor:"+version.Version)},
+		ServerURL:        strings.TrimRight(config.Env("STACKWRIGHT_SANDBOX_URL", publicURL), "/"),
+		BuiltInServerURL: strings.TrimRight(config.Env("STACKWRIGHT_INTERNAL_URL", "http://stackwright:8080"), "/"),
+	}
 	orchestrator := &runs.Orchestrator{Pool: pool, KEK: kek, S3: s3, Bucket: bucket, Jobs: jobService, Hub: hub, NATS: nc}
 	jobService.OnEnd = orchestrator.JobEnded
 	hub.OnExit = orchestrator.SandboxExited
@@ -108,19 +136,19 @@ func runServer(args []string) error {
 	if *webDir != "" {
 		web = os.DirFS(*webDir)
 	}
-	handler := server.New(server.Config{
+	srvCfg := server.Config{
 		Pool:      pool,
 		KEK:       kek,
-		PublicURL: strings.TrimRight(config.Env("STACKWRIGHT_PUBLIC_URL", "http://127.0.0.1:8080"), "/"),
+		PublicURL: publicURL,
 		SetupCode: setupCode,
 		Web:       web,
 		State:     state.Store{S3: s3, Bucket: bucket, KEK: kek},
 		Jobs:      jobService,
 		Runs:      orchestrator,
 		Builders:  hub,
-
-		BuilderToken: builderToken,
-	})
+		Binaries:  binaries,
+	}
+	handler := server.New(srvCfg)
 
 	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
 		exp, err := otlptracehttp.New(ctx)
@@ -138,29 +166,40 @@ func runServer(args []string) error {
 	protocols.SetHTTP1(true)
 	protocols.SetUnencryptedHTTP2(true)
 	srv := &http.Server{Addr: *listen, Handler: handler, ReadHeaderTimeout: 10 * time.Second, Protocols: &protocols}
+	builderSrv := &http.Server{Addr: *builderListen, Handler: server.NewBuilderPort(srvCfg), ReadHeaderTimeout: 10 * time.Second,
+		TLSConfig: ca.TLSConfig(hosts)}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdown)
+		_ = builderSrv.Shutdown(shutdown)
 	}()
-	slog.Info("server started", "listen", *listen, "version", version.Version)
+	builderErr := make(chan error, 1)
+	go func() { builderErr <- builderSrv.ListenAndServeTLS("", "") }()
+	slog.Info("server started", "listen", *listen, "builder_listen", *builderListen, "builder_url", builderURL,
+		"builder_ca_sha256", ca.Fingerprint(), "version", version.Version)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	if err := <-builderErr; !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
 }
 
-// objectStore returns a client for the server and one that signs URLs for
-// sandboxes, which may reach S3 at another address.
-func objectStore(ctx context.Context) (client, presign *minio.Client, bucket string, err error) {
+// objectStore returns a client for the server, and the clients that sign
+// URLs for the built-in builder and for remote ones. The built-in builder
+// and its sandboxes reach S3 as the server does; remote ones reach
+// STACKWRIGHT_S3_PUBLIC_URL.
+func objectStore(ctx context.Context) (client, presign, presignRemote *minio.Client, bucket string, err error) {
 	access, err := config.Secret("STACKWRIGHT_S3_ACCESS_KEY")
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	secret, err := config.Secret("STACKWRIGHT_S3_SECRET_KEY")
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	connect := func(name, raw string) (*minio.Client, error) {
 		u, err := url.Parse(raw)
@@ -175,10 +214,13 @@ func objectStore(ctx context.Context) (client, presign *minio.Client, bucket str
 	}
 	endpoint := config.Env("STACKWRIGHT_S3_ENDPOINT", "http://rustfs:9000")
 	if client, err = connect("STACKWRIGHT_S3_ENDPOINT", endpoint); err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
-	if presign, err = connect("STACKWRIGHT_S3_PUBLIC_URL", config.Env("STACKWRIGHT_S3_PUBLIC_URL", endpoint)); err != nil {
-		return nil, nil, "", err
+	if presign, err = connect("STACKWRIGHT_S3_ENDPOINT", endpoint); err != nil {
+		return nil, nil, nil, "", err
+	}
+	if presignRemote, err = connect("STACKWRIGHT_S3_PUBLIC_URL", config.Env("STACKWRIGHT_S3_PUBLIC_URL", endpoint)); err != nil {
+		return nil, nil, nil, "", err
 	}
 	bucket = config.Env("STACKWRIGHT_S3_BUCKET", "stackwright")
 	exists, err := client.BucketExists(ctx, bucket)
@@ -186,7 +228,7 @@ func objectStore(ctx context.Context) (client, presign *minio.Client, bucket str
 		err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})
 	}
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("S3 bucket %s: %w", bucket, err)
+		return nil, nil, nil, "", fmt.Errorf("S3 bucket %s: %w", bucket, err)
 	}
-	return client, presign, bucket, nil
+	return client, presign, presignRemote, bucket, nil
 }

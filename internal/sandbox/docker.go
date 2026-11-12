@@ -25,8 +25,6 @@ import (
 const apiVersion = "v1.44"
 
 const (
-	user     = "65532:65532"
-	uid      = 65532
 	cpus     = 2
 	memory   = 2 << 30
 	pids     = 1024
@@ -54,6 +52,9 @@ type DockerConfig struct {
 	// Each one joins every sandbox's network, and the sandbox reaches it by
 	// its service name.
 	Join []string
+	// Cache is the builder's cache as Docker mounts it: a host path, or a
+	// volume name.
+	Cache string
 }
 
 func NewDocker(c DockerConfig) (*Docker, error) {
@@ -173,12 +174,22 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 		env = append(env, k+"="+v)
 	}
 	slices.Sort(env)
-	var container struct{ ID string }
-	err := d.call(ctx, http.MethodPost, "/containers/create", url.Values{"name": {name}}, map[string]any{
+	mounts := []map[string]any{{"Type": "volume", "Target": FilesDir}}
+	if spec.Cache != NoCache {
+		if d.c.Cache == "" {
+			return nil, errors.New("this builder has no cache")
+		}
+		typ := "volume"
+		if strings.HasPrefix(d.c.Cache, "/") {
+			typ = "bind"
+		}
+		mounts = append(mounts, map[string]any{"Type": typ, "Source": d.c.Cache, "Target": CacheDir, "ReadOnly": spec.Cache == CacheReadOnly})
+	}
+	create := map[string]any{
 		"Image":      spec.Image,
 		"Cmd":        spec.Command,
 		"Env":        env,
-		"User":       user,
+		"User":       fmt.Sprintf("%d:%d", UID, UID),
 		"WorkingDir": "/work",
 		"Labels":     labels,
 		"HostConfig": map[string]any{
@@ -188,7 +199,7 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 				"/work": "rw,exec,nosuid,nodev,size=" + workSize + ",mode=1777",
 				"/tmp":  "rw,nosuid,nodev,size=" + tmpSize + ",mode=1777",
 			},
-			"Mounts":      []map[string]any{{"Type": "volume", "Target": FilesDir}},
+			"Mounts":      mounts,
 			"CapDrop":     []string{"ALL"},
 			"SecurityOpt": []string{"no-new-privileges"},
 			"NanoCpus":    cpus * 1e9,
@@ -197,9 +208,14 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 			"PidsLimit":   pids,
 			"ExtraHosts":  d.c.ExtraHosts,
 		},
-	}, &container)
+	}
+	var container struct{ ID string }
+	err := d.call(ctx, http.MethodPost, "/containers/create", url.Values{"name": {name}}, create, &container)
 	if isNotFound(err) {
-		return nil, fmt.Errorf("%w: %s", ErrNoSuchImage, spec.Image)
+		if err := d.pull(ctx, spec.Image); err != nil {
+			return nil, err
+		}
+		err = d.call(ctx, http.MethodPost, "/containers/create", url.Values{"name": {name}}, create, &container)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create sandbox container: %w", err)
@@ -211,7 +227,7 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 		tw := tar.NewWriter(&buf)
 		for _, n := range slices.Sorted(maps.Keys(spec.Files)) {
 			data := spec.Files[n]
-			if err := tw.WriteHeader(&tar.Header{Name: n, Mode: 0o400, Size: int64(len(data)), Uid: uid, Gid: uid, ModTime: time.Now()}); err != nil {
+			if err := tw.WriteHeader(&tar.Header{Name: n, Mode: 0o400, Size: int64(len(data)), Uid: UID, Gid: UID, ModTime: time.Now()}); err != nil {
 				return nil, err
 			}
 			_, _ = tw.Write(data)
@@ -231,6 +247,31 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 	}
 	ok = true
 	return s, nil
+}
+
+// pull fetches image. Docker streams progress as JSON lines, and reports a
+// failure in a line's error field with status 200.
+func (d *Docker) pull(ctx context.Context, image string) error {
+	resp, err := d.do(ctx, http.MethodPost, "/images/create", url.Values{"fromImage": {image}}, nil, "")
+	if isNotFound(err) {
+		return fmt.Errorf("%w: %s", ErrNoSuchImage, image)
+	}
+	if err != nil {
+		return fmt.Errorf("pull %s: %w", image, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	dec := json.NewDecoder(resp.Body)
+	for {
+		var line struct{ Error string }
+		if err := dec.Decode(&line); errors.Is(err, io.EOF) {
+			return nil
+		} else if err != nil {
+			return fmt.Errorf("pull %s: %w", image, err)
+		}
+		if line.Error != "" {
+			return fmt.Errorf("pull %s: %s", image, line.Error)
+		}
+	}
 }
 
 type dockerSandbox struct {

@@ -17,6 +17,7 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/builders"
 )
 
 const sampleEngineVersion = "1.10.7"
@@ -115,7 +116,7 @@ func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, er
 	for _, pr := range projects {
 		byID[pr.id] = pr.p
 	}
-	rows, err = tx.Query(ctx, `SELECT project_id, name, created_at, auto_apply FROM workspaces
+	rows, err = tx.Query(ctx, `SELECT project_id, name, created_at, auto_apply, required_labels FROM workspaces
 		WHERE org_id = app_org_id() AND archived_at IS NULL ORDER BY name`)
 	if err != nil {
 		return nil, err
@@ -125,11 +126,13 @@ func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, er
 		var projectID, name string
 		var created time.Time
 		var autoApply bool
-		if err := rows.Scan(&projectID, &name, &created, &autoApply); err != nil {
+		var labels map[string]string
+		if err := rows.Scan(&projectID, &name, &created, &autoApply, &labels); err != nil {
 			return nil, err
 		}
 		if p := byID[projectID]; p != nil {
-			p.Workspaces = append(p.Workspaces, &v1.Workspace{Name: name, CreatedAt: timestamppb.New(created), AutoApply: autoApply})
+			p.Workspaces = append(p.Workspaces, &v1.Workspace{Name: name, CreatedAt: timestamppb.New(created), AutoApply: autoApply,
+				RequiredLabels: labels})
 		}
 	}
 	return projects, rows.Err()
@@ -380,9 +383,29 @@ func (Projects) UpdateWorkspace(ctx context.Context, req *connect.Request[v1.Upd
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.Tx.Exec(ctx, `UPDATE workspaces SET auto_apply = $2 WHERE id = $1`, ws, req.Msg.AutoApply); err != nil {
-		return nil, authz.Internal(err)
+	var changes []string
+	if req.Msg.AutoApply != nil {
+		if _, err := s.Tx.Exec(ctx, `UPDATE workspaces SET auto_apply = $2 WHERE id = $1`, ws, req.Msg.GetAutoApply()); err != nil {
+			return nil, authz.Internal(err)
+		}
+		changes = append(changes, fmt.Sprintf("auto_apply=%t", req.Msg.GetAutoApply()))
 	}
-	s.Target(fmt.Sprintf("workspace:%s/%s auto_apply=%t", req.Msg.Project, req.Msg.Workspace, req.Msg.AutoApply))
+	if req.Msg.RequiredLabels != nil {
+		labels := req.Msg.GetRequiredLabels().GetValues()
+		if err := builders.CheckLabels(labels); err != nil {
+			return nil, err
+		}
+		if labels == nil {
+			labels = map[string]string{}
+		}
+		if _, err := s.Tx.Exec(ctx, `UPDATE workspaces SET required_labels = $2 WHERE id = $1`, ws, labels); err != nil {
+			return nil, authz.Internal(err)
+		}
+		changes = append(changes, "required_labels="+formatLabels(labels))
+	}
+	if len(changes) == 0 {
+		return nil, invalid("nothing to change")
+	}
+	s.Target(fmt.Sprintf("workspace:%s/%s %s", req.Msg.Project, req.Msg.Workspace, strings.Join(changes, " ")))
 	return connect.NewResponse(&v1.UpdateWorkspaceResponse{}), nil
 }

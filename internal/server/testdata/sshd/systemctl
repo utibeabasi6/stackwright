@@ -1,0 +1,10 @@
+#!/bin/sh
+# The image has no systemd. "restart" runs the builder in the background,
+# with its sandboxes' cache on the Docker volume that the test mounted.
+case "$1" in
+  restart)
+    pkill -f 'stackwright-builder run' || true
+    STACKWRIGHT_SANDBOX_CACHE="$(cat /etc/stackwright-sandbox-cache)" \
+      nohup /usr/local/bin/stackwright-builder run >/var/log/stackwright-builder.log 2>&1 &
+    ;;
+esac

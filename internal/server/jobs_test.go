@@ -117,11 +117,11 @@ func (w *jobWorld) create(r jobs.Request) (string, string) {
 		r.OrgID, r.WorkspaceID = w.orgID, w.workspace
 	}
 	r.Platform = w.platform
-	id, ticket, err := w.jobs.Create(context.Background(), r)
+	c, err := w.jobs.Create(context.Background(), r)
 	if err != nil {
 		w.t.Fatal(err)
 	}
-	return id, ticket
+	return c.ID, c.Ticket
 }
 
 func (w *jobWorld) start(ticket string) sandbox.Sandbox {
@@ -285,7 +285,7 @@ func TestJobPlanAndApply(t *testing.T) {
 		t.Errorf("state write audited as %q, %v", actor, err)
 	}
 
-	if _, _, err := w.jobs.Create(context.Background(), jobs.Request{OrgID: w.orgID, WorkspaceID: w.workspace,
+	if _, err := w.jobs.Create(context.Background(), jobs.Request{OrgID: w.orgID, WorkspaceID: w.workspace,
 		Operation: v1.JobOperation_JOB_OPERATION_APPLY, PlanJobID: applyID}); err == nil {
 		t.Error("an apply of an apply was accepted")
 	}

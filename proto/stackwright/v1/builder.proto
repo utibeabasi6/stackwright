@@ -2,10 +2,36 @@ syntax = "proto3";
 
 package stackwright.v1;
 
-// A builder holds one Connect stream open to the server. It authenticates
-// with the join token as its bearer token.
+import "stackwright/v1/executor.proto";
+
+// Builders call this service on the builder port, which serves TLS from
+// Stackwright's own CA (adr/0021).
 service BuilderService {
+  // Enrol spends a one-time enrol token, or takes the built-in builder's
+  // join token, and signs the CSR. It needs no client certificate.
+  rpc Enrol(EnrolRequest) returns (EnrolResponse);
+  // Connect needs the client certificate from Enrol.
   rpc Connect(stream ConnectRequest) returns (stream ConnectResponse);
+}
+
+message EnrolRequest {
+  string token = 1;
+  // A PKCS #10 request, DER.
+  bytes csr = 2;
+  // The built-in builder sets its slots and labels here. Other build
+  // servers get theirs when the enrol token is made.
+  int32 slots = 3;
+  map<string, string> labels = 4;
+}
+
+message EnrolResponse {
+  string build_server_id = 1;
+  string name = 2;
+  // DER.
+  bytes certificate = 3;
+  bytes ca_certificate = 4;
+  // Where Connect is served, such as https://stackwright.example.com:8443.
+  string builder_url = 5;
 }
 
 message ConnectRequest {
@@ -13,18 +39,20 @@ message ConnectRequest {
     BuilderHello hello = 1;
     BuilderHeartbeat heartbeat = 2;
     SandboxStatus sandbox = 3;
+    RenewCertificate renew = 4;
   }
 }
 
 // The first message on a stream.
 message BuilderHello {
-  string name = 1;
+  reserved 1, 3;
   // Such as linux_arm64.
   string platform = 2;
-  int32 slots = 3;
   string version = 4;
   // Jobs whose sandboxes still run, after a reconnect.
   repeated string running_jobs = 5;
+  // The sandbox backend, such as "docker".
+  string backend = 6;
 }
 
 message BuilderHeartbeat {}
@@ -42,16 +70,37 @@ message SandboxStatus {
   string error = 4;
 }
 
+// A builder asks for a new certificate before half of its current one's
+// life is gone.
+message RenewCertificate {
+  // DER.
+  bytes csr = 1;
+}
+
 message ConnectResponse {
   oneof body {
     StartSandbox start = 1;
     StopSandbox stop = 2;
+    // A renewed client certificate, DER.
+    bytes certificate = 3;
   }
 }
 
 message StartSandbox {
   string job_id = 1;
   string ticket = 2;
+  // The executor image for the builder's backend.
+  string image = 3;
+  // The server's URL as the sandbox reaches it.
+  string server_url = 4;
+  // The builder caches the engine. The executor checks its SHA-256 again.
+  Download engine = 5;
+  // Providers the workspace used last, such as
+  // "registry.opentofu.org/hashicorp/random 3.6.0". The builder caches them
+  // after the sandbox starts.
+  repeated string providers = 6;
+  // A test sandbox runs the image's version command and reports its exit.
+  bool test = 7;
 }
 
 // The sandbox gets a graceful stop, so the engine can release its lock.
