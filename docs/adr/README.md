@@ -37,3 +37,5 @@ line to the old one that points to the new one.
 | [0029](0029-sidebar-navigation.md) | A collapsible sidebar instead of the toolbar and workspace tabs; the plan graph on the run page only |
 | [0030](0030-agent-sessions.md) | Agent sessions: the toolbox, the Git proxy and the cap |
 | [0031](0031-agent-plans-and-pull-requests.md) | Agent plans are plan-only runs that nothing can apply; pull requests need a person |
+| [0032](0032-grounding-and-evals.md) | Grounding from the sandbox: provider schemas, module sources and repository facts; an eval that plans the proposed commit |
+| [0033](0033-agent-sandboxes-outlive-a-restart.md) | A restarted server adopts agent sandboxes; each sandbox start has its own job id |

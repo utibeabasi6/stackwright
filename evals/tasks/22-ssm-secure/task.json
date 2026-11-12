@@ -1,0 +1,14 @@
+{
+  "prompt": "Store var.db_password in SSM Parameter Store as a SecureString named /app/db/password.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_ssm_parameter",
+      "count": 1,
+      "values": {
+        "name": "/app/db/password",
+        "type": "SecureString"
+      }
+    }
+  ]
+}

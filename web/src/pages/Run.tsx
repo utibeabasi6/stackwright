@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { graphApi, message, runApi } from "../api";
 import { AskAgent } from "../agent/AgentPanel";
+import { Divider, paneWidth, useSavedWidth } from "../Divider";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run as RunType, type RunEvent } from "../gen/stackwright/v1/runs_pb";
 import { useShell } from "../me";
@@ -59,6 +60,9 @@ export function Run() {
   const [actionError, setActionError] = useState<string>();
   const role = me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
   const [full, setFull] = useState(false);
+  const [noGraph, setNoGraph] = useState(false);
+  const [timelineWidth, setTimelineWidth] = useSavedWidth("stackwright.width.timeline");
+  const timelinePane = useRef<HTMLOListElement>(null);
   useEffect(() => {
     if (!full) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFull(false);
@@ -79,6 +83,9 @@ export function Run() {
     }
   };
   const target = { org, project, workspace, number };
+  const hasGraph = !!run && run.status !== RunStatus.QUEUED && run.status !== RunStatus.PLANNING;
+  const showTimeline = !hasGraph || !full;
+  const showGraph = hasGraph && !noGraph;
 
   return (
     <div className="run-view">
@@ -103,31 +110,73 @@ export function Run() {
             </span>
           </>
         )}
+        {hasGraph && (
+          <>
+            <span className="grow" />
+            <button
+              type="button"
+              aria-controls="timeline"
+              aria-expanded={!full}
+              title="Esc shows it again"
+              onClick={() => setFull(!full)}
+            >
+              {full ? "Show timeline" : "Hide timeline"}
+            </button>
+            <button
+              type="button"
+              aria-controls="run-graph"
+              aria-expanded={!noGraph}
+              onClick={() => setNoGraph(!noGraph)}
+            >
+              {noGraph ? "Show graph" : "Hide graph"}
+            </button>
+          </>
+        )}
       </div>
 
       {error && <p className="notice error">{error} Reconnecting…</p>}
-      <div className={full ? "run-split full" : "run-split"}>
-        <ol className="timeline" aria-label="Timeline" aria-live="polite">
-          {events.map((e) => {
-            const line = describeEvent(e);
-            if (!line.text.trim()) return null;
-            return (
-              <li key={String(e.seq)} className={line.tone}>
-                <time className="mono muted" dateTime={e.at ? timestampDate(e.at).toISOString() : undefined}>
-                  {e.at ? timestampDate(e.at).toLocaleTimeString() : ""}
-                </time>
-                <span>
-                  {line.text}
-                  {e.resourceAddr && !line.text.includes(e.resourceAddr) && <code> {e.resourceAddr}</code>}
-                  {line.detail && <span className="detail">{line.detail}</span>}
-                  {line.fix && <AskAgent org={org} project={project} prompt={`Run #${number} hit this error. Fix the code.\n\n${line.fix}`} />}
-                </span>
-              </li>
-            );
-          })}
-          {events.length === 0 && <li className="muted">No events yet.</li>}
-        </ol>
-        {run && run.status !== RunStatus.QUEUED && run.status !== RunStatus.PLANNING && (
+      <div className={showTimeline ? "run-split" : "run-split full"}>
+        {showTimeline && (
+          <ol
+            id="timeline"
+            ref={timelinePane}
+            className="timeline"
+            aria-label="Timeline"
+            aria-live="polite"
+            style={showGraph ? paneWidth(timelineWidth) : undefined}
+          >
+            {events.map((e) => {
+              const line = describeEvent(e);
+              if (!line.text.trim()) return null;
+              return (
+                <li key={String(e.seq)} className={line.tone}>
+                  <time className="mono muted" dateTime={e.at ? timestampDate(e.at).toISOString() : undefined}>
+                    {e.at ? timestampDate(e.at).toLocaleTimeString() : ""}
+                  </time>
+                  <span>
+                    {line.text}
+                    {e.resourceAddr && !line.text.includes(e.resourceAddr) && <code> {e.resourceAddr}</code>}
+                    {line.detail && <span className="detail">{line.detail}</span>}
+                    {line.fix && <AskAgent org={org} project={project} prompt={`Run #${number} hit this error. Fix the code.\n\n${line.fix}`} />}
+                  </span>
+                </li>
+              );
+            })}
+            {events.length === 0 && <li className="muted">No events yet.</li>}
+          </ol>
+        )}
+        {showTimeline && showGraph && (
+          <Divider
+            label="Resize the timeline"
+            pane={() => timelinePane.current}
+            edge="end"
+            min={200}
+            keep={320}
+            onResize={setTimelineWidth}
+          />
+        )}
+        {!showTimeline && !showGraph && <p className="notice muted">The timeline and the graph are hidden.</p>}
+        {run && showGraph && (
           <RunGraph
             org={org}
             project={project}
@@ -136,7 +185,6 @@ export function Run() {
             events={events}
             writer={role >= Role.WRITER}
             full={full}
-            setFull={setFull}
           />
         )}
       </div>
@@ -192,12 +240,11 @@ type RunGraphProps = {
   writer: boolean;
   // full hides the timeline, so the graph takes the page.
   full: boolean;
-  setFull: (full: boolean) => void;
 };
 
 // RunGraph shows the run's plan graph. During the apply its nodes follow
 // the events; after the run, the apply can be replayed.
-function RunGraph({ org, project, workspace, run, events, writer, full, setFull }: RunGraphProps) {
+function RunGraph({ org, project, workspace, run, events, writer, full }: RunGraphProps) {
   const graph = useLoad(`plan-graph:${org}/${project}/${workspace}/${run.number}`, () =>
     graphApi.getPlanGraph({ org, project, workspace, number: run.number }),
   );
@@ -268,16 +315,8 @@ function RunGraph({ org, project, workspace, run, events, writer, full, setFull 
   ) : (
     applyEvents.length > 0 && <span className="live">Applying, live</span>
   );
-  const controls = (
-    <>
-      {progress}
-      <button type="button" aria-pressed={full} onClick={() => setFull(!full)}>
-        {full ? "Exit full screen" : "Full screen"}
-      </button>
-    </>
-  );
   return (
-    <div className="plan-view run-graph">
+    <div id="run-graph" className="plan-view run-graph">
       <Graph
         org={org}
         project={project}
@@ -286,7 +325,7 @@ function RunGraph({ org, project, workspace, run, events, writer, full, setFull 
         writer={writer}
         states={states}
         diagnostics={state.diagnostics}
-        controls={controls}
+        controls={progress}
         fit={full}
       />
     </div>

@@ -85,7 +85,15 @@ func (g *GitHub) GitProxy() http.Handler {
 				return err
 			}
 			// The approval is spent only if GitHub takes the push.
-			return g.forward(ctx, w, r, body, length, fmt.Sprintf("%s/%s.git/%s", g.WebURL, repo, rest), token)
+			err = g.forward(ctx, w, r, body, length, fmt.Sprintf("%s/%s.git/%s", g.WebURL, repo, rest), token)
+			// A token from before a change to the App's permissions keeps the
+			// old ones; the next request gets a fresh token.
+			if s := upstreamStatus(0); errors.As(err, &s) && (s == http.StatusUnauthorized || s == http.StatusForbidden) {
+				g.mu.Lock()
+				delete(g.tokens, installation)
+				g.mu.Unlock()
+			}
+			return err
 		})
 		var refused interface{ Status() int }
 		switch {

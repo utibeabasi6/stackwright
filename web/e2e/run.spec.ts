@@ -93,7 +93,7 @@ test("a failed node shows its diagnostic, and nodes after it stay waiting", asyn
   await expect(page.getByRole("alert").filter({ hasText: "Create local file error" })).toContainText("main.tf:10");
 });
 
-test("full screen hides the timeline, and breadcrumbs lead back to the runs", async ({ page }) => {
+test("hiding the timeline gives the graph the page, and breadcrumbs lead back to the runs", async ({ page }) => {
   await mockApi(page, "ROLE_VIEWER", {
     GetPlanGraph: () => ({ graph: golden("actions"), number: 5 }),
     WatchRun: () => ({ messages: [{ run: run("RUN_STATUS_APPLIED"), events: testdata<Event[]>("actions", "apply-events.json") }] }),
@@ -103,7 +103,7 @@ test("full screen hides the timeline, and breadcrumbs lead back to the runs", as
   await expect(timeline).toBeVisible();
   const zoom = () => page.locator(".react-flow__viewport").evaluate((el: HTMLElement) => el.style.transform);
   const before = await zoom();
-  await page.getByRole("button", { name: "Full screen" }).click();
+  await page.getByRole("button", { name: "Hide timeline" }).click();
   await expect(timeline).toBeHidden();
   await expect.poll(zoom).not.toBe(before);
   await page.keyboard.press("Escape");
@@ -113,4 +113,47 @@ test("full screen hides the timeline, and breadcrumbs lead back to the runs", as
   await expect(crumbs.getByText("Run #5")).toHaveAttribute("aria-current", "page");
   await crumbs.getByRole("link", { name: "Runs" }).click();
   await expect(page).toHaveURL(/\/a\/projects\/lab\/default\/runs$/);
+});
+
+test("the timeline resizes by drag and by keys, keeps its width, and hides with the graph", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mockApi(page, "ROLE_VIEWER", {
+    GetPlanGraph: () => ({ graph: golden("actions"), number: 5 }),
+    WatchRun: () => ({ messages: [{ run: run("RUN_STATUS_APPLIED"), events: testdata<Event[]>("actions", "apply-events.json") }] }),
+  });
+  await page.goto("/a/projects/lab/default/runs/5");
+  const timeline = page.getByRole("list", { name: "Timeline" });
+  const width = async () => (await timeline.boundingBox())!.width;
+  const divider = page.getByRole("separator", { name: "Resize the timeline" });
+  const start = await width();
+
+  const box = (await divider.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  expect(Math.round((await width()) - start)).toBeGreaterThanOrEqual(115);
+
+  await divider.focus();
+  const dragged = await width();
+  await page.keyboard.press("ArrowLeft");
+  expect(Math.round(dragged - (await width()))).toBe(16);
+  await page.keyboard.press("Home");
+  expect(Math.round(await width())).toBe(200);
+
+  await page.reload();
+  expect(Math.round(await width())).toBe(200);
+  await page.getByRole("separator", { name: "Resize the timeline" }).dblclick();
+  expect(Math.round(await width())).toBe(Math.round(start));
+
+  await page.getByRole("button", { name: "Hide graph" }).click();
+  await expect(page.locator("#run-graph")).toHaveCount(0);
+  await expect(page.getByRole("separator")).toHaveCount(0);
+  expect(Math.round(await width())).toBeGreaterThan(Math.round(start));
+  await page.getByRole("button", { name: "Hide timeline" }).click();
+  await expect(timeline).toHaveCount(0);
+  await expect(page.getByText("The timeline and the graph are hidden.")).toBeVisible();
+  await page.getByRole("button", { name: "Show graph" }).click();
+  await expect(page.locator("#run-graph")).toBeVisible();
+  await expect(timeline).toHaveCount(0);
 });

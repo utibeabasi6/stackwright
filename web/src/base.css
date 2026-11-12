@@ -157,10 +157,26 @@ a {
   display: flex;
   flex: none;
   flex-direction: column;
-  width: var(--agent-width);
+  width: var(--pane-width, var(--agent-width));
   min-height: 0;
   border-left: 1px solid var(--hairline);
   background: var(--inspector);
+}
+
+.divider {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: var(--space-1);
+  margin-inline: calc(var(--space-1) / -2);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.divider:hover,
+.divider:focus-visible {
+  background: var(--accent);
+  outline: none;
 }
 
 .agent-panel > h2 {
@@ -242,6 +258,7 @@ a {
 }
 
 .agent-scroll {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -1123,20 +1140,21 @@ details.card summary {
 }
 
 .run-split .timeline {
+  flex: 0 0 var(--pane-width, 38%);
   overflow: auto;
 }
 
+.run-split .timeline:only-child {
+  flex: 1;
+}
+
 .run-split .run-graph {
-  flex: 0 0 62%;
+  flex: 1;
+  min-width: 0;
   border-left: 1px solid var(--hairline);
 }
 
-.run-split.full .timeline {
-  display: none;
-}
-
 .run-split.full .run-graph {
-  flex: 1;
   border-left: 0;
 }
 

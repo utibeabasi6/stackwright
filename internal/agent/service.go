@@ -37,6 +37,7 @@ var (
 	errTurnTime    = errors.New("the turn ran out of time")
 	sandboxPrefix  = "agent-"
 	readyTimeout   = 5 * time.Minute
+	adoptWait      = 2 * time.Minute
 	toolTimeout    = 6 * time.Minute
 	watchFallback  = time.Second
 	stepBatch      = 500
@@ -53,6 +54,12 @@ type Service struct {
 	Hooks Hooks
 	// IdleAfter is how long a sandbox with no changes stays up with no turn.
 	IdleAfter time.Duration
+	// AdoptWait is how long a restarted server waits for the toolboxes of
+	// the sandboxes it adopted to reconnect. Zero means two minutes.
+	AdoptWait time.Duration
+	// HiddenTools are left out of the tools that the model is offered. The
+	// eval uses it to compare runs with and without a tool.
+	HiddenTools []string
 
 	mu   sync.Mutex
 	live map[string]*live
@@ -84,6 +91,11 @@ type live struct {
 	// platform and remote describe the build server that runs the sandbox.
 	platform string
 	remote   bool
+	// job is the running sandbox's hub job id, which is new for each
+	// sandbox, so the exit of an older one cannot end it.
+	job string
+	// adopted marks a sandbox that an earlier server process started.
+	adopted bool
 	// conn counts toolbox streams, so an old stream that ends late does not
 	// undo a newer one.
 	conn  int
@@ -621,6 +633,7 @@ func (s *Service) ensureSandbox(ctx context.Context, session, orgID string) erro
 			return fmt.Errorf("%w: none with a free slot runs agent sandboxes; a build server needs its builder updated to run them", ErrNoSandbox)
 		}
 		token := auth.RandomToken()
+		job := sandboxPrefix + session + "-" + auth.RandomToken()[:8]
 		gitBase := s.Hub.ServerURL
 		if !slot.Remote {
 			gitBase = s.Hub.BuiltInServerURL
@@ -630,8 +643,8 @@ func (s *Service) ensureSandbox(ctx context.Context, session, orgID string) erro
 				auth.HashToken(token), session, orgID); err != nil {
 				return err
 			}
-			_, err := tx.Exec(ctx, `UPDATE agent_sessions SET sandbox_id = $2, status = 'starting', updated_at = now() WHERE id = $1`,
-				session, sandboxPrefix+session)
+			_, err := tx.Exec(ctx, `UPDATE agent_sessions SET sandbox_id = $2, sandbox_platform = $3, sandbox_remote = $4, status = 'starting',
+				updated_at = now() WHERE id = $1`, session, job, slot.Platform, slot.Remote)
 			return err
 		})
 		if err != nil {
@@ -639,21 +652,26 @@ func (s *Service) ensureSandbox(ctx context.Context, session, orgID string) erro
 			return err
 		}
 		s.mu.Lock()
-		l.orgID, l.gitBase, l.platform, l.remote = orgID, gitBase, slot.Platform, slot.Remote
+		l.orgID, l.gitBase, l.platform, l.remote, l.job, l.adopted = orgID, gitBase, slot.Platform, slot.Remote, job, false
 		l.gone = make(chan struct{})
 		s.mu.Unlock()
 		s.changed(session)
-		if err := slot.Start(&v1.StartSandbox{JobId: sandboxPrefix + session, Ticket: token, Toolbox: true}); err != nil {
+		if err := slot.Start(&v1.StartSandbox{JobId: job, Ticket: token, Toolbox: true}); err != nil {
 			return fmt.Errorf("%w: %w", ErrNoSandbox, err)
 		}
 	}
 	s.mu.Lock()
-	ready, gone := l.ready, l.gone
+	ready, gone, adopted := l.ready, l.gone, l.adopted
 	s.mu.Unlock()
 	select {
 	case <-ready:
 		return nil
 	case <-gone:
+		// An adopted sandbox whose toolbox never came back is removed;
+		// start a fresh one.
+		if adopted {
+			return s.ensureSandbox(ctx, session, orgID)
+		}
 		return fmt.Errorf("%w: the sandbox exited before its toolbox connected", ErrNoSandbox)
 	case <-ctx.Done():
 		return ctx.Err()

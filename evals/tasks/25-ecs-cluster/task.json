@@ -1,0 +1,15 @@
+{
+  "prompt": "Add an ECS cluster named apps with Container Insights enabled.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_ecs_cluster",
+      "count": 1,
+      "values": {
+        "name": "apps",
+        "setting.0.name": "containerInsights",
+        "setting.0.value": "enabled"
+      }
+    }
+  ]
+}

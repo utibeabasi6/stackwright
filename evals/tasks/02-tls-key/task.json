@@ -1,0 +1,13 @@
+{
+  "prompt": "Add an ECDSA private key on the P384 curve, named ca, with the tls provider.",
+  "expect": [
+    {
+      "type": "tls_private_key",
+      "count": 1,
+      "values": {
+        "algorithm": "ECDSA",
+        "ecdsa_curve": "P384"
+      }
+    }
+  ]
+}

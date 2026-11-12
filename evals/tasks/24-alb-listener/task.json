@@ -1,0 +1,33 @@
+{
+  "prompt": "Add an application load balancer named web in the subnets subnet-0aaa1111 and subnet-0bbb2222. Add a target group named web on port 8080 over HTTP, with the health check path /healthz, in the VPC vpc-0abc1234. Add an HTTP listener on port 80 that forwards to the target group.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_lb",
+      "count": 1,
+      "values": {
+        "name": "web",
+        "load_balancer_type": "application"
+      }
+    },
+    {
+      "type": "aws_lb_target_group",
+      "count": 1,
+      "values": {
+        "name": "web",
+        "port": 8080,
+        "protocol": "HTTP",
+        "health_check.0.path": "/healthz"
+      }
+    },
+    {
+      "type": "aws_lb_listener",
+      "count": 1,
+      "values": {
+        "port": 80,
+        "protocol": "HTTP",
+        "default_action.0.type": "forward"
+      }
+    }
+  ]
+}

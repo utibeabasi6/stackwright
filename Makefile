@@ -6,7 +6,7 @@ export GOTOOLCHAIN := local
 -include .env
 export STACKWRIGHT_POSTGRES_PASSWORD STACKWRIGHT_APP_DB_PASSWORD STACKWRIGHT_NATS_PASSWORD STACKWRIGHT_S3_ACCESS_KEY STACKWRIGHT_S3_SECRET_KEY STACKWRIGHT_KEK STACKWRIGHT_BUILDER_TOKEN
 
-.PHONY: init up down dev test test-go test-web e2e lint lint-go lint-web lint-proto generate build images secrets vuln licenses smoke
+.PHONY: init up down dev test test-go test-web e2e eval lint lint-go lint-web lint-proto generate build images secrets vuln licenses smoke
 
 init:
 	docker build -q --target binary -t stackwright/stackwright:init . >/dev/null
@@ -31,6 +31,19 @@ test-web:
 
 e2e:
 	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) exec playwright install chromium && $(PNPM) exec playwright test
+
+# eval runs the agent on every task in evals/tasks with the real model, which
+# spends money (adr/0032). ARM is baseline (no provider_schema or
+# module_docs) or grounded.
+ARM ?= grounded
+EVAL_PARALLEL ?= 3
+eval: export STACKWRIGHT_TEST_OPENROUTER_KEY := $(STACKWRIGHT_TEST_OPENROUTER_KEY)
+eval:
+	@test -n "$$STACKWRIGHT_TEST_OPENROUTER_KEY" || { echo "set STACKWRIGHT_TEST_OPENROUTER_KEY in .env"; exit 1; }
+	mkdir -p evals/results
+	STACKWRIGHT_TEST_INFRA=1 STACKWRIGHT_TEST_ENGINES=1 STACKWRIGHT_EVAL=1 STACKWRIGHT_EVAL_ARM=$(ARM) \
+		STACKWRIGHT_EVAL_OUT=$(CURDIR)/evals/results/$$(date -u +%Y-%m-%d)-$(ARM).json \
+		go test -v -count=1 -timeout 6h -parallel $(EVAL_PARALLEL) -run 'TestEval$$' ./internal/server/
 
 lint: lint-go lint-web lint-proto
 

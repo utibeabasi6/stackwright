@@ -71,7 +71,7 @@ A sidebar and one inspector hold the navigation ([0029](../adr/0029-sidebar-navi
 
 **Organisation pages** (Projects, Waiting on you, Build servers, Settings) open in the content area. Their content column is at most 1120px, with `space-6` margins.
 
-**A workspace** page has its own URL and no tabs; the sidebar switches between them. ⌘K opens a workspace by name. A run's page fills the window: the timeline on the left and the plan graph on the right, with "Full screen" to hide the timeline. A bar above the view names what it shows ("Plan #142 · Speculative · +3 ~1 −0"). A bar below the view says what happens next, in `chrome`.
+**A workspace** page has its own URL and no tabs; the sidebar switches between them. ⌘K opens a workspace by name. A run's page fills the window: the timeline on the left and the plan graph on the right. "Hide timeline" and "Hide graph" in the bar above hide either or both; Esc shows the timeline again. A divider between panes, and between the page and the agent panel, resizes them by drag or arrow keys; Home and End go to the limits, and a double click or Enter gives back the default width. The browser remembers each width. A bar above the view names what it shows ("Plan #142 · Speculative · +3 ~1 −0"). A bar below the view says what happens next, in `chrome`.
 
 **The inspector** (`inspector`, 360px, on the right) has two tabs: Agent and Resource. It opens by default on the Plan view and remembers whether the user hid it. ⌥⌘0 shows or hides it. The Agent tab names the branch and the sandbox it works in. A proposed commit shows as a card titled "Commit these changes?" with "Discard", "Show diff" and the accent "Commit and push".
 

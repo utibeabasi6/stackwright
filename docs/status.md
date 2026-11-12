@@ -836,3 +836,118 @@ run):
 - A turn that stops while its plan runs leaves the plan running; it ends
   on its own.
 - `state_lookup` reads the state as the workspace's newest plan read it.
+
+## Phase 13: Grounding and evals
+
+Decisions: [0032](adr/0032-grounding-and-evals.md).
+
+**Verified on 2026-11-12:**
+- Toolbox unit tests: `conventions` reads both STACKWRIGHT.md files and the
+  facts (files, `required_version`, providers, backend, module calls,
+  locked versions). It leaves out `.env` and other files, and it does not
+  follow a symlink out of the checkout. `module_docs` lists required inputs
+  first, then the defaults and outputs; a file that does not parse is
+  left out. `provider_schema` writes types, flags, nested attributes and
+  blocks with their limits, and names similar types for a wrong name.
+- Against a local Terraform (the toolbox test takes `tofu` or `terraform`
+  from PATH): `init` and `providers schema -json` for the random provider,
+  the cached schema, a wrong type name, and a local module's inputs.
+- In a Go test with a real Docker sandbox and a scripted model: the
+  system prompt holds STACKWRIGHT.md and the facts, and no state value;
+  `provider_schema` answers in the sandbox; a hidden tool is not offered,
+  and a call to it, or to the toolbox's internal `conventions`, gets
+  "There is no tool".
+- `TestEvalSolutions` plans the seed and the reference solution of all 30
+  tasks with the local Terraform, AWS tasks included, offline with fake
+  keys. Every solution passes its checks and every seed fails them. This
+  found one wrong task (27), which is fixed.
+- `make -n eval` prints no key.
+- `golangci-lint` has 0 issues; the licence check passes; the 51 web tests,
+  `tsc` and `eslint` pass.
+
+**The server package under load.** `go test -race ./...` passed every
+package except `internal/server`. In three runs of that package, 5, 2 and
+10 tests failed. Each failed test passes when it runs alone. In the logged
+run, every stalled sandbox waited on an "engine opentofu 1.10.7" download,
+cancelled at the 4-minute limit. Each test world has its own engine mirror
+and downloads the 24 MB engine from GitHub, so about 20 worlds download at
+once. One download alone took 7.6 s. This comes from the test setup, not
+from phase 13; phase 12 saw the same stalls. The new agent test runs
+serially, like the other engine-heavy agent tests.
+
+**A 3-task check against the real model** (Claude Opus 5.5 through
+OpenRouter; tasks 03, 19 and 24; one run of each arm):
+
+| Arm | Passed | Argument errors | Cost | Time |
+| --- | --- | --- | --- | --- |
+| baseline | 2 of 3 | 0 | $0.11 | 193 s |
+| grounded | 2 of 3 | 0 | $0.14 | 321 s |
+
+- A task cost $0.03 to $0.05, with 3 to 5 model calls and 1 plan each.
+  In the grounded arm the model called `provider_schema` 1 to 3 times in
+  every task.
+- Task 19 failed in both arms, and the check was wrong, not the code: the
+  model wrote two egress rules for "all outbound traffic", and the check
+  wanted exactly one. Two rules for IPv4 and IPv6 is the likely reason; the
+  logged transcript is cut too short to show it. The check now takes one
+  or more.
+- Neither arm made an argument error on these three tasks. If the full
+  baseline also has few, this task set cannot show that the schema tool
+  lowers them.
+
+**Not verified:**
+- No full eval has run, so there is no baseline score and no comparison
+  of the arms. Both "done when" items of phase 13 are open.
+- The toolbox and solutions tests used Terraform, not OpenTofu, because
+  only Terraform is installed on the Mac. The server tests use OpenTofu
+  1.10.7 in the sandbox.
+- The dev stack's Lima build server still has the executor image from
+  before phase 12.
+
+**Known gaps:**
+- `module_docs` is measured weakly: the module tasks use local modules,
+  which the agent can also read with `read_file` (adr/0032).
+- A tool call on a build server with an older executor image gets "there
+  is no tool"; the conventions are left out without a notice.
+
+### Phase 13, fixes from the dev stack
+
+Found in the first live sessions on the dev stack, 2026-11-12:
+- **A restart lost the agent's sandbox.** The new server refused the
+  reconnecting toolbox, which exited with its uncommitted changes, and the
+  next message waited 5 minutes. A restarted server now adopts sandboxes
+  ([0033](adr/0033-agent-sandboxes-outlive-a-restart.md)). Go tests with
+  a real sandbox: a file that the agent wrote and did not commit is still
+  there after a restart; a sandbox whose toolbox cannot come back is
+  removed after the wait, and the next message gets a fresh sandbox.
+- **Each sandbox start has its own job id.** The test above found that a
+  late exit of the removed sandbox ended the fresh one.
+- **The GitHub App could not push.** Its manifest asked for contents:
+  read; it now asks for contents: write, as adr/0023 said phase 12 would
+  need. An App made before this change needs its owner to change the
+  permission on GitHub and the installation to accept it.
+- **A retry after a failed push said "there is nothing to commit".** The
+  toolbox kept the commit but refused to push a clean checkout. Now a
+  commit whose push failed counts as a change: a retry pushes it, the
+  reaper keeps its sandbox, and "Discard" drops it. Toolbox tests use a
+  real bare repository whose hook refuses the first push.
+- **The agent's questions now render markdown**, as its replies do.
+- **The run page's panes resize and hide.** Dividers between the
+  timeline and the graph, and between the page and the agent panel, resize
+  by drag or keys, and the browser keeps the widths. "Hide timeline"
+  (which replaces the graph's "Full screen") and "Hide graph" sit in the
+  run's bar, and hide either or both. E2e tests drag, use the keys, reload
+  and reset each divider.
+- **A push kept failing after the App gained write.** The server kept
+  the installation token that it minted before the change, for up to an
+  hour. The Git proxy now drops a token that GitHub answers with 401 or
+  403, so the next try mints a fresh one. A Go test fails without this:
+  the fake GitHub refuses pushes from tokens minted before the change.
+- **A long session made the whole page scroll.** The hidden status text on
+  each tool line is absolutely placed, and the panel's scroll box did not
+  clip it. An e2e test checks that the page is no taller than the window;
+  it fails without the fix (1083 px in an 800 px window).
+- **The server offers the grounding tools to every sandbox.** A build
+  server with an older executor image answers "there is no tool". The
+  dev stack's built-in builder was rebuilt; the Lima VM still has the old
+  image.

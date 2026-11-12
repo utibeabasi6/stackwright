@@ -1,0 +1,15 @@
+{
+  "prompt": "Make the api service check the health path /ready every 15 seconds.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_lb_target_group",
+      "count": 1,
+      "values": {
+        "name": "api",
+        "health_check.0.path": "/ready",
+        "health_check.0.interval": 15
+      }
+    }
+  ]
+}

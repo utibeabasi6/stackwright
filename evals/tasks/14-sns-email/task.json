@@ -1,0 +1,21 @@
+{
+  "prompt": "Add an SNS topic named alerts, and subscribe the email address ops@example.com to it.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_sns_topic",
+      "count": 1,
+      "values": {
+        "name": "alerts"
+      }
+    },
+    {
+      "type": "aws_sns_topic_subscription",
+      "count": 1,
+      "values": {
+        "protocol": "email",
+        "endpoint": "ops@example.com"
+      }
+    }
+  ]
+}

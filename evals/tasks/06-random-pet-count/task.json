@@ -1,0 +1,13 @@
+{
+  "prompt": "Create three random_pet resources named servers with count, each with the prefix web and a length of 3.",
+  "expect": [
+    {
+      "type": "random_pet",
+      "count": 3,
+      "values": {
+        "prefix": "web",
+        "length": 3
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { Link, Outlet, useNavigate, useParams, useRouter, useRouterState } from "@tanstack/react-router";
 import { authApi, message, projectApi, runApi } from "./api";
@@ -6,6 +6,7 @@ import type { GetMeResponse } from "./gen/stackwright/v1/auth_pb";
 import { Role } from "./gen/stackwright/v1/orgs_pb";
 import { ShellContext } from "./me";
 import { AgentPanel } from "./agent/AgentPanel";
+import { Divider, paneWidth, useSavedWidth } from "./Divider";
 import { Palette, type Command } from "./Palette";
 import { applyTheme, savedTheme, type Theme } from "./theme";
 import { useLoad } from "./useLoad";
@@ -50,6 +51,8 @@ export function Shell() {
   const [theme, setTheme] = useState<Theme>(savedTheme);
   const [agentShown, setAgentShown] = useState(savedAgent);
   const [ask, setAsk] = useState<string>();
+  const [agentWidth, setAgentWidth] = useSavedWidth("stackwright.width.agent");
+  const agentPane = useRef<HTMLElement>(null);
   const showAgent = useCallback((show: (shown: boolean) => boolean) => {
     setAgentShown((shown) => {
       const next = show(shown);
@@ -301,7 +304,17 @@ export function Shell() {
               <Outlet />
             </main>
             {ws && agentShown && (
-              <aside id="agent" className="agent-panel" aria-label="Agent">
+              <Divider
+                label="Resize the agent"
+                pane={() => agentPane.current}
+                edge="start"
+                min={320}
+                keep={360}
+                onResize={setAgentWidth}
+              />
+            )}
+            {ws && agentShown && (
+              <aside id="agent" ref={agentPane} className="agent-panel" aria-label="Agent" style={paneWidth(agentWidth)}>
                 <h2>Agent</h2>
                 <AgentPanel org={ws.org} project={ws.project} workspace={ws.workspace} ask={ask} onAsked={() => setAsk(undefined)} />
               </aside>

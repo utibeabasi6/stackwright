@@ -22,15 +22,17 @@ import (
 // scriptedModel answers each model call with the next scripted message, and
 // with "Done." once the script ends.
 type scriptedModel struct {
-	mu      sync.Mutex
-	replies []agent.Message
-	cost    float64
-	calls   int
+	mu       sync.Mutex
+	replies  []agent.Message
+	cost     float64
+	calls    int
+	requests []agent.Request
 }
 
-func (m *scriptedModel) Complete(_ context.Context, key string, _ agent.Request) (agent.Response, error) {
+func (m *scriptedModel) Complete(_ context.Context, key string, req agent.Request) (agent.Response, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.requests = append(m.requests, req)
 	if key != "test-key" {
 		return agent.Response{}, fmt.Errorf("%w: wrong key %q", agent.ErrModel, key)
 	}

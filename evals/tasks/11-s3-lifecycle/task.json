@@ -1,0 +1,15 @@
+{
+  "prompt": "Expire the objects under the prefix tmp/ in the bucket aws_s3_bucket.logs after 7 days.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_s3_bucket_lifecycle_configuration",
+      "count": 1,
+      "values": {
+        "rule.0.status": "Enabled",
+        "rule.0.expiration.0.days": 7,
+        "rule.0.filter.0.prefix": "tmp/"
+      }
+    }
+  ]
+}

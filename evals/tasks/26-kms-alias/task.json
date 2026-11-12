@@ -1,0 +1,21 @@
+{
+  "prompt": "Add a KMS key with automatic key rotation and a deletion window of 10 days, with the alias alias/app.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_kms_key",
+      "count": 1,
+      "values": {
+        "enable_key_rotation": true,
+        "deletion_window_in_days": 10
+      }
+    },
+    {
+      "type": "aws_kms_alias",
+      "count": 1,
+      "values": {
+        "name": "alias/app"
+      }
+    }
+  ]
+}

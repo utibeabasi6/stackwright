@@ -1,0 +1,13 @@
+{
+  "prompt": "Add a self-signed certificate for example.com, valid for 30 days, signed with the key tls_private_key.ca. It is for a TLS server.",
+  "expect": [
+    {
+      "type": "tls_self_signed_cert",
+      "count": 1,
+      "values": {
+        "validity_period_hours": 720,
+        "subject.0.common_name": "example.com"
+      }
+    }
+  ]
+}

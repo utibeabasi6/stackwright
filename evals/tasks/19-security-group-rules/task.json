@@ -1,0 +1,30 @@
+{
+  "prompt": "Add a security group named web in the VPC vpc-0abc1234 that allows HTTPS from anywhere and all outbound traffic. Write the rules as aws_vpc_security_group_ingress_rule and aws_vpc_security_group_egress_rule resources.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_security_group",
+      "count": 1,
+      "values": {
+        "name": "web",
+        "vpc_id": "vpc-0abc1234"
+      }
+    },
+    {
+      "type": "aws_vpc_security_group_ingress_rule",
+      "count": 1,
+      "values": {
+        "from_port": 443,
+        "to_port": 443,
+        "ip_protocol": "tcp",
+        "cidr_ipv4": "0.0.0.0/0"
+      }
+    },
+    {
+      "type": "aws_vpc_security_group_egress_rule",
+      "values": {
+        "ip_protocol": "-1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "prompt": "Add a public Route 53 zone for example.org, and an A record for www.example.org that points to 203.0.113.10 with a TTL of 300.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_route53_zone",
+      "count": 1,
+      "values": {
+        "name": "example.org"
+      }
+    },
+    {
+      "type": "aws_route53_record",
+      "count": 1,
+      "values": {
+        "type": "A",
+        "ttl": 300,
+        "records.0": "203.0.113.10"
+      }
+    }
+  ]
+}

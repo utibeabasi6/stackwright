@@ -1,0 +1,14 @@
+{
+  "prompt": "Add an S3 bucket for invoices.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_s3_bucket",
+      "count": 1,
+      "values": {
+        "tags_all.team": "platform",
+        "tags_all.cost_center": "cc-42"
+      }
+    }
+  ]
+}

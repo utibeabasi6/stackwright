@@ -1,0 +1,14 @@
+{
+  "prompt": "Add a CloudWatch log group named /app/api that keeps its logs for 14 days.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_cloudwatch_log_group",
+      "count": 1,
+      "values": {
+        "name": "/app/api",
+        "retention_in_days": 14
+      }
+    }
+  ]
+}

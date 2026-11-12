@@ -1,0 +1,20 @@
+{
+  "prompt": "Add an S3 bucket named acme-logs with versioning enabled.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_s3_bucket",
+      "count": 1,
+      "values": {
+        "bucket": "acme-logs"
+      }
+    },
+    {
+      "type": "aws_s3_bucket_versioning",
+      "count": 1,
+      "values": {
+        "versioning_configuration.0.status": "Enabled"
+      }
+    }
+  ]
+}

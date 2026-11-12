@@ -383,6 +383,10 @@ function toolLine(name: string, args: Payload): string {
       return `Read the plan for ${text(args.address)}`;
     case "state_lookup":
       return `Looked up ${text(args.address)} in the state`;
+    case "provider_schema":
+      return `Read the schema of ${text(args.kind) === "data" ? "data source " : ""}${text(args.type)}`;
+    case "module_docs":
+      return text(args.name) ? `Read the inputs of module ${text(args.name)}` : "Listed the module calls";
     case "propose_pull_request":
       return "Proposed a pull request";
   }
@@ -421,7 +425,9 @@ function Step({ step, results, canDecide, decide }: StepProps) {
         return (
           <li className="msg question">
             <span className="who">Agent asks</span>
-            <div className="body">{text(args.question)}</div>
+            <div className="body prose">
+              <Prose text={text(args.question)} />
+            </div>
           </li>
         );
       }

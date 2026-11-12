@@ -183,14 +183,20 @@ func (s *Service) callTool(ctx context.Context, id, name, args string) (*v1.Tool
 // removeSandbox stops the session's sandbox and ends its token. The session
 // sleeps, unless it is closed; its next message starts a fresh sandbox.
 func (s *Service) removeSandbox(ctx context.Context, id, orgID, why string) {
-	s.Hub.Stop(sandboxPrefix + id)
+	l := s.session(id)
+	s.mu.Lock()
+	job := l.job
+	s.mu.Unlock()
+	if job != "" {
+		s.Hub.Stop(job)
+	}
 	err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM agent_sandbox_tokens WHERE session_id = $1`, id); err != nil {
 			return err
 		}
 		// A turn that runs ends itself and sets the status; until then the
 		// session stays busy, so no message slips in without a turn.
-		_, err := tx.Exec(ctx, `UPDATE agent_sessions SET sandbox_id = NULL, dirty = false, updated_at = now(),
+		_, err := tx.Exec(ctx, `UPDATE agent_sessions SET sandbox_id = NULL, sandbox_platform = NULL, dirty = false, updated_at = now(),
 			status = CASE WHEN status IN ('closed', 'working', 'starting') THEN status ELSE 'asleep' END WHERE id = $1`, id)
 		return err
 	})
@@ -198,8 +204,8 @@ func (s *Service) removeSandbox(ctx context.Context, id, orgID, why string) {
 		slog.Error("remove agent sandbox", "session", id, "err", err)
 	}
 	s.disconnected(id)
-	l := s.session(id)
 	s.mu.Lock()
+	l.job, l.adopted = "", false
 	select {
 	case <-l.gone:
 	default:
@@ -211,17 +217,19 @@ func (s *Service) removeSandbox(ctx context.Context, id, orgID, why string) {
 }
 
 // SandboxExited is the hub's callback for a sandbox whose job id starts
-// with "agent-".
+// with "agent-". The exit of a sandbox that is no longer the session's,
+// such as one removed just before a fresh one started, is ignored.
 func (s *Service) SandboxExited(jobID string, st *v1.SandboxStatus) {
-	id, ok := strings.CutPrefix(jobID, sandboxPrefix)
-	if !ok {
+	rest, ok := strings.CutPrefix(jobID, sandboxPrefix)
+	if !ok || len(rest) < len(uuid.Nil.String()) {
 		return
 	}
+	id := rest[:len(uuid.Nil.String())]
 	l := s.session(id)
 	s.mu.Lock()
-	orgID := l.orgID
+	orgID, current := l.orgID, l.job
 	s.mu.Unlock()
-	if orgID == "" {
+	if orgID == "" || jobID != current {
 		return
 	}
 	s.removeSandbox(context.Background(), id, orgID, "exited: "+st.GetError())
@@ -249,15 +257,7 @@ func (s *Service) RunReaper(ctx context.Context, every time.Duration) {
 }
 
 func (s *Service) reap(ctx context.Context) error {
-	rows, err := s.Pool.Query(ctx, `SELECT DISTINCT session_id, org_id FROM agent_sandbox_tokens`)
-	if err != nil {
-		return err
-	}
-	type running struct{ id, org string }
-	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (running, error) {
-		var x running
-		return x, r.Scan(&x.id, &x.org)
-	})
+	list, err := s.sandboxedSessions(ctx)
 	if err != nil {
 		return err
 	}
@@ -281,9 +281,11 @@ func (s *Service) reap(ctx context.Context) error {
 	return nil
 }
 
-// Recover ends the turns that an earlier server process left. It runs
-// before this process starts any turn, so every working or starting
-// session has none.
+// Recover ends the turns that an earlier server process left, and adopts
+// its sandboxes, so a toolbox that reconnects keeps its checkout. It runs
+// before the server listens, so every working or starting session has no
+// turn and no toolbox stream yet. A sandbox whose toolbox does not come
+// back within AdoptWait is removed.
 func (s *Service) Recover(ctx context.Context) error {
 	rows, err := s.Pool.Query(ctx, `SELECT session_id, org_id FROM agent_busy_sessions()`)
 	if err != nil {
@@ -304,5 +306,81 @@ func (s *Service) Recover(ctx context.Context) error {
 		}
 		s.setStatus(ctx, b.org, b.id, "ready", "")
 	}
+	running, err := s.sandboxedSessions(ctx)
+	if err != nil {
+		return err
+	}
+	var adopted []sandboxed
+	for _, r := range running {
+		var job, platform *string
+		var remote bool
+		if err := s.inOrg(ctx, r.org, func(tx pgx.Tx) error {
+			return tx.QueryRow(ctx, `SELECT sandbox_id, sandbox_platform, sandbox_remote FROM agent_sessions WHERE id = $1`, r.id).
+				Scan(&job, &platform, &remote)
+		}); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		l := s.session(r.id)
+		if job != nil {
+			s.mu.Lock()
+			l.job = *job
+			s.mu.Unlock()
+		}
+		if job == nil || platform == nil {
+			s.removeSandbox(ctx, r.id, r.org, "an earlier server started it and did not record where")
+			continue
+		}
+		gitBase := s.Hub.BuiltInServerURL
+		if remote {
+			gitBase = s.Hub.ServerURL
+		}
+		s.mu.Lock()
+		l.orgID, l.gitBase, l.platform, l.remote, l.adopted = r.org, gitBase, *platform, remote, true
+		s.mu.Unlock()
+		adopted = append(adopted, r)
+	}
+	if len(adopted) == 0 {
+		return nil
+	}
+	wait := s.AdoptWait
+	if wait == 0 {
+		wait = adoptWait
+	}
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(wait):
+		}
+		for _, r := range adopted {
+			l := s.session(r.id)
+			s.mu.Lock()
+			back := false
+			select {
+			case <-l.ready:
+				back = true
+			default:
+			}
+			s.mu.Unlock()
+			if !back {
+				s.removeSandbox(context.Background(), r.id, r.org, "its toolbox did not reconnect after a restart")
+			}
+		}
+	}()
 	return nil
+}
+
+type sandboxed struct{ id, org string }
+
+// sandboxedSessions lists the sessions that have a sandbox token, in every
+// org.
+func (s *Service) sandboxedSessions(ctx context.Context) ([]sandboxed, error) {
+	rows, err := s.Pool.Query(ctx, `SELECT DISTINCT session_id, org_id FROM agent_sandbox_tokens`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (sandboxed, error) {
+		var x sandboxed
+		return x, r.Scan(&x.id, &x.org)
+	})
 }

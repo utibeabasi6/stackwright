@@ -1,0 +1,13 @@
+{
+  "prompt": "Add a random password named db that is 24 characters long and has no special characters.",
+  "expect": [
+    {
+      "type": "random_password",
+      "count": 1,
+      "values": {
+        "length": 24,
+        "special": false
+      }
+    }
+  ]
+}

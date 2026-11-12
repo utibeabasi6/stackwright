@@ -550,6 +550,30 @@ test("a proposed commit waits for a person, who commits and pushes it", async ()
   expect(api.decisions).toMatchObject([{ org: "a", id: "s1", proposal: 5n, approve: true }]);
 });
 
+test("the agent's question renders as markdown", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [{ ...network, linkedRepo: "acme/infra" }];
+  api.agentKey = true;
+  api.agentSteps = [
+    { seq: 1n, kind: "user", payload: JSON.stringify({ text: "Add an S3 trigger" }) },
+    {
+      seq: 2n,
+      kind: "tool_call",
+      payload: JSON.stringify({
+        id: "c1",
+        name: "ask_user",
+        arguments: JSON.stringify({ question: "What I changed:\n- `live/main.tf`: a trigger\n\nIs `incoming/` the right prefix?" }),
+      }),
+    },
+  ];
+  at("/a/projects/network/prod");
+  await screen.findByRole("heading", { name: "prod" });
+  await userEvent.click(screen.getByRole("button", { name: "Agent" }));
+  const panel = await screen.findByRole("complementary", { name: "Agent" });
+  expect(await within(panel).findByText("incoming/", { selector: "code" })).toBeInTheDocument();
+  expect(within(panel).getByText("live/main.tf", { selector: "li code" })).toBeInTheDocument();
+});
+
 test("with no session, Enter in the composer starts one; Shift+Enter breaks the line", async () => {
   signedInAs(Role.WRITER);
   api.projects = [{ ...network, linkedRepo: "acme/infra" }];

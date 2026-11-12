@@ -38,6 +38,7 @@ type box struct {
 	repo   string
 	dir    string
 	branch string
+	base   string
 	engine string
 }
 
@@ -140,7 +141,7 @@ func (b *box) result(ctx context.Context, id, out string, err error) *v1.Toolbox
 // out the session's branch, or a new one from base. A checkout that exists
 // is kept, so a restarted stream does not lose the changes.
 func (b *box) checkout(ctx context.Context, c *v1.Checkout) error {
-	b.branch = c.GetBranch()
+	b.branch, b.base = c.GetBranch(), c.GetBase()
 	if _, err := os.Stat(filepath.Join(b.repo, ".git")); err != nil {
 		if _, err := b.git(ctx, b.work, "clone", "--no-tags", c.GetGitUrl(), b.repo); err != nil {
 			return err
@@ -174,22 +175,32 @@ func (b *box) checkout(ctx context.Context, c *v1.Checkout) error {
 	return nil
 }
 
+// dirty reports changes that are not committed, or commits that are not
+// pushed, such as one whose push failed.
 func (b *box) dirty(ctx context.Context) bool {
-	out, err := b.git(ctx, b.repo, "status", "--porcelain")
-	return err == nil && strings.TrimSpace(out) != ""
+	if out, err := b.git(ctx, b.repo, "status", "--porcelain"); err == nil && out != "" {
+		return true
+	}
+	ahead, err := b.git(ctx, b.repo, "rev-list", "--count", "HEAD", "--not", "--remotes=origin")
+	return err == nil && ahead != "0"
 }
 
 func (b *box) commit(ctx context.Context, c *v1.CommitOrder) (string, error) {
 	if !b.dirty(ctx) {
 		return "", errors.New("there is nothing to commit")
 	}
-	if _, err := b.git(ctx, b.repo, "add", "--all"); err != nil {
+	// A commit whose push failed is pushed as it is.
+	if out, err := b.git(ctx, b.repo, "status", "--porcelain"); err != nil {
 		return "", err
-	}
-	author := fmt.Sprintf("%s <%s>", c.GetAuthorName(), c.GetAuthorEmail())
-	if _, err := b.git(ctx, b.repo, "-c", "user.name="+c.GetAuthorName(), "-c", "user.email="+c.GetAuthorEmail(),
-		"commit", "--author", author, "-m", c.GetMessage()); err != nil {
-		return "", err
+	} else if out != "" {
+		if _, err := b.git(ctx, b.repo, "add", "--all"); err != nil {
+			return "", err
+		}
+		author := fmt.Sprintf("%s <%s>", c.GetAuthorName(), c.GetAuthorEmail())
+		if _, err := b.git(ctx, b.repo, "-c", "user.name="+c.GetAuthorName(), "-c", "user.email="+c.GetAuthorEmail(),
+			"commit", "--author", author, "-m", c.GetMessage()); err != nil {
+			return "", err
+		}
 	}
 	if _, err := b.git(ctx, b.repo, "push", "origin", "HEAD:refs/heads/"+b.branch); err != nil {
 		// The commit stays local, so a second approval can push it.
@@ -198,8 +209,14 @@ func (b *box) commit(ctx context.Context, c *v1.CommitOrder) (string, error) {
 	return b.git(ctx, b.repo, "rev-parse", "HEAD")
 }
 
+// discard goes back to the branch as it was last pushed, or to its base
+// when it was never pushed, so a commit whose push failed goes too.
 func (b *box) discard(ctx context.Context) (string, error) {
-	if _, err := b.git(ctx, b.repo, "reset", "--hard", "HEAD"); err != nil {
+	pushed := "origin/" + b.branch
+	if _, err := b.git(ctx, b.repo, "rev-parse", "--verify", "--quiet", pushed); err != nil {
+		pushed = "origin/" + b.base
+	}
+	if _, err := b.git(ctx, b.repo, "reset", "--hard", pushed); err != nil {
 		return "", err
 	}
 	return b.git(ctx, b.repo, "clean", "-fd")

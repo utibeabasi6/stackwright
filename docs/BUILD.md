@@ -43,6 +43,8 @@ Each decision has a record in [adr/](adr/).
 | Navigation | A collapsible sidebar that lists a workspace's pages inside it; breadcrumbs; the plan graph on the run page only | [0029](adr/0029-sidebar-navigation.md) |
 | Agent sessions | OpenRouter over HTTP; the cap counts its reported cost; the toolbox dials the server; the Git proxy lets a push through only for an unspent approval; a right-hand panel | [0030](adr/0030-agent-sessions.md) |
 | Agent plans | Plan-only runs marked "agent", which the database refuses to apply; masked plan and state reads; a pull request after a person approves it | [0031](adr/0031-agent-plans-and-pull-requests.md) |
+| Grounding and evals | Provider schemas and module sources read in the sandbox after init; STACKWRIGHT.md and facts from the code in the prompt; an eval that plans the commit the agent proposes | [0032](adr/0032-grounding-and-evals.md) |
+| Agent restarts | A restarted server adopts agent sandboxes and keeps their checkouts; one job id per sandbox start | [0033](adr/0033-agent-sandboxes-outlive-a-restart.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**

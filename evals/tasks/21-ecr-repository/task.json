@@ -1,0 +1,19 @@
+{
+  "prompt": "Add an ECR repository named api with immutable tags and scan on push, and a lifecycle policy that keeps only the last 10 images.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_ecr_repository",
+      "count": 1,
+      "values": {
+        "name": "api",
+        "image_tag_mutability": "IMMUTABLE",
+        "image_scanning_configuration.0.scan_on_push": true
+      }
+    },
+    {
+      "type": "aws_ecr_lifecycle_policy",
+      "count": 1
+    }
+  ]
+}

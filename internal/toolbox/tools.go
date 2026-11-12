@@ -45,6 +45,9 @@ func (b *box) call(ctx context.Context, name, raw string) (string, error) {
 		Old     string `json:"old"`
 		New     string `json:"new"`
 		Content string `json:"content"`
+		Type    string `json:"type"`
+		Kind    string `json:"kind"`
+		Name    string `json:"name"`
 	}
 	if raw != "" {
 		if err := json.Unmarshal([]byte(raw), &args); err != nil {
@@ -65,10 +68,16 @@ func (b *box) call(ctx context.Context, name, raw string) (string, error) {
 	case "fmt":
 		return b.engineRun(ctx, "fmt", "-recursive", "-no-color")
 	case "validate":
-		if out, err := b.engineRun(ctx, "init", "-backend=false", "-input=false", "-no-color"); err != nil {
+		if out, err := b.init(ctx); err != nil {
 			return out, err
 		}
 		return b.engineRun(ctx, "validate", "-no-color")
+	case "provider_schema":
+		return b.providerSchema(ctx, args.Type, args.Kind)
+	case "module_docs":
+		return b.moduleDocs(ctx, args.Name)
+	case "conventions":
+		return b.conventions()
 	case "diff":
 		return b.diff(ctx)
 	}
@@ -209,13 +218,17 @@ func (b *box) diff(ctx context.Context) (string, error) {
 	return b.git(ctx, b.repo, "diff", "--no-color", "--stat", "--patch")
 }
 
-func (b *box) engineRun(ctx context.Context, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
-	defer cancel()
+func (b *box) engineCmd(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, b.engine, args...) //nolint:gosec // the engine binary, checked against its SHA-256
 	cmd.Dir = b.dir
 	cmd.Env = []string{"HOME=" + filepath.Join(b.work, "home"), "PATH=/usr/local/bin:/usr/bin:/bin", "TF_IN_AUTOMATION=1", "TF_INPUT=0"}
-	out, err := cmd.CombinedOutput()
+	return cmd
+}
+
+func (b *box) engineRun(ctx context.Context, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
+	defer cancel()
+	out, err := b.engineCmd(ctx, args...).CombinedOutput()
 	if err != nil {
 		return string(out), fmt.Errorf("%s %s failed: %w\n%s", filepath.Base(b.engine), args[0], err, out)
 	}

@@ -1,0 +1,20 @@
+{
+  "prompt": "Add an IAM role named api-lambda that Lambda can assume, and attach the AWS managed policy AWSLambdaBasicExecutionRole to it.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_iam_role",
+      "count": 1,
+      "values": {
+        "name": "api-lambda"
+      }
+    },
+    {
+      "type": "aws_iam_role_policy_attachment",
+      "count": 1,
+      "values": {
+        "policy_arn": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      }
+    }
+  ]
+}

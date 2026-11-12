@@ -1,0 +1,29 @@
+{
+  "prompt": "Add a VPC named main with the CIDR 10.20.0.0/16, and two private subnets: 10.20.1.0/24 in eu-west-1a and 10.20.2.0/24 in eu-west-1b.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_vpc",
+      "count": 1,
+      "values": {
+        "cidr_block": "10.20.0.0/16"
+      }
+    },
+    {
+      "type": "aws_subnet",
+      "count": 1,
+      "values": {
+        "cidr_block": "10.20.1.0/24",
+        "availability_zone": "eu-west-1a"
+      }
+    },
+    {
+      "type": "aws_subnet",
+      "count": 1,
+      "values": {
+        "cidr_block": "10.20.2.0/24",
+        "availability_zone": "eu-west-1b"
+      }
+    }
+  ]
+}

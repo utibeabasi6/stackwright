@@ -1,0 +1,21 @@
+{
+  "prompt": "Add a CloudWatch alarm named high-cpu. It fires when the average CPUUtilization of the EC2 instance i-0123456789abcdef0 is above 80 percent for 3 periods of 5 minutes.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_cloudwatch_metric_alarm",
+      "count": 1,
+      "values": {
+        "alarm_name": "high-cpu",
+        "comparison_operator": "GreaterThanThreshold",
+        "threshold": 80,
+        "evaluation_periods": 3,
+        "period": 300,
+        "statistic": "Average",
+        "metric_name": "CPUUtilization",
+        "namespace": "AWS/EC2",
+        "dimensions.InstanceId": "i-0123456789abcdef0"
+      }
+    }
+  ]
+}

@@ -108,7 +108,7 @@ func (g *GitHub) Manifest(ctx context.Context, tx pgx.Tx, userID, githubOrg, ret
 		"setup_on_update":          true,
 		"request_oauth_on_install": false,
 		"public":                   false,
-		"default_permissions":      map[string]string{"contents": "read", "pull_requests": "write", "checks": "write", "metadata": "read"},
+		"default_permissions":      map[string]string{"contents": "write", "pull_requests": "write", "checks": "write", "metadata": "read"},
 		"default_events":           []string{"push", "pull_request"},
 	})
 	if err != nil {

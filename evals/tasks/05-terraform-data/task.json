@@ -1,0 +1,12 @@
+{
+  "prompt": "Replace null_resource.migrate with terraform_data. Keep its replacement trigger on var.schema_version, and remove the null provider.",
+  "expect": [
+    {
+      "type": "terraform_data",
+      "count": 1
+    }
+  ],
+  "absent": [
+    "null_resource"
+  ]
+}

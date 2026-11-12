@@ -1,0 +1,12 @@
+{
+  "prompt": "Add a variable named environments with the default [\"dev\", \"staging\", \"prod\"], and a random_id named suffix for each environment with for_each, with a byte length of 4.",
+  "expect": [
+    {
+      "type": "random_id",
+      "count": 3,
+      "values": {
+        "byte_length": 4
+      }
+    }
+  ]
+}

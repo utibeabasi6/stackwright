@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -69,6 +70,10 @@ type world struct {
 	github       *fakeGitHub
 	agent        *agent.Service
 	model        *scriptedModel
+	cfg          server.Config
+	// handler and current let restartAgent swap in a new agent service.
+	handler *atomic.Pointer[http.Handler]
+	current *atomic.Pointer[agent.Service]
 }
 
 func newWorld(t *testing.T, web fstest.MapFS) *world {
@@ -144,9 +149,11 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	model := &scriptedModel{}
 	ag := &agent.Service{Pool: d.App, KEK: kek, Hub: hub, Model: model, IdleAfter: time.Hour}
 	js.OnEnd = orch.JobEnded
+	current := new(atomic.Pointer[agent.Service])
+	current.Store(ag)
 	hub.OnExit = func(jobID string, st *v1.SandboxStatus) {
 		if agent.IsSandbox(jobID) {
-			ag.SandboxExited(jobID, st)
+			current.Load().SandboxExited(jobID, st)
 			return
 		}
 		orch.SandboxExited(jobID, st)
@@ -164,14 +171,37 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	if web != nil {
 		cfg.Web = web
 	}
-	srv.Config.Handler = server.New(cfg)
+	handler := new(atomic.Pointer[http.Handler])
+	h := server.New(cfg)
+	handler.Store(&h)
+	srv.Config.Handler = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) { (*handler.Load()).ServeHTTP(rw, r) })
 	bsrv := &http.Server{Handler: server.NewBuilderPort(cfg), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		_ = bsrv.Serve(tls.NewListener(bl, ca.TLSConfig([]string{"127.0.0.1", "host.docker.internal", "localhost"})))
 	}()
 	t.Cleanup(func() { _ = bsrv.Close() })
 	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public, jobs: js, runs: orch, hub: hub,
-		builderLocal: fmt.Sprintf("https://127.0.0.1:%d", builderPort), sts: sts, github: fake, agent: ag, model: model}
+		builderLocal: fmt.Sprintf("https://127.0.0.1:%d", builderPort), sts: sts, github: fake, agent: ag, model: model,
+		cfg: cfg, handler: handler, current: current}
+}
+
+// restartAgent stands in for a server restart: a new agent service and
+// handler on the same database and builders. Recover runs before the new
+// handler serves, and every connection drops, as in a restart.
+func (w *world) restartAgent(adoptWait time.Duration) {
+	w.t.Helper()
+	old := w.agent
+	ag := &agent.Service{Pool: old.Pool, KEK: old.KEK, Hub: old.Hub, Model: old.Model, IdleAfter: old.IdleAfter, AdoptWait: adoptWait}
+	cfg := w.cfg
+	cfg.Agent = ag
+	h := server.New(cfg)
+	if err := ag.Recover(context.Background()); err != nil {
+		w.t.Fatal(err)
+	}
+	w.current.Store(ag)
+	w.handler.Store(&h)
+	w.srv.CloseClientConnections()
+	w.agent = ag
 }
 
 type client struct {

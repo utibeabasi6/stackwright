@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -48,6 +49,10 @@ var tools = []Tool{
 	tool("write_file", "Creates or replaces a file with content.", map[string]any{"path": str, "content": str}, "path", "content"),
 	tool("fmt", "Formats every .tf file in the project with the engine's fmt.", map[string]any{}),
 	tool("validate", "Runs the engine's init without a backend, then validate, in the project's folder.", map[string]any{}),
+	tool("provider_schema", "Returns the arguments, blocks and read-only attributes of a resource or data source type, from the schema of the provider "+
+		"version that init installs. kind is \"resource\" (the default) or \"data\".", map[string]any{"type": str, "kind": str}, "type"),
+	tool("module_docs", "Returns the inputs and outputs of a module call in the project, read from the module's source after init. "+
+		"With no name, lists the module calls.", map[string]any{"name": str}),
 	tool("ask_user", "Asks the person a question and ends the turn until they answer.", map[string]any{"question": str}, "question"),
 	tool("propose_commit", "Proposes the checkout's changes as one commit with a message. A person approves or discards it; the turn ends.",
 		map[string]any{"message": str}, "message"),
@@ -66,8 +71,11 @@ var serverTools = map[string]bool{"run_plan": true, "plan_details": true, "state
 
 type sessionInfo struct {
 	branch, base, path, engine, version, repo string
-	steps                                     []stepRow
-	turnsBefore                               int
+	// conventions are the repository's STACKWRIGHT.md files and facts
+	// that the toolbox reads from the code.
+	conventions string
+	steps       []stepRow
+	turnsBefore int
 }
 
 type stepRow struct {
@@ -110,7 +118,7 @@ func (info sessionInfo) system() string {
 	if folder == "" {
 		folder = "the repository's root"
 	}
-	return fmt.Sprintf(`You are the Stackwright agent. You change infrastructure code in a Git checkout of %s, on the branch %s, which started from %s.
+	prompt := fmt.Sprintf(`You are the Stackwright agent. You change infrastructure code in a Git checkout of %s, on the branch %s, which started from %s.
 The project's code is in %s and runs on %s %s.
 
 Rules:
@@ -121,8 +129,13 @@ Rules:
 - plan_details shows one resource's planned changes; state_lookup shows a resource's attributes in the state. Sensitive values show as "(sensitive)".
 - You cannot commit or push. When the change is ready and the plan is clean, call propose_commit with a short message in the imperative mood. A person approves or discards it.
 - After a person commits and pushes, call propose_pull_request with a title and a body if the person wants a pull request.
+- Before you write a resource, data source or module call, read its arguments with provider_schema or module_docs. Do not guess argument names.
 - Call ask_user when you need a decision that only the person can make.
 - Reply in short, plain sentences.`, info.repo, info.branch, info.base, folder, engine, info.version, maxPlans)
+	if info.conventions == "" {
+		return prompt
+	}
+	return prompt + "\n\nThe repository's own rules and facts follow. Follow the rules unless they conflict with the rules above.\n\n" + info.conventions
 }
 
 // messages turns the transcript into the chat the model reads. A tool call
@@ -218,17 +231,23 @@ func (s *Service) runTurn(ctx context.Context, id, orgID, userID string) {
 		return
 	}
 	s.setStatus(bg, orgID, id, "working", "")
+	var conventions string
+	if r, err := s.callTool(ctx, id, "conventions", ""); err == nil && !r.GetError() {
+		conventions = r.GetOutput()
+	}
+	offered := slices.DeleteFunc(slices.Clone(tools), func(t Tool) bool { return slices.Contains(s.HiddenTools, t.Function.Name) })
 	for range maxCalls {
 		st, info, err := s.loadTurn(bg, id, orgID)
 		if err != nil {
 			fail(err)
 			return
 		}
+		info.conventions = conventions
 		if err := allowed(st); err != nil {
 			fail(err)
 			return
 		}
-		resp, err := s.Model.Complete(ctx, st.key, Request{Model: st.turn, Messages: info.messages(), Tools: tools})
+		resp, err := s.Model.Complete(ctx, st.key, Request{Model: st.turn, Messages: info.messages(), Tools: offered})
 		if err != nil {
 			fail(err)
 			return
@@ -268,6 +287,8 @@ func (s *Service) runTurn(ctx context.Context, id, orgID, userID string) {
 			var failed bool
 			var err error
 			switch why := refusedArgs(args); {
+			case !slices.ContainsFunc(offered, func(t Tool) bool { return t.Function.Name == name }):
+				out, failed = fmt.Sprintf("There is no tool %q.", name), true
 			case why != "":
 				out, failed = why, true
 			case serverTools[name]:

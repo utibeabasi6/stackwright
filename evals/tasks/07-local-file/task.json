@@ -1,0 +1,13 @@
+{
+  "prompt": "With the local provider, write config/app.json with the content jsonencode({ env = \"prod\" }) and file permission 0600.",
+  "expect": [
+    {
+      "type": "local_file",
+      "count": 1,
+      "values": {
+        "file_permission": "0600",
+        "content": "{\"env\":\"prod\"}"
+      }
+    }
+  ]
+}

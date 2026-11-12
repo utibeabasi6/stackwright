@@ -1,0 +1,25 @@
+{
+  "prompt": "Add a Secrets Manager secret named app/api-key with a recovery window of 0 days. Store a random password of 32 characters in it.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_secretsmanager_secret",
+      "count": 1,
+      "values": {
+        "name": "app/api-key",
+        "recovery_window_in_days": 0
+      }
+    },
+    {
+      "type": "aws_secretsmanager_secret_version",
+      "count": 1
+    },
+    {
+      "type": "random_password",
+      "count": 1,
+      "values": {
+        "length": 32
+      }
+    }
+  ]
+}

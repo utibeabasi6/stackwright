@@ -53,6 +53,9 @@ type fakeGitHub struct {
 	comments     map[int64]string
 	commentPosts int
 	pulls        []fakePull
+	// mints counts installation tokens; a token minted before pushFrom
+	// cannot push, as one from before the App could write.
+	mints, pushFrom int
 	// gitRoot holds bare repositories, served with git http-backend.
 	gitRoot string
 	git     http.Handler
@@ -198,9 +201,19 @@ func (f *fakeGitHub) appJWT(r *http.Request) bool {
 func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(r.URL.Path, ".git/") {
 		// Only the Git proxy reaches here, with the installation token.
-		if user, pass, ok := r.BasicAuth(); !ok || user != "x-access-token" || !strings.HasPrefix(pass, "ghs_") {
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != "x-access-token" || !strings.HasPrefix(pass, "ghs_") {
 			w.Header().Set("WWW-Authenticate", `Basic realm="GitHub"`)
 			http.Error(w, "an installation token is required", http.StatusUnauthorized)
+			return
+		}
+		_, n, _ := strings.Cut(strings.TrimPrefix(pass, "ghs_"), "_")
+		minted, _ := strconv.Atoi(n)
+		f.mu.Lock()
+		readOnly := minted < f.pushFrom
+		f.mu.Unlock()
+		if readOnly && (strings.HasSuffix(r.URL.Path, "git-receive-pack") || r.URL.Query().Get("service") == "git-receive-pack") {
+			http.Error(w, "Write access to repository not granted.", http.StatusForbidden)
 			return
 		}
 		f.git.ServeHTTP(w, r)
@@ -222,7 +235,8 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		id := strings.TrimSuffix(strings.TrimPrefix(p, "/app/installations/"), "/access_tokens")
-		f.json(w, map[string]any{"token": "ghs_" + id, "expires_at": time.Now().Add(time.Hour)})
+		f.mints++
+		f.json(w, map[string]any{"token": fmt.Sprintf("ghs_%s_%d", id, f.mints), "expires_at": time.Now().Add(time.Hour)})
 	case r.Method == http.MethodPost && p == "/login/oauth/access_token":
 		var in map[string]string
 		_ = json.Unmarshal(body, &in)

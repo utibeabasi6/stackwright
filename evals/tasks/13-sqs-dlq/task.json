@@ -1,0 +1,20 @@
+{
+  "prompt": "Add an SQS queue named orders with a dead-letter queue named orders-dlq. A message moves to the dead-letter queue after 5 receives.",
+  "base": "aws",
+  "expect": [
+    {
+      "type": "aws_sqs_queue",
+      "count": 1,
+      "values": {
+        "name": "orders"
+      }
+    },
+    {
+      "type": "aws_sqs_queue",
+      "count": 1,
+      "values": {
+        "name": "orders-dlq"
+      }
+    }
+  ]
+}
