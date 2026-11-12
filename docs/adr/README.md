@@ -31,3 +31,4 @@ line to the old one that points to the new one.
 | [0023](0023-github-app.md) | GitHub: one App per instance from a manifest, forks never plan |
 | [0024](0024-git-in-sandboxes-and-linked-runs.md) | git in the sandbox image, and linked projects run from their branch |
 | [0025](0025-newer-terraform.md) | Newer Terraform, and engine versions from the release lists |
+| [0026](0026-applies-start-from-the-plan-tree.md) | Applies start from the plan's working tree |

@@ -34,7 +34,8 @@ type jobWorld struct {
 }
 
 // newJobWorld serves a world that sandboxes reach at host.docker.internal,
-// with an OpenTofu project "net" and a Terraform project "legacy".
+// with an OpenTofu project "net", a Terraform project "legacy", and an
+// OpenTofu project "lab" in the folder "live".
 // requireDocker builds the executor image, once for each test that needs
 // it; Docker's cache makes the later builds quick.
 func requireDocker(t *testing.T) {
@@ -59,6 +60,8 @@ func newJobWorld(t *testing.T) *jobWorld {
 	w.project(owner, "a", "net", "prod")
 	owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "legacy", "engine": "ENGINE_TERRAFORM",
 		"engineVersion": "1.5.7", "layout": "LAYOUT_PLAIN"})
+	owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "lab", "path": "live", "engine": "ENGINE_OPENTOFU",
+		"engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"})
 
 	d, err := sandbox.NewDocker(sandbox.DockerConfig{ExtraHosts: []string{"host.docker.internal:host-gateway"}})
 	if err != nil {
@@ -323,6 +326,20 @@ func TestJobAppliesAPlanMadeAtAnotherAddress(t *testing.T) {
 				t.Fatalf("apply exited %d, %s %q:\n%s", code, status, msg, logs)
 			}
 		})
+	}
+}
+
+func TestJobApplySeesFilesThePlanWrote(t *testing.T) {
+	t.Parallel()
+	w := newJobWorld(t)
+	orgID, ws := w.workspaceID("lab", "default")
+	planID, code, logs := w.run(jobs.Request{OrgID: orgID, WorkspaceID: ws, Operation: v1.JobOperation_JOB_OPERATION_PLAN, Source: source(t, "planfiles")})
+	if code != 0 {
+		t.Fatalf("plan exited %d:\n%s", code, logs)
+	}
+	applyID, code, _ := w.run(jobs.Request{OrgID: orgID, WorkspaceID: ws, Operation: v1.JobOperation_JOB_OPERATION_APPLY, PlanJobID: planID})
+	if status, msg, _ := w.status(applyID); code != 0 || status != "succeeded" {
+		t.Fatalf("apply exited %d, %s %q: %v", code, status, msg, w.events(applyID))
 	}
 }
 

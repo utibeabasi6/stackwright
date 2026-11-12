@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -158,7 +159,7 @@ func (r *runner) run(ctx context.Context) (err error) {
 	inputs := map[string][]byte{}
 	for _, in := range job.GetInputs() {
 		sealed, err := r.download(ctx, in.GetUrl())
-		if errors.Is(err, errNotFound) && in.GetName() == "lock.hcl" {
+		if errors.Is(err, errNotFound) && (in.GetName() == "lock.hcl" || in.GetName() == "workdir.tar.gz") {
 			continue
 		}
 		if err != nil {
@@ -173,7 +174,14 @@ func (r *runner) run(ctx context.Context) (err error) {
 		}
 		inputs[in.GetName()] = plain
 	}
-	if err := untar(inputs["source.tar.gz"], root); err != nil {
+	// An apply starts from the tree its plan left, so files that the plan
+	// wrote, such as an archive_file zip, are there. Plans from before the
+	// tree was kept have only the source.
+	tree, ok := inputs["workdir.tar.gz"]
+	if !ok {
+		tree = inputs["source.tar.gz"]
+	}
+	if err := untar(tree, root); err != nil {
 		return &stageError{"source", err}
 	}
 	dir, err := within(root, job.GetProjectPath())
@@ -262,6 +270,13 @@ func (r *runner) run(ctx context.Context) (err error) {
 		}
 	}
 	if err := r.upload(ctx, "plan.json", planJSON); err != nil {
+		return &stageError{"artifacts", err}
+	}
+	workdir, err := tarTree(root, plan)
+	if err != nil {
+		return &stageError{"artifacts", err}
+	}
+	if err := r.upload(ctx, "workdir.tar.gz", workdir); err != nil {
 		return &stageError{"artifacts", err}
 	}
 	return nil
@@ -429,6 +444,55 @@ func untar(archive []byte, dir string) error {
 			}
 		}
 	}
+}
+
+// tarTree packs dir as untar reads it: folders and regular files. It leaves
+// out every .terraform folder, which init makes again, and the file skip.
+func tarTree(dir, skip string) ([]byte, error) {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || path == dir || path == skip {
+			return err
+		}
+		if d.IsDir() && d.Name() == ".terraform" {
+			return filepath.SkipDir
+		}
+		if !d.IsDir() && !d.Type().IsRegular() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		h, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(dir, path)
+		h.Name = filepath.ToSlash(rel)
+		if err := tw.WriteHeader(h); err != nil || d.IsDir() {
+			return err
+		}
+		f, err := os.Open(path) //nolint:gosec // a path inside dir
+		if err != nil {
+			return err
+		}
+		defer func() { _ = f.Close() }()
+		_, err = io.Copy(tw, f)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+	if err := gz.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func within(root, rel string) (string, error) {

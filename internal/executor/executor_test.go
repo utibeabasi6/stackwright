@@ -6,8 +6,11 @@ import (
 	"compress/gzip"
 	"context"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -28,6 +31,47 @@ func TestUntarStaysInsideItsFolder(t *testing.T) {
 		if err := untar(buf.Bytes(), t.TempDir()+"/src"); err == nil {
 			t.Errorf("%s: unpacked outside the folder", name)
 		}
+	}
+}
+
+func TestTarTreeLeavesOutInitFoldersAndThePlan(t *testing.T) {
+	dir := t.TempDir()
+	for name, body := range map[string]string{
+		"live/main.tf":                        "a",
+		"live/plan.bin":                       "plan",
+		"live/.terraform/providers/p":         "provider",
+		"modules/zip/.build/handler.zip":      "zip",
+		"modules/zip/.terraform/modules/m.tf": "module",
+	} {
+		path := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink("/etc/passwd", filepath.Join(dir, "live", "link")); err != nil {
+		t.Fatal(err)
+	}
+	b, err := tarTree(dir, filepath.Join(dir, "live", "plan.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	if err := untar(b, out); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	_ = filepath.WalkDir(out, func(path string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			rel, _ := filepath.Rel(out, path)
+			got = append(got, filepath.ToSlash(rel))
+		}
+		return err
+	})
+	if want := []string{"live/main.tf", "modules/zip/.build/handler.zip"}; !slices.Equal(got, want) {
+		t.Errorf("files %q, want %q", got, want)
 	}
 }
 

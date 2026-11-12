@@ -553,3 +553,21 @@ Decisions: [0025](adr/0025-newer-terraform.md).
   new project forms.
 - A list near the bottom of the window opens down, past the window's edge.
 - A real apply on AWS after the fix.
+
+### Phase 8, files that a plan writes
+
+Decisions: [0026](adr/0026-applies-start-from-the-plan-tree.md).
+
+**Verified on 2026-11-12:**
+- The second real apply on AWS reached the state and made every resource
+  in its log except the Lambda function. That failed because
+  `archive_file` wrote its zip during the plan, and the apply sandbox did
+  not have it.
+- A Docker test plans a project in `live/` whose sibling module writes a zip
+  with `archive_file`, and applies a `local_file` that copies the zip. It
+  failed with the same "no such file" before the change and passes after.
+- A unit test packs a tree and unpacks it: `.terraform` folders, the plan
+  file and a symlink are left out, and the plan's zip is kept.
+
+**Not verified:**
+- The lab's apply on AWS with this change.
