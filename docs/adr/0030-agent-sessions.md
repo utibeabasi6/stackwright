@@ -40,6 +40,13 @@ servers behind NAT. The toolbox refuses state files (`*.tfstate`,
 refuses paths outside the checkout; the server checks the same before it
 sends a call.
 
+**Only builders that list the toolbox get agent sandboxes.** A builder
+names its features in its hello; one from before the toolbox names none,
+and would run the sandbox as a job. With no such builder free, a session
+says that a build server needs its builder updated. A sandbox that exits
+before its toolbox connects ends the turn that waits for it, with an error.
+A server that starts ends the turns its predecessor left, with a notice.
+
 **The Git proxy holds pushes to approvals.** The sandbox clones and pushes
 through `/git/<session>/` on the server, with the session ticket as its
 password. The proxy forwards to GitHub with the installation token, which

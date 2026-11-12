@@ -188,14 +188,24 @@ func (s *Service) removeSandbox(ctx context.Context, id, orgID, why string) {
 		if _, err := tx.Exec(ctx, `DELETE FROM agent_sandbox_tokens WHERE session_id = $1`, id); err != nil {
 			return err
 		}
+		// A turn that runs ends itself and sets the status; until then the
+		// session stays busy, so no message slips in without a turn.
 		_, err := tx.Exec(ctx, `UPDATE agent_sessions SET sandbox_id = NULL, dirty = false, updated_at = now(),
-			status = CASE WHEN status = 'closed' THEN 'closed' ELSE 'asleep' END WHERE id = $1`, id)
+			status = CASE WHEN status IN ('closed', 'working', 'starting') THEN status ELSE 'asleep' END WHERE id = $1`, id)
 		return err
 	})
 	if err != nil {
 		slog.Error("remove agent sandbox", "session", id, "err", err)
 	}
 	s.disconnected(id)
+	l := s.session(id)
+	s.mu.Lock()
+	select {
+	case <-l.gone:
+	default:
+		close(l.gone)
+	}
+	s.mu.Unlock()
 	slog.Info("agent sandbox removed", "session", id, "why", why)
 	s.changed(id)
 }
@@ -267,6 +277,32 @@ func (s *Service) reap(ctx context.Context) error {
 		if idle && !busy {
 			s.removeSandbox(ctx, r.id, r.org, "idle")
 		}
+	}
+	return nil
+}
+
+// Recover ends the turns that an earlier server process left. It runs
+// before this process starts any turn, so every working or starting
+// session has none.
+func (s *Service) Recover(ctx context.Context) error {
+	rows, err := s.Pool.Query(ctx, `SELECT session_id, org_id FROM agent_busy_sessions()`)
+	if err != nil {
+		return err
+	}
+	type busy struct{ id, org string }
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (busy, error) {
+		var b busy
+		return b, r.Scan(&b.id, &b.org)
+	})
+	if err != nil {
+		return err
+	}
+	for _, b := range list {
+		msg := "The server restarted during this turn. Send the message again."
+		if err := s.step(ctx, b.org, b.id, "notice", map[string]any{"text": msg}, 0, ""); err != nil {
+			return err
+		}
+		s.setStatus(ctx, b.org, b.id, "ready", "")
 	}
 	return nil
 }

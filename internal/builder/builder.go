@@ -22,6 +22,7 @@ import (
 	"time"
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	"github.com/stackwright/stackwright/internal/builders"
 	"github.com/stackwright/stackwright/internal/sandbox"
 )
 
@@ -94,7 +95,7 @@ func (b *Builder) session(ctx context.Context) error {
 	running := slices.Sorted(maps.Keys(b.running))
 	b.mu.Unlock()
 	if err := stream.Send(&v1.ConnectRequest{Body: &v1.ConnectRequest_Hello{Hello: &v1.BuilderHello{
-		Platform: platform, Version: b.Version, RunningJobs: running, Backend: b.BackendName,
+		Platform: platform, Version: b.Version, RunningJobs: running, Backend: b.BackendName, Features: []string{builders.Toolbox},
 	}}}); err != nil {
 		return err
 	}
@@ -174,7 +175,7 @@ func (b *Builder) start(ctx context.Context, order *v1.StartSandbox) {
 		if order.GetToolbox() {
 			spec.Command = []string{"toolbox"}
 		}
-		if b.Cache != "" {
+		if b.Cache != "" && !order.GetToolbox() {
 			if err := b.cacheEngine(ctx, order.GetEngine()); err != nil {
 				slog.Warn("cache the engine; the sandbox downloads it", "job", jobID, "err", err)
 			}

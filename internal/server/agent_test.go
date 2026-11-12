@@ -434,6 +434,30 @@ func TestAgentStopMidToolLeavesTheBranchAlone(t *testing.T) {
 	}
 }
 
+func TestAgentTurnEndsWhenTheSandboxExitsEarly(t *testing.T) {
+	t.Parallel()
+	w := newAgentWorld(t)
+	// The plain Alpine image has no toolbox command, so the sandbox exits at
+	// once, as one from an old builder did.
+	w.hub.Images = map[string]string{"docker": "alpine:3.22.2"}
+	start := time.Now()
+	id := w.startSession("List the files")
+	w.waitStatus(id, "ready")
+	if tr := w.transcript(id); !strings.Contains(tr, "exited before its toolbox connected") || time.Since(start) > time.Minute {
+		t.Errorf("after %s:\n%s", time.Since(start), tr)
+	}
+	if _, _, sandbox := w.status(id); sandbox != nil {
+		t.Error("the session kept the sandbox that exited")
+	}
+	w.hub.Images = map[string]string{"docker": executorImage}
+	w.model.script(0, use("list_files", map[string]any{}), say("Listed."))
+	w.owner.must("AgentService/SendMessage", merge(ws, map[string]any{"id": id, "message": "Try again"}))
+	w.waitStatus(id, "ready")
+	if res := w.results(id); len(res) != 1 || res[0]["error"] == true {
+		t.Errorf("the second turn: %v", res)
+	}
+}
+
 func TestAgentCapAndMissingKey(t *testing.T) {
 	t.Parallel()
 	w := newAgentWorld(t)
@@ -539,5 +563,40 @@ func TestAgentRealModel(t *testing.T) {
 	t.Logf("spent $%.4f over %d model calls", spent, calls)
 	if spent <= 0 {
 		t.Error("OpenRouter reported no cost")
+	}
+}
+
+func TestAgentRecoverEndsTurnsAfterARestart(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, nil)
+	owner := w.setup()
+	w.createApp(owner)
+	w.link(owner)
+	owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "infra", "engine": "ENGINE_OPENTOFU",
+		"engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN", "repoUrl": "https://github.com/acme/infra"})
+	ctx := context.Background()
+	var busy, idle string
+	for _, status := range []string{"working", "ready"} {
+		var id string
+		if err := w.owner.QueryRow(ctx, `INSERT INTO agent_sessions (id, org_id, workspace_id, repo_id, branch, base, status)
+			SELECT gen_random_uuid(), w.org_id, w.id, (SELECT id FROM repos LIMIT 1), 'agent/x', 'main', $1 FROM workspaces w LIMIT 1
+			RETURNING id`, status).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		if status == "working" {
+			busy = id
+		} else {
+			idle = id
+		}
+	}
+	if err := w.agent.Recover(ctx); err != nil {
+		t.Fatal(err)
+	}
+	aw := &agentWorld{world: w, owner: owner}
+	if status, _, _ := aw.status(busy); status != "ready" || !strings.Contains(aw.transcript(busy), "server restarted") {
+		t.Errorf("the cut-off turn: %s\n%s", status, aw.transcript(busy))
+	}
+	if aw.transcript(idle) != "" {
+		t.Errorf("an idle session got a notice: %s", aw.transcript(idle))
 	}
 }

@@ -53,6 +53,9 @@ message BuilderHello {
   repeated string running_jobs = 5;
   // The sandbox backend, such as "docker".
   string backend = 6;
+  // What the builder can run beyond jobs, such as "toolbox" for agent
+  // sandboxes. A builder from before a feature does not list it.
+  repeated string features = 7;
 }
 
 message BuilderHeartbeat {}

@@ -67,8 +67,11 @@ type live struct {
 	remote   bool
 	// conn counts toolbox streams, so an old stream that ends late does not
 	// undo a newer one.
-	conn int
-	ready   chan struct{}
+	conn  int
+	ready chan struct{}
+	// gone closes when the sandbox exits or is removed, so a turn that
+	// waits for its toolbox ends.
+	gone    chan struct{}
 	orders  chan *v1.ToolboxOrder
 	results map[string]chan *v1.ToolResult
 	turn    context.CancelFunc
@@ -84,7 +87,7 @@ func (s *Service) session(id string) *live {
 	}
 	l, ok := s.live[id]
 	if !ok {
-		l = &live{ready: make(chan struct{}), orders: make(chan *v1.ToolboxOrder, 4), results: map[string]chan *v1.ToolResult{},
+		l = &live{ready: make(chan struct{}), gone: make(chan struct{}), orders: make(chan *v1.ToolboxOrder, 4), results: map[string]chan *v1.ToolResult{},
 			watch: map[chan struct{}]bool{}}
 		s.live[id] = l
 	}
@@ -589,9 +592,9 @@ func (s *Service) ensureSandbox(ctx context.Context, session, orgID string) erro
 		return err
 	}
 	if running == nil {
-		slot, ok := s.Hub.Reserve(orgID, labels, "")
+		slot, ok := s.Hub.ReserveWith(orgID, labels, "", builders.Toolbox)
 		if !ok {
-			return ErrNoSandbox
+			return fmt.Errorf("%w: none with a free slot runs agent sandboxes; a build server needs its builder updated to run them", ErrNoSandbox)
 		}
 		token := auth.RandomToken()
 		gitBase := s.Hub.ServerURL
@@ -613,15 +616,21 @@ func (s *Service) ensureSandbox(ctx context.Context, session, orgID string) erro
 		}
 		s.mu.Lock()
 		l.orgID, l.gitBase, l.platform, l.remote = orgID, gitBase, slot.Platform, slot.Remote
+		l.gone = make(chan struct{})
 		s.mu.Unlock()
 		s.changed(session)
 		if err := slot.Start(&v1.StartSandbox{JobId: sandboxPrefix + session, Ticket: token, Toolbox: true}); err != nil {
 			return fmt.Errorf("%w: %w", ErrNoSandbox, err)
 		}
 	}
+	s.mu.Lock()
+	ready, gone := l.ready, l.gone
+	s.mu.Unlock()
 	select {
-	case <-l.ready:
+	case <-ready:
 		return nil
+	case <-gone:
+		return fmt.Errorf("%w: the sandbox exited before its toolbox connected", ErrNoSandbox)
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-time.After(readyTimeout):

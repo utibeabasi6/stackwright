@@ -345,7 +345,10 @@ type BuilderHello struct {
 	// Jobs whose sandboxes still run, after a reconnect.
 	RunningJobs []string `protobuf:"bytes,5,rep,name=running_jobs,json=runningJobs,proto3" json:"running_jobs,omitempty"`
 	// The sandbox backend, such as "docker".
-	Backend       string `protobuf:"bytes,6,opt,name=backend,proto3" json:"backend,omitempty"`
+	Backend string `protobuf:"bytes,6,opt,name=backend,proto3" json:"backend,omitempty"`
+	// What the builder can run beyond jobs, such as "toolbox" for agent
+	// sandboxes. A builder from before a feature does not list it.
+	Features      []string `protobuf:"bytes,7,rep,name=features,proto3" json:"features,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -406,6 +409,13 @@ func (x *BuilderHello) GetBackend() string {
 		return x.Backend
 	}
 	return ""
+}
+
+func (x *BuilderHello) GetFeatures() []string {
+	if x != nil {
+		return x.Features
+	}
+	return nil
 }
 
 type BuilderHeartbeat struct {
@@ -837,12 +847,13 @@ const file_stackwright_v1_builder_proto_rawDesc = "" +
 	"\theartbeat\x18\x02 \x01(\v2 .stackwright.v1.BuilderHeartbeatH\x00R\theartbeat\x129\n" +
 	"\asandbox\x18\x03 \x01(\v2\x1d.stackwright.v1.SandboxStatusH\x00R\asandbox\x128\n" +
 	"\x05renew\x18\x04 \x01(\v2 .stackwright.v1.RenewCertificateH\x00R\x05renewB\x06\n" +
-	"\x04body\"\x8d\x01\n" +
+	"\x04body\"\xa9\x01\n" +
 	"\fBuilderHello\x12\x1a\n" +
 	"\bplatform\x18\x02 \x01(\tR\bplatform\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12!\n" +
 	"\frunning_jobs\x18\x05 \x03(\tR\vrunningJobs\x12\x18\n" +
-	"\abackend\x18\x06 \x01(\tR\abackendJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04\"\x12\n" +
+	"\abackend\x18\x06 \x01(\tR\abackend\x12\x1a\n" +
+	"\bfeatures\x18\a \x03(\tR\bfeaturesJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04\"\x12\n" +
 	"\x10BuilderHeartbeat\"\xeb\x01\n" +
 	"\rSandboxStatus\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x129\n" +

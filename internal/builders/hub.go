@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -66,6 +67,7 @@ type builder struct {
 	platform string
 	backend  string
 	upgrade  string
+	features []string
 	labels   map[string]string
 	slots    int
 	draining bool
@@ -90,15 +92,27 @@ type Slot struct {
 	Remote bool
 }
 
+// Toolbox is the feature of a builder that runs agent sandboxes.
+const Toolbox = "toolbox"
+
 // Reserve holds a free slot on the least busy builder that serves orgID,
 // has every required label, is not draining, and runs platform if it is
 // set.
 func (h *Hub) Reserve(orgID string, required map[string]string, platform string) (*Slot, bool) {
+	return h.ReserveWith(orgID, required, platform, "")
+}
+
+// ReserveWith is Reserve for builders that also list feature, unless it is
+// empty.
+func (h *Hub) ReserveWith(orgID string, required map[string]string, platform, feature string) (*Slot, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	var best *builder
 	for _, b := range h.builders {
 		if b.draining || b.used() >= b.slots || (b.orgID != "" && b.orgID != orgID) || (platform != "" && b.platform != platform) {
+			continue
+		}
+		if feature != "" && !slices.Contains(b.features, feature) {
 			continue
 		}
 		if !hasLabels(b.labels, required) {
@@ -421,7 +435,7 @@ func (h *Hub) Connect(ctx context.Context, stream *connect.BidiStream[v1.Connect
 	ctx, cancel := context.WithDeadline(ctx, scope.CertExpires)
 	defer cancel()
 	b := &builder{
-		id: scope.BuildServerID, orgID: scope.OrgID, platform: hello.GetPlatform(), backend: hello.GetBackend(),
+		id: scope.BuildServerID, orgID: scope.OrgID, platform: hello.GetPlatform(), backend: hello.GetBackend(), features: hello.GetFeatures(),
 		upgrade: upgrade, jobs: map[string]bool{}, tests: map[string]chan *v1.SandboxStatus{},
 		send: make(chan *v1.ConnectResponse, 16), done: make(chan struct{}), close: cancel,
 	}

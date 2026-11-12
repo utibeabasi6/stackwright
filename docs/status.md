@@ -737,6 +737,17 @@ approves (web tests). On the dev stack in the browser pane: the panel's
 "no key" message on the AWS lab's workspace (light), and Settings › Agent
 (dark).
 
+**After the first real session** (2026-11-12): it hung at "Working". The
+Lima build server ran an older builder, which started the agent sandbox as
+a job; the sandbox exited, and the turn waited 5 minutes for a toolbox. Now
+builders list their features and only those with the toolbox get agent
+sandboxes (hub unit test); a sandbox that exits early ends its turn at once
+with an error, and the next message works (Docker test with an image that
+has no toolbox); a server start ends turns that a restart cut off
+(test). The second copy of the first message was a real second send,
+which the server took while the first turn still waited; a busy session
+now stays busy until its turn ends.
+
 **Not verified:**
 - A session on a real GitHub repository and a real build server; the checks
   used the fake GitHub's Git server and the built-in builder in tests.
