@@ -30,6 +30,9 @@ func TestGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, d := range dirs {
+		if !d.IsDir() {
+			continue
+		}
 		t.Run(d.Name(), func(t *testing.T) {
 			g, err := Build(read(t, d.Name(), "plan.json"), read(t, d.Name(), "sources.json"))
 			if err != nil {
@@ -127,15 +130,19 @@ func TestFilter(t *testing.T) {
 	}
 }
 
+// The web app strips keys too, and its test reads the same cases.
 func TestStripKeys(t *testing.T) {
-	for in, want := range map[string]string{
-		`aws_subnet.private[0]`:               `aws_subnet.private`,
-		`module.a["x.y"].b["k]\"q"].c`:        `module.a.b.c`,
-		`module.net[0].module.sub.thing.name`: `module.net.module.sub.thing.name`,
-		`data.aws_region.current`:             `data.aws_region.current`,
-	} {
-		if got := stripKeys(in); got != want {
-			t.Errorf("%s: %s, want %s", in, got, want)
+	b, err := os.ReadFile(filepath.Join("testdata", "keys.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct{ In, Want string }
+	if err := json.Unmarshal(b, &cases); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cases {
+		if got := stripKeys(c.In); got != c.Want {
+			t.Errorf("%s: %s, want %s", c.In, got, c.Want)
 		}
 	}
 }

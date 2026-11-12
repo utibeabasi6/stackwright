@@ -1,0 +1,323 @@
+[
+  {
+    "at": "2026-11-12T07:17:26.44125Z",
+    "payload": "{\"operation\":\"apply\",\"build_server\":\"built-in\"}",
+    "seq": "1",
+    "type": "run.dispatched"
+  },
+  {
+    "at": "2026-11-12T07:17:26.44125Z",
+    "payload": "{\"engine\": \"ENGINE_OPENTOFU\", \"version\": \"1.10.7\", \"operation\": \"JOB_OPERATION_APPLY\"}",
+    "resourceAddr": "",
+    "seq": "2",
+    "type": "executor.started"
+  },
+  {
+    "at": "2026-11-12T07:17:26.57648Z",
+    "payload": "{\"cached\": false, \"sha256\": \"c13de652567fd43c075d36dc28c94739376b83afa78a6082eaee28679260dc25\"}",
+    "resourceAddr": "",
+    "seq": "3",
+    "type": "executor.engine_ready"
+  },
+  {
+    "at": "2026-11-12T07:17:26.599677Z",
+    "payload": "{\"ui\": \"1.2\", \"tofu\": \"1.10.7\", \"type\": \"version\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"OpenTofu 1.10.7\", \"@timestamp\": \"2026-11-12T07:17:26.598488Z\"}",
+    "resourceAddr": "",
+    "seq": "4",
+    "type": "engine.version"
+  },
+  {
+    "at": "2026-11-12T07:17:26.599683Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\\nInitializing the backend...\", \"@timestamp\": \"2026-11-12T07:17:26.599109Z\"}",
+    "resourceAddr": "",
+    "seq": "5",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:26.600532Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\\nSuccessfully configured the backend \\\"http\\\"! OpenTofu will automatically\\nuse this backend unless the backend configuration changes.\", \"@timestamp\": \"2026-11-12T07:17:26.600033Z\"}",
+    "resourceAddr": "",
+    "seq": "6",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:26.610986Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\\nInitializing provider plugins...\", \"@timestamp\": \"2026-11-12T07:17:26.610903Z\"}",
+    "resourceAddr": "",
+    "seq": "7",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:26.610989Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"- terraform.io/builtin/terraform is built in to OpenTofu\", \"@timestamp\": \"2026-11-12T07:17:26.610933Z\"}",
+    "resourceAddr": "",
+    "seq": "8",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:26.610992Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"- Reusing previous version of hashicorp/local from the dependency lock file\", \"@timestamp\": \"2026-11-12T07:17:26.610937Z\"}",
+    "resourceAddr": "",
+    "seq": "9",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:28.146637Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"- Installing hashicorp/local v2.9.1...\", \"@timestamp\": \"2026-11-12T07:17:28.146484Z\"}",
+    "resourceAddr": "",
+    "seq": "10",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:29.572876Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"- Installed hashicorp/local v2.9.1 (signed, key ID 0C0AF313E5FD9F80)\", \"@timestamp\": \"2026-11-12T07:17:29.572755Z\"}",
+    "resourceAddr": "",
+    "seq": "11",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:29.572886Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\\nProviders are signed by their developers.\\nIf you'd like to know more about provider signing, you can read about it here:\\nhttps://opentofu.org/docs/cli/plugins/signing/\", \"@timestamp\": \"2026-11-12T07:17:29.572775Z\"}",
+    "resourceAddr": "",
+    "seq": "12",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:29.572889Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\", \"@timestamp\": \"2026-11-12T07:17:29.572781Z\"}",
+    "resourceAddr": "",
+    "seq": "13",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:29.572892Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"OpenTofu has been successfully initialized!\", \"@timestamp\": \"2026-11-12T07:17:29.572787Z\"}",
+    "resourceAddr": "",
+    "seq": "14",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:29.586787Z",
+    "payload": "{\"ui\": \"1.2\", \"tofu\": \"1.10.7\", \"type\": \"version\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"OpenTofu 1.10.7\", \"@timestamp\": \"2026-11-12T07:17:29.586685Z\"}",
+    "resourceAddr": "",
+    "seq": "15",
+    "type": "engine.version"
+  },
+  {
+    "at": "2026-11-12T07:17:29.624844Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"delete\", \"reason\": \"delete_because_no_resource_config\", \"resource\": {\"addr\": \"terraform_data.gone\", \"module\": \"\", \"resource\": \"terraform_data.gone\", \"resource_key\": null, \"resource_name\": \"gone\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.gone: Plan to delete\", \"@timestamp\": \"2026-11-12T07:17:29.624746Z\"}",
+    "resourceAddr": "terraform_data.gone",
+    "seq": "16",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:29.624858Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"update\", \"resource\": {\"addr\": \"terraform_data.change\", \"module\": \"\", \"resource\": \"terraform_data.change\", \"resource_key\": null, \"resource_name\": \"change\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.change: Plan to update\", \"@timestamp\": \"2026-11-12T07:17:29.624783Z\"}",
+    "resourceAddr": "terraform_data.change",
+    "seq": "17",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:29.624863Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"update\", \"resource\": {\"addr\": \"terraform_data.secret\", \"module\": \"\", \"resource\": \"terraform_data.secret\", \"resource_key\": null, \"resource_name\": \"secret\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.secret: Plan to update\", \"@timestamp\": \"2026-11-12T07:17:29.624786Z\"}",
+    "resourceAddr": "terraform_data.secret",
+    "seq": "18",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:29.624869Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"replace\", \"reason\": \"cannot_update\", \"resource\": {\"addr\": \"terraform_data.recreate\", \"module\": \"\", \"resource\": \"terraform_data.recreate\", \"resource_key\": null, \"resource_name\": \"recreate\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate: Plan to replace\", \"@timestamp\": \"2026-11-12T07:17:29.624788Z\"}",
+    "resourceAddr": "terraform_data.recreate",
+    "seq": "19",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:29.624874Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"create\", \"resource\": {\"addr\": \"terraform_data.added\", \"module\": \"\", \"resource\": \"terraform_data.added\", \"resource_key\": null, \"resource_name\": \"added\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.added: Plan to create\", \"@timestamp\": \"2026-11-12T07:17:29.624790Z\"}",
+    "resourceAddr": "terraform_data.added",
+    "seq": "20",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:29.624881Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"replace\", \"reason\": \"cannot_update\", \"resource\": {\"addr\": \"terraform_data.recreate_first\", \"module\": \"\", \"resource\": \"terraform_data.recreate_first\", \"resource_key\": null, \"resource_name\": \"recreate_first\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate_first: Plan to replace\", \"@timestamp\": \"2026-11-12T07:17:29.624792Z\"}",
+    "resourceAddr": "terraform_data.recreate_first",
+    "seq": "21",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:29.624887Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"create\", \"resource\": {\"addr\": \"local_file.out\", \"module\": \"\", \"resource\": \"local_file.out\", \"resource_key\": null, \"resource_name\": \"out\", \"resource_type\": \"local_file\", \"implied_provider\": \"local\"}}, \"@module\": \"tofu.ui\", \"@message\": \"local_file.out: Plan to create\", \"@timestamp\": \"2026-11-12T07:17:29.624794Z\"}",
+    "resourceAddr": "local_file.out",
+    "seq": "22",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:29.624892Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"read\", \"reason\": \"read_because_dependency_pending\", \"resource\": {\"addr\": \"data.local_file.back\", \"module\": \"\", \"resource\": \"data.local_file.back\", \"resource_key\": null, \"resource_name\": \"back\", \"resource_type\": \"local_file\", \"implied_provider\": \"local\"}}, \"@module\": \"tofu.ui\", \"@message\": \"data.local_file.back: Plan to read\", \"@timestamp\": \"2026-11-12T07:17:29.624797Z\"}",
+    "resourceAddr": "data.local_file.back",
+    "seq": "23",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:29.635474Z",
+    "payload": "{\"hook\": {\"action\": \"update\", \"id_key\": \"id\", \"id_value\": \"b374910f-5ce2-bade-6b0d-62005aaddeee\", \"resource\": {\"addr\": \"terraform_data.secret\", \"module\": \"\", \"resource\": \"terraform_data.secret\", \"resource_key\": null, \"resource_name\": \"secret\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.secret: Modifying... [id=b374910f-5ce2-bade-6b0d-62005aaddeee]\", \"@timestamp\": \"2026-11-12T07:17:29.635388Z\"}",
+    "resourceAddr": "terraform_data.secret",
+    "seq": "24",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.635704Z",
+    "payload": "{\"hook\": {\"action\": \"update\", \"id_key\": \"id\", \"id_value\": \"b374910f-5ce2-bade-6b0d-62005aaddeee\", \"resource\": {\"addr\": \"terraform_data.secret\", \"module\": \"\", \"resource\": \"terraform_data.secret\", \"resource_key\": null, \"resource_name\": \"secret\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.secret: Modifications complete after 0s [id=b374910f-5ce2-bade-6b0d-62005aaddeee]\", \"@timestamp\": \"2026-11-12T07:17:29.635528Z\"}",
+    "resourceAddr": "terraform_data.secret",
+    "seq": "25",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.635711Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"resource\": {\"addr\": \"terraform_data.recreate_first\", \"module\": \"\", \"resource\": \"terraform_data.recreate_first\", \"resource_key\": null, \"resource_name\": \"recreate_first\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate_first: Creating...\", \"@timestamp\": \"2026-11-12T07:17:29.635690Z\"}",
+    "resourceAddr": "terraform_data.recreate_first",
+    "seq": "26",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.635823Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"id_key\": \"id\", \"id_value\": \"71756879-fead-d1a3-6ca1-f5a338043412\", \"resource\": {\"addr\": \"terraform_data.recreate_first\", \"module\": \"\", \"resource\": \"terraform_data.recreate_first\", \"resource_key\": null, \"resource_name\": \"recreate_first\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate_first: Creation complete after 0s [id=71756879-fead-d1a3-6ca1-f5a338043412]\", \"@timestamp\": \"2026-11-12T07:17:29.635797Z\"}",
+    "resourceAddr": "terraform_data.recreate_first",
+    "seq": "27",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.636268Z",
+    "payload": "{\"hook\": {\"action\": \"delete\", \"id_key\": \"id\", \"id_value\": \"e07c17f1-aac6-0a26-16f9-45a3a1f0225e\", \"resource\": {\"addr\": \"terraform_data.recreate_first\", \"module\": \"\", \"resource\": \"terraform_data.recreate_first\", \"resource_key\": null, \"resource_name\": \"recreate_first\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate_first: Destroying... [id=e07c17f1-aac6-0a26-16f9-45a3a1f0225e]\", \"@timestamp\": \"2026-11-12T07:17:29.635871Z\"}",
+    "resourceAddr": "terraform_data.recreate_first",
+    "seq": "28",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.636276Z",
+    "payload": "{\"hook\": {\"action\": \"delete\", \"resource\": {\"addr\": \"terraform_data.recreate_first\", \"module\": \"\", \"resource\": \"terraform_data.recreate_first\", \"resource_key\": null, \"resource_name\": \"recreate_first\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate_first: Destruction complete after 0s\", \"@timestamp\": \"2026-11-12T07:17:29.635887Z\"}",
+    "resourceAddr": "terraform_data.recreate_first",
+    "seq": "29",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.636281Z",
+    "payload": "{\"hook\": {\"action\": \"delete\", \"id_key\": \"id\", \"id_value\": \"194419c1-052c-8480-7240-9d2c83a163a8\", \"resource\": {\"addr\": \"terraform_data.gone\", \"module\": \"\", \"resource\": \"terraform_data.gone\", \"resource_key\": null, \"resource_name\": \"gone\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.gone: Destroying... [id=194419c1-052c-8480-7240-9d2c83a163a8]\", \"@timestamp\": \"2026-11-12T07:17:29.635955Z\"}",
+    "resourceAddr": "terraform_data.gone",
+    "seq": "30",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.636287Z",
+    "payload": "{\"hook\": {\"action\": \"delete\", \"resource\": {\"addr\": \"terraform_data.gone\", \"module\": \"\", \"resource\": \"terraform_data.gone\", \"resource_key\": null, \"resource_name\": \"gone\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.gone: Destruction complete after 0s\", \"@timestamp\": \"2026-11-12T07:17:29.635971Z\"}",
+    "resourceAddr": "terraform_data.gone",
+    "seq": "31",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.636291Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"resource\": {\"addr\": \"terraform_data.added\", \"module\": \"\", \"resource\": \"terraform_data.added\", \"resource_key\": null, \"resource_name\": \"added\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.added: Creating...\", \"@timestamp\": \"2026-11-12T07:17:29.636133Z\"}",
+    "resourceAddr": "terraform_data.added",
+    "seq": "32",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.636297Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"id_key\": \"id\", \"id_value\": \"0f565594-c216-d96f-8698-3d2d1628f5f4\", \"resource\": {\"addr\": \"terraform_data.added\", \"module\": \"\", \"resource\": \"terraform_data.added\", \"resource_key\": null, \"resource_name\": \"added\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.added: Creation complete after 0s [id=0f565594-c216-d96f-8698-3d2d1628f5f4]\", \"@timestamp\": \"2026-11-12T07:17:29.636259Z\"}",
+    "resourceAddr": "terraform_data.added",
+    "seq": "33",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.636479Z",
+    "payload": "{\"hook\": {\"action\": \"update\", \"id_key\": \"id\", \"id_value\": \"cbc138a1-3cce-fce4-fc9a-439dd1c451b7\", \"resource\": {\"addr\": \"terraform_data.change\", \"module\": \"\", \"resource\": \"terraform_data.change\", \"resource_key\": null, \"resource_name\": \"change\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.change: Modifying... [id=cbc138a1-3cce-fce4-fc9a-439dd1c451b7]\", \"@timestamp\": \"2026-11-12T07:17:29.636437Z\"}",
+    "resourceAddr": "terraform_data.change",
+    "seq": "34",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.639235Z",
+    "payload": "{\"hook\": {\"action\": \"update\", \"id_key\": \"id\", \"id_value\": \"cbc138a1-3cce-fce4-fc9a-439dd1c451b7\", \"resource\": {\"addr\": \"terraform_data.change\", \"module\": \"\", \"resource\": \"terraform_data.change\", \"resource_key\": null, \"resource_name\": \"change\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.change: Modifications complete after 0s [id=cbc138a1-3cce-fce4-fc9a-439dd1c451b7]\", \"@timestamp\": \"2026-11-12T07:17:29.639189Z\"}",
+    "resourceAddr": "terraform_data.change",
+    "seq": "35",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.63929Z",
+    "payload": "{\"hook\": {\"action\": \"delete\", \"id_key\": \"id\", \"id_value\": \"0a89aedf-ea6f-923d-5a38-90566111d224\", \"resource\": {\"addr\": \"terraform_data.recreate\", \"module\": \"\", \"resource\": \"terraform_data.recreate\", \"resource_key\": null, \"resource_name\": \"recreate\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate: Destroying... [id=0a89aedf-ea6f-923d-5a38-90566111d224]\", \"@timestamp\": \"2026-11-12T07:17:29.639254Z\"}",
+    "resourceAddr": "terraform_data.recreate",
+    "seq": "36",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.639442Z",
+    "payload": "{\"hook\": {\"action\": \"delete\", \"resource\": {\"addr\": \"terraform_data.recreate\", \"module\": \"\", \"resource\": \"terraform_data.recreate\", \"resource_key\": null, \"resource_name\": \"recreate\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate: Destruction complete after 0s\", \"@timestamp\": \"2026-11-12T07:17:29.639295Z\"}",
+    "resourceAddr": "terraform_data.recreate",
+    "seq": "37",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.64345Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"resource\": {\"addr\": \"terraform_data.recreate\", \"module\": \"\", \"resource\": \"terraform_data.recreate\", \"resource_key\": null, \"resource_name\": \"recreate\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate: Creating...\", \"@timestamp\": \"2026-11-12T07:17:29.643187Z\"}",
+    "resourceAddr": "terraform_data.recreate",
+    "seq": "38",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.643456Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"id_key\": \"id\", \"id_value\": \"4335ac94-74e2-66aa-27ef-074ecddcc2ef\", \"resource\": {\"addr\": \"terraform_data.recreate\", \"module\": \"\", \"resource\": \"terraform_data.recreate\", \"resource_key\": null, \"resource_name\": \"recreate\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.recreate: Creation complete after 0s [id=4335ac94-74e2-66aa-27ef-074ecddcc2ef]\", \"@timestamp\": \"2026-11-12T07:17:29.643328Z\"}",
+    "resourceAddr": "terraform_data.recreate",
+    "seq": "39",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.647361Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"resource\": {\"addr\": \"local_file.out\", \"module\": \"\", \"resource\": \"local_file.out\", \"resource_key\": null, \"resource_name\": \"out\", \"resource_type\": \"local_file\", \"implied_provider\": \"local\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"local_file.out: Creating...\", \"@timestamp\": \"2026-11-12T07:17:29.647318Z\"}",
+    "resourceAddr": "local_file.out",
+    "seq": "40",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.648076Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"id_key\": \"id\", \"id_value\": \"11f6ad8ec52a2984abaafd7c3b516503785c2072\", \"resource\": {\"addr\": \"local_file.out\", \"module\": \"\", \"resource\": \"local_file.out\", \"resource_key\": null, \"resource_name\": \"out\", \"resource_type\": \"local_file\", \"implied_provider\": \"local\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"local_file.out: Creation complete after 0s [id=11f6ad8ec52a2984abaafd7c3b516503785c2072]\", \"@timestamp\": \"2026-11-12T07:17:29.648043Z\"}",
+    "resourceAddr": "local_file.out",
+    "seq": "41",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.64856Z",
+    "payload": "{\"hook\": {\"action\": \"read\", \"resource\": {\"addr\": \"data.local_file.back\", \"module\": \"\", \"resource\": \"data.local_file.back\", \"resource_key\": null, \"resource_name\": \"back\", \"resource_type\": \"local_file\", \"implied_provider\": \"local\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"data.local_file.back: Refreshing...\", \"@timestamp\": \"2026-11-12T07:17:29.648526Z\"}",
+    "resourceAddr": "data.local_file.back",
+    "seq": "42",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:29.64883Z",
+    "payload": "{\"hook\": {\"action\": \"read\", \"id_key\": \"id\", \"id_value\": \"11f6ad8ec52a2984abaafd7c3b516503785c2072\", \"resource\": {\"addr\": \"data.local_file.back\", \"module\": \"\", \"resource\": \"data.local_file.back\", \"resource_key\": null, \"resource_name\": \"back\", \"resource_type\": \"local_file\", \"implied_provider\": \"local\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"data.local_file.back: Refresh complete after 0s [id=11f6ad8ec52a2984abaafd7c3b516503785c2072]\", \"@timestamp\": \"2026-11-12T07:17:29.648799Z\"}",
+    "resourceAddr": "data.local_file.back",
+    "seq": "43",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:29.669218Z",
+    "payload": "{\"type\": \"change_summary\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"changes\": {\"add\": 4, \"change\": 2, \"forget\": 0, \"import\": 0, \"remove\": 3, \"operation\": \"apply\"}, \"@message\": \"Apply complete! Resources: 4 added, 2 changed, 3 destroyed.\", \"@timestamp\": \"2026-11-12T07:17:29.669102Z\"}",
+    "resourceAddr": "",
+    "seq": "44",
+    "type": "engine.change_summary"
+  },
+  {
+    "at": "2026-11-12T07:17:29.669237Z",
+    "payload": "{\"type\": \"outputs\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"outputs\": {}, \"@message\": \"Outputs: 0\", \"@timestamp\": \"2026-11-12T07:17:29.669128Z\"}",
+    "resourceAddr": "",
+    "seq": "45",
+    "type": "engine.outputs"
+  },
+  {
+    "at": "2026-11-12T07:17:29.67857Z",
+    "payload": "{\"error\": \"\", \"succeeded\": true, \"has_changes\": false}",
+    "resourceAddr": "",
+    "seq": "46",
+    "type": "executor.finished"
+  }
+]

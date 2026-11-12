@@ -39,6 +39,7 @@ Each decision has a record in [adr/](adr/).
 | Default engine | OpenTofu; every Terraform from 1.0.0, downloaded from HashiCorp at run time | [0025](adr/0025-newer-terraform.md) |
 | Applies | Start from the working tree their plan left | [0026](adr/0026-applies-start-from-the-plan-tree.md) |
 | Plan graph | A node for each resource; edges from the configuration and the executor's HCL map; ELK in the browser, under EPL-2.0; layouts kept per workspace | [0027](adr/0027-plan-graph.md) |
+| Live apply and replay | The run page shows the graph beside the timeline; one reducer folds live and replayed events; replay gaps capped at 2 s | [0028](adr/0028-live-apply-and-replay.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**

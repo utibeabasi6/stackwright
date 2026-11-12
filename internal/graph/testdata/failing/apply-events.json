@@ -1,0 +1,176 @@
+[
+  {
+    "at": "2026-11-12T07:17:45.763892Z",
+    "payload": "{\"operation\":\"apply\",\"build_server\":\"built-in\"}",
+    "seq": "1",
+    "type": "run.dispatched"
+  },
+  {
+    "at": "2026-11-12T07:17:45.763892Z",
+    "payload": "{\"engine\": \"ENGINE_OPENTOFU\", \"version\": \"1.10.7\", \"operation\": \"JOB_OPERATION_APPLY\"}",
+    "resourceAddr": "",
+    "seq": "2",
+    "type": "executor.started"
+  },
+  {
+    "at": "2026-11-12T07:17:45.97597Z",
+    "payload": "{\"cached\": false, \"sha256\": \"c13de652567fd43c075d36dc28c94739376b83afa78a6082eaee28679260dc25\"}",
+    "resourceAddr": "",
+    "seq": "3",
+    "type": "executor.engine_ready"
+  },
+  {
+    "at": "2026-11-12T07:17:45.994958Z",
+    "payload": "{\"ui\": \"1.2\", \"tofu\": \"1.10.7\", \"type\": \"version\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"OpenTofu 1.10.7\", \"@timestamp\": \"2026-11-12T07:17:45.994804Z\"}",
+    "resourceAddr": "",
+    "seq": "4",
+    "type": "engine.version"
+  },
+  {
+    "at": "2026-11-12T07:17:45.995148Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\\nInitializing the backend...\", \"@timestamp\": \"2026-11-12T07:17:45.995119Z\"}",
+    "resourceAddr": "",
+    "seq": "5",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:45.996118Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\\nSuccessfully configured the backend \\\"http\\\"! OpenTofu will automatically\\nuse this backend unless the backend configuration changes.\", \"@timestamp\": \"2026-11-12T07:17:45.995962Z\"}",
+    "resourceAddr": "",
+    "seq": "6",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:46.00081Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\\nInitializing provider plugins...\", \"@timestamp\": \"2026-11-12T07:17:46.000557Z\"}",
+    "resourceAddr": "",
+    "seq": "7",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:46.000813Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"- terraform.io/builtin/terraform is built in to OpenTofu\", \"@timestamp\": \"2026-11-12T07:17:46.000573Z\"}",
+    "resourceAddr": "",
+    "seq": "8",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:46.000819Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"- Reusing previous version of hashicorp/local from the dependency lock file\", \"@timestamp\": \"2026-11-12T07:17:46.000575Z\"}",
+    "resourceAddr": "",
+    "seq": "9",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:47.854871Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"- Installing hashicorp/local v2.9.1...\", \"@timestamp\": \"2026-11-12T07:17:47.854637Z\"}",
+    "resourceAddr": "",
+    "seq": "10",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:49.3542Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"- Installed hashicorp/local v2.9.1 (signed, key ID 0C0AF313E5FD9F80)\", \"@timestamp\": \"2026-11-12T07:17:49.354140Z\"}",
+    "resourceAddr": "",
+    "seq": "11",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:49.354285Z",
+    "payload": "{\"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\\nProviders are signed by their developers.\\nIf you'd like to know more about provider signing, you can read about it here:\\nhttps://opentofu.org/docs/cli/plugins/signing/\", \"@timestamp\": \"2026-11-12T07:17:49.354208Z\"}",
+    "resourceAddr": "",
+    "seq": "12",
+    "type": "engine.log"
+  },
+  {
+    "at": "2026-11-12T07:17:49.354289Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"\", \"@timestamp\": \"2026-11-12T07:17:49.354215Z\"}",
+    "resourceAddr": "",
+    "seq": "13",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:49.354291Z",
+    "payload": "{\"type\": \"output\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"OpenTofu has been successfully initialized!\", \"@timestamp\": \"2026-11-12T07:17:49.354222Z\"}",
+    "resourceAddr": "",
+    "seq": "14",
+    "type": "engine.output"
+  },
+  {
+    "at": "2026-11-12T07:17:49.365748Z",
+    "payload": "{\"ui\": \"1.2\", \"tofu\": \"1.10.7\", \"type\": \"version\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"OpenTofu 1.10.7\", \"@timestamp\": \"2026-11-12T07:17:49.365377Z\"}",
+    "resourceAddr": "",
+    "seq": "15",
+    "type": "engine.version"
+  },
+  {
+    "at": "2026-11-12T07:17:49.39676Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"create\", \"resource\": {\"addr\": \"terraform_data.first\", \"module\": \"\", \"resource\": \"terraform_data.first\", \"resource_key\": null, \"resource_name\": \"first\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.first: Plan to create\", \"@timestamp\": \"2026-11-12T07:17:49.396671Z\"}",
+    "resourceAddr": "terraform_data.first",
+    "seq": "16",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:49.396769Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"create\", \"resource\": {\"addr\": \"local_file.blocked\", \"module\": \"\", \"resource\": \"local_file.blocked\", \"resource_key\": null, \"resource_name\": \"blocked\", \"resource_type\": \"local_file\", \"implied_provider\": \"local\"}}, \"@module\": \"tofu.ui\", \"@message\": \"local_file.blocked: Plan to create\", \"@timestamp\": \"2026-11-12T07:17:49.396702Z\"}",
+    "resourceAddr": "local_file.blocked",
+    "seq": "17",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:49.396774Z",
+    "payload": "{\"type\": \"planned_change\", \"@level\": \"info\", \"change\": {\"action\": \"create\", \"resource\": {\"addr\": \"terraform_data.after\", \"module\": \"\", \"resource\": \"terraform_data.after\", \"resource_key\": null, \"resource_name\": \"after\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.after: Plan to create\", \"@timestamp\": \"2026-11-12T07:17:49.396705Z\"}",
+    "resourceAddr": "terraform_data.after",
+    "seq": "18",
+    "type": "engine.planned_change"
+  },
+  {
+    "at": "2026-11-12T07:17:49.406949Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"resource\": {\"addr\": \"terraform_data.first\", \"module\": \"\", \"resource\": \"terraform_data.first\", \"resource_key\": null, \"resource_name\": \"first\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.first: Creating...\", \"@timestamp\": \"2026-11-12T07:17:49.406845Z\"}",
+    "resourceAddr": "terraform_data.first",
+    "seq": "19",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:49.407033Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"id_key\": \"id\", \"id_value\": \"e3443829-9aff-9d1d-5a47-70d163d2719f\", \"resource\": {\"addr\": \"terraform_data.first\", \"module\": \"\", \"resource\": \"terraform_data.first\", \"resource_key\": null, \"resource_name\": \"first\", \"resource_type\": \"terraform_data\", \"implied_provider\": \"terraform\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_complete\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"terraform_data.first: Creation complete after 0s [id=e3443829-9aff-9d1d-5a47-70d163d2719f]\", \"@timestamp\": \"2026-11-12T07:17:49.406998Z\"}",
+    "resourceAddr": "terraform_data.first",
+    "seq": "20",
+    "type": "engine.apply_complete"
+  },
+  {
+    "at": "2026-11-12T07:17:49.411107Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"resource\": {\"addr\": \"local_file.blocked\", \"module\": \"\", \"resource\": \"local_file.blocked\", \"resource_key\": null, \"resource_name\": \"blocked\", \"resource_type\": \"local_file\", \"implied_provider\": \"local\"}}, \"type\": \"apply_start\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"local_file.blocked: Creating...\", \"@timestamp\": \"2026-11-12T07:17:49.410956Z\"}",
+    "resourceAddr": "local_file.blocked",
+    "seq": "21",
+    "type": "engine.apply_start"
+  },
+  {
+    "at": "2026-11-12T07:17:49.412188Z",
+    "payload": "{\"hook\": {\"action\": \"create\", \"resource\": {\"addr\": \"local_file.blocked\", \"module\": \"\", \"resource\": \"local_file.blocked\", \"resource_key\": null, \"resource_name\": \"blocked\", \"resource_type\": \"local_file\", \"implied_provider\": \"local\"}, \"elapsed_seconds\": 0}, \"type\": \"apply_errored\", \"@level\": \"info\", \"@module\": \"tofu.ui\", \"@message\": \"local_file.blocked: Creation errored after 0s\", \"@timestamp\": \"2026-11-12T07:17:49.412147Z\"}",
+    "resourceAddr": "local_file.blocked",
+    "seq": "22",
+    "type": "engine.apply_errored"
+  },
+  {
+    "at": "2026-11-12T07:17:49.426494Z",
+    "payload": "{\"type\": \"diagnostic\", \"@level\": \"error\", \"@module\": \"tofu.ui\", \"@message\": \"Error: Create local file error\", \"@timestamp\": \"2026-11-12T07:17:49.426352Z\", \"diagnostic\": {\"range\": {\"end\": {\"byte\": 196, \"line\": 10, \"column\": 34}, \"start\": {\"byte\": 195, \"line\": 10, \"column\": 33}, \"filename\": \"main.tf\"}, \"detail\": \"An unexpected error occurred while creating file directory\\n\\n+Original Error: mkdir /stackwright-read-only: read-only file system\", \"address\": \"local_file.blocked\", \"snippet\": {\"code\": \"resource \\\"local_file\\\" \\\"blocked\\\" {\", \"values\": [], \"context\": \"resource \\\"local_file\\\" \\\"blocked\\\"\", \"start_line\": 10, \"highlight_end_offset\": 33, \"highlight_start_offset\": 32}, \"summary\": \"Create local file error\", \"severity\": \"error\"}}",
+    "resourceAddr": "local_file.blocked",
+    "seq": "23",
+    "type": "engine.diagnostic"
+  },
+  {
+    "at": "2026-11-12T07:17:49.431957Z",
+    "payload": "{\"error\": \"apply exited with 1\", \"stage\": \"apply\"}",
+    "resourceAddr": "",
+    "seq": "24",
+    "type": "executor.failed"
+  },
+  {
+    "at": "2026-11-12T07:17:49.437636Z",
+    "payload": "{\"error\": \"apply: apply exited with 1\", \"succeeded\": false, \"has_changes\": false}",
+    "resourceAddr": "",
+    "seq": "25",
+    "type": "executor.finished"
+  }
+]

@@ -1,0 +1,69 @@
+{
+  "edges": [
+    {
+      "from": "local_file.blocked",
+      "to": "terraform_data.after"
+    },
+    {
+      "explicit": true,
+      "from": "terraform_data.first",
+      "to": "local_file.blocked"
+    }
+  ],
+  "nodes": [
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "local_file.blocked",
+      "instances": 1,
+      "name": "blocked",
+      "source": {
+        "file": "main.tf",
+        "line": 10
+      },
+      "type": "local_file"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.after",
+      "instances": 1,
+      "name": "after",
+      "source": {
+        "file": "main.tf",
+        "line": 16
+      },
+      "type": "terraform_data"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "counts": [
+        {
+          "action": "PLAN_ACTION_CREATE",
+          "count": 1
+        }
+      ],
+      "id": "terraform_data.first",
+      "instances": 1,
+      "name": "first",
+      "source": {
+        "file": "main.tf",
+        "line": 5
+      },
+      "type": "terraform_data"
+    }
+  ],
+  "summary": {
+    "creates": 3
+  }
+}

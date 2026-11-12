@@ -1,11 +1,5 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-
-type Graph = { nodes: { id: string; module?: string; action: string; instances?: number; counts?: unknown[] }[]; edges?: unknown[]; groups?: unknown[] };
-
-const golden = (name: string): Graph =>
-  JSON.parse(readFileSync(join(process.cwd(), "..", "internal", "graph", "testdata", name, "graph.json"), "utf8"));
+import { golden, mockApi, type Graph } from "./mock";
 
 // big makes a plan of n resources, spread over modules of 100, with a chain
 // of edges between neighbours.
@@ -25,26 +19,25 @@ type Mock = { graph: Graph; layout?: { id: string; x: number; y: number }[]; rol
 async function open(page: Page, m: Mock) {
   const saves: unknown[] = [];
   let served = 0;
-  await page.route("**/stackwright.v1.*/*", async (route) => {
-    const procedure = new URL(route.request().url()).pathname.split("/").pop();
-    const body: Record<string, unknown> = {
-      GetMe: { user: { id: "u1", email: "kim@a.test", name: "Kim" }, orgs: [{ slug: "a", name: "Acme", role: m.role ?? "ROLE_WRITER" }] },
-      ListProjects: { projects: [{ slug: "lab", workspaces: [{ name: "default" }] }] },
-      GetPlanGraph: { graph: m.graph, number: 3, layout: m.layout ?? [], sourceBaseUrl: "https://github.com/acme/infra/blob/abc123/" },
-      GetPlanNode: {
-        node: m.graph.nodes.find((nd) => nd.id === "terraform_data.recreate") ?? m.graph.nodes[0],
-        instances: [
-          {
-            address: "terraform_data.recreate",
-            action: "PLAN_ACTION_REPLACE",
-            changes: [{ path: "triggers_replace", before: '"a"', after: '"b"', forcesReplacement: true }],
-          },
-        ],
-      },
-    };
-    if (procedure === "SaveGraphLayout") saves.push(route.request().postDataJSON());
-    if (procedure === "GetPlanGraph") served = Date.now();
-    await route.fulfill({ contentType: "application/json", body: JSON.stringify(body[procedure ?? ""] ?? {}) });
+  await mockApi(page, m.role ?? "ROLE_WRITER", {
+    GetPlanGraph: () => {
+      served = Date.now();
+      return { graph: m.graph, number: 3, layout: m.layout ?? [], sourceBaseUrl: "https://github.com/acme/infra/blob/abc123/" };
+    },
+    GetPlanNode: () => ({
+      node: m.graph.nodes.find((nd) => nd.id === "terraform_data.recreate") ?? m.graph.nodes[0],
+      instances: [
+        {
+          address: "terraform_data.recreate",
+          action: "PLAN_ACTION_REPLACE",
+          changes: [{ path: "triggers_replace", before: '"a"', after: '"b"', forcesReplacement: true }],
+        },
+      ],
+    }),
+    SaveGraphLayout: (req) => {
+      saves.push(req);
+      return {};
+    },
   });
   await page.goto("/a/projects/lab/default/plan");
   return { saves, served: () => served };

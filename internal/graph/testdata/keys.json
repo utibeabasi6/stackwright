@@ -1,0 +1,7 @@
+[
+  { "in": "aws_subnet.private[0]", "want": "aws_subnet.private" },
+  { "in": "module.a[\"x.y\"].b[\"k]\\\"q\"].c", "want": "module.a.b.c" },
+  { "in": "module.net[0].module.sub.thing.name", "want": "module.net.module.sub.thing.name" },
+  { "in": "data.aws_region.current", "want": "data.aws_region.current" },
+  { "in": "terraform_data.each[\"a\"]", "want": "terraform_data.each" }
+]

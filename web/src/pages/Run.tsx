@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { message, runApi } from "../api";
+import { graphApi, message, runApi } from "../api";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run as RunType, type RunEvent } from "../gen/stackwright/v1/runs_pb";
 import { useShell } from "../me";
+import { emptyState, statuses, step, timeline } from "../plan/apply";
+import { Graph } from "../plan/Graph";
+import { Select } from "../Select";
+import { useLoad } from "../useLoad";
 import { changes, describeEvent, finished, origin, runTitle, statusOf } from "../runs";
 
 function useRun(org: string, project: string, workspace: string, number: number) {
@@ -104,25 +108,30 @@ export function Run() {
       </div>
 
       {error && <p className="notice error">{error} Reconnecting…</p>}
-      <ol className="timeline" aria-label="Timeline" aria-live="polite">
-        {events.map((e) => {
-          const line = describeEvent(e);
-          if (!line.text.trim()) return null;
-          return (
-            <li key={String(e.seq)} className={line.tone}>
-              <time className="mono muted" dateTime={e.at ? timestampDate(e.at).toISOString() : undefined}>
-                {e.at ? timestampDate(e.at).toLocaleTimeString() : ""}
-              </time>
-              <span>
-                {line.text}
-                {e.resourceAddr && !line.text.includes(e.resourceAddr) && <code> {e.resourceAddr}</code>}
-                {line.detail && <span className="detail">{line.detail}</span>}
-              </span>
-            </li>
-          );
-        })}
-        {events.length === 0 && <li className="muted">No events yet.</li>}
-      </ol>
+      <div className="run-split">
+        <ol className="timeline" aria-label="Timeline" aria-live="polite">
+          {events.map((e) => {
+            const line = describeEvent(e);
+            if (!line.text.trim()) return null;
+            return (
+              <li key={String(e.seq)} className={line.tone}>
+                <time className="mono muted" dateTime={e.at ? timestampDate(e.at).toISOString() : undefined}>
+                  {e.at ? timestampDate(e.at).toLocaleTimeString() : ""}
+                </time>
+                <span>
+                  {line.text}
+                  {e.resourceAddr && !line.text.includes(e.resourceAddr) && <code> {e.resourceAddr}</code>}
+                  {line.detail && <span className="detail">{line.detail}</span>}
+                </span>
+              </li>
+            );
+          })}
+          {events.length === 0 && <li className="muted">No events yet.</li>}
+        </ol>
+        {run && run.status !== RunStatus.QUEUED && run.status !== RunStatus.PLANNING && (
+          <RunGraph org={org} project={project} workspace={workspace} run={run} events={events} writer={role >= Role.WRITER} />
+        )}
+      </div>
 
       {run && (
         <div className="next-bar">
@@ -146,6 +155,113 @@ export function Run() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+const speeds = ["1", "2", "4", "10"].map((v) => ({ value: v, label: `${v}x` }));
+
+const clock = (ms: number) => {
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+const isApply = (e: RunEvent) => {
+  if (e.type !== "run.dispatched") return false;
+  try {
+    return JSON.parse(e.payload).operation === "apply";
+  } catch {
+    return false;
+  }
+};
+
+type RunGraphProps = { org: string; project: string; workspace: string; run: RunType; events: RunEvent[]; writer: boolean };
+
+// RunGraph shows the run's plan graph. During the apply its nodes follow
+// the events; after the run, the apply can be replayed.
+function RunGraph({ org, project, workspace, run, events, writer }: RunGraphProps) {
+  const graph = useLoad(`plan-graph:${org}/${project}/${workspace}/${run.number}`, () =>
+    graphApi.getPlanGraph({ org, project, workspace, number: run.number }),
+  );
+  const applyEvents = useMemo(() => {
+    let start = -1;
+    events.forEach((e, i) => {
+      if (isApply(e)) start = i;
+    });
+    return start < 0 ? [] : events.slice(start);
+  }, [events]);
+  const times = useMemo(() => timeline(applyEvents), [applyEvents]);
+  const total = times.at(-1) ?? 0;
+  // The replay's position in ms; undefined shows the run as it stands.
+  const [at, setAt] = useState<number>();
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState("1");
+  const shown = at === undefined ? applyEvents.length : times.filter((t) => t <= at).length;
+  const state = useMemo(() => applyEvents.slice(0, shown).reduce(step, emptyState()), [applyEvents, shown]);
+  const g = graph.data?.graph;
+  const states = useMemo(() => (g && state.started ? statuses(g, state) : undefined), [g, state]);
+
+  useEffect(() => {
+    if (!playing) return;
+    let frame = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      setAt((t) => Math.min((t ?? 0) + dt * Number(speed), total));
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, speed, total]);
+  useEffect(() => {
+    if (playing && at !== undefined && at >= total) setPlaying(false);
+  }, [playing, at, total]);
+
+  if (graph.error || !graph.data) return null;
+  const replayable = finished(run.status) && applyEvents.length > 0;
+  const controls = replayable ? (
+    <span className="replay row">
+      <button
+        type="button"
+        onClick={() => {
+          if (!playing && (at === undefined || at >= total)) setAt(0);
+          setPlaying(!playing);
+        }}
+      >
+        {playing ? "Pause" : "Replay"}
+      </button>
+      <input
+        type="range"
+        aria-label="Replay position"
+        min={0}
+        max={total}
+        value={at ?? total}
+        onChange={(e) => {
+          setPlaying(false);
+          setAt(Number(e.target.value));
+        }}
+      />
+      <Select aria-label="Replay speed" value={speed} onChange={setSpeed} options={speeds} />
+      <span className="mono muted">
+        {clock(at ?? total)} / {clock(total)}
+      </span>
+    </span>
+  ) : (
+    applyEvents.length > 0 && <span className="live">Applying, live</span>
+  );
+  return (
+    <div className="plan-view run-graph">
+      <Graph
+        org={org}
+        project={project}
+        workspace={workspace}
+        data={graph.data}
+        writer={writer}
+        states={states}
+        diagnostics={state.diagnostics}
+        controls={controls}
+      />
     </div>
   );
 }

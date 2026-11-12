@@ -702,11 +702,55 @@ details.card summary {
   gap: var(--space-2);
 }
 
-.run-view {
+#root:has(.run-view) {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 140px);
-  margin: calc(-1 * var(--space-6));
+  height: 100vh;
+}
+
+.page:has(> .run-view) {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  padding: 0;
+}
+
+.run-view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.run-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.run-split .timeline {
+  overflow: auto;
+}
+
+.run-split .run-graph {
+  flex: 0 0 62%;
+  border-left: 1px solid var(--hairline);
+}
+
+.replay input[type="range"] {
+  width: 160px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--accent);
+}
+
+.live {
+  color: var(--accent-ink);
+  font-weight: 600;
 }
 
 .view-bar,
@@ -978,4 +1022,56 @@ details.card summary {
   background: var(--window);
   color: var(--ink);
   border: 1px solid var(--hairline);
+}
+
+.gnode .gstate {
+  flex: none;
+  font-weight: 600;
+}
+
+.gnode.state-waiting {
+  opacity: 0.55;
+}
+
+.gnode.state-running {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+
+.gnode.state-done .gstate {
+  color: var(--create);
+}
+
+.gnode.state-failed {
+  border-color: var(--destroy);
+  border-width: 2px;
+}
+
+.gnode.state-failed .gstate {
+  color: var(--destroy);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gnode.state-running {
+    animation: running 1.2s ease-in-out infinite;
+  }
+
+  @keyframes running {
+    50% {
+      outline-color: transparent;
+    }
+  }
+}
+
+.diagnostic {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--destroy);
+  border-radius: var(--radius-control);
+  color: var(--destroy);
+}
+
+.diagnostic pre {
+  margin: var(--space-1) 0 0;
+  white-space: pre-wrap;
+  color: var(--ink);
 }

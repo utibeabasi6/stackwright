@@ -24,6 +24,11 @@ const api = vi.hoisted(() => ({
 
 vi.mock("./api", () => ({
   message: (e: Error) => e.message,
+  graphApi: {
+    getPlanGraph: async () => {
+      throw new ConnectError("no plan to show", Code.FailedPrecondition);
+    },
+  },
   meta: { getVersion: async () => ({ version: "0.1.0" }) },
   authApi: {
     getMe: async () => {

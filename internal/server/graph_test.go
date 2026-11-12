@@ -2,11 +2,14 @@ package server_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 
@@ -20,8 +23,12 @@ var update = flag.Bool("update", false, "write the plan graph golden files from 
 
 type graphCase struct {
 	name, engine, version, path string
-	// sources are applied in order; the last one is only planned.
+	// sources are applied in order; the last one is only planned, unless
+	// apply is set.
 	sources []func(t *testing.T) []byte
+	// apply applies the last plan too and keeps its events for the web
+	// tests. applyFails expects that apply to fail.
+	apply, applyFails bool
 }
 
 func fixture(name string) func(t *testing.T) []byte {
@@ -41,9 +48,10 @@ func TestPlanGraphGolden(t *testing.T) {
 				return b
 			},
 		}},
-		{name: "actions", engine: "ENGINE_OPENTOFU", version: "1.10.7", sources: []func(*testing.T) []byte{fixture("actions/v1"), fixture("actions/v2")}},
+		{name: "actions", engine: "ENGINE_OPENTOFU", version: "1.10.7", sources: []func(*testing.T) []byte{fixture("actions/v1"), fixture("actions/v2")}, apply: true},
 		{name: "actions", engine: "ENGINE_TERRAFORM", version: "1.5.7", sources: []func(*testing.T) []byte{fixture("actions/v1"), fixture("actions/v2")}},
 		{name: "modules", engine: "ENGINE_OPENTOFU", version: "1.10.7", path: "live", sources: []func(*testing.T) []byte{fixture("modules")}},
+		{name: "failing", engine: "ENGINE_OPENTOFU", version: "1.10.7", sources: []func(*testing.T) []byte{fixture("failing")}, apply: true, applyFails: true},
 	}
 	for i, c := range cases {
 		t.Run(c.name+"/"+c.engine, func(t *testing.T) {
@@ -72,8 +80,16 @@ func TestPlanGraphGolden(t *testing.T) {
 			}
 			got := golden(t, g)
 			dir := filepath.Join("..", "graph", "testdata", c.name)
+			files := map[string][]byte{"plan.json": plan, "sources.json": sources, "graph.json": got}
+			if c.apply {
+				applyID, code, logs := w.run(jobs.Request{OrgID: orgID, WorkspaceID: ws, Operation: v1.JobOperation_JOB_OPERATION_APPLY, PlanJobID: planID})
+				if (code != 0) != c.applyFails {
+					t.Fatalf("apply exited %d:\n%s", code, logs)
+				}
+				files["apply-events.json"] = w.applyEvents(applyID)
+			}
 			if *update && c.engine == "ENGINE_OPENTOFU" {
-				for name, b := range map[string][]byte{"plan.json": plan, "sources.json": sources, "graph.json": got} {
+				for name, b := range files {
 					if err := os.MkdirAll(dir, 0o750); err != nil {
 						t.Fatal(err)
 					}
@@ -174,4 +190,34 @@ func TestPlanGraphAPI(t *testing.T) {
 	if code := save(w.owner, false, map[string]any{"id": "", "x": 1, "y": 1}); code != "invalid_argument" {
 		t.Errorf("an empty node id: %q", code)
 	}
+}
+
+// applyEvents returns an apply job's events as a run would hold them, in the
+// JSON of RunEvent, after the run.dispatched event that starts an apply.
+func (w *jobWorld) applyEvents(jobID string) []byte {
+	w.t.Helper()
+	rows, err := w.owner.Query(context.Background(), `SELECT type, resource_addr, payload::text, at FROM job_events WHERE job_id = $1 ORDER BY seq`, jobID)
+	if err != nil {
+		w.t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []map[string]any
+	for rows.Next() {
+		var typ, addr, payload string
+		var at time.Time
+		if err := rows.Scan(&typ, &addr, &payload, &at); err != nil {
+			w.t.Fatal(err)
+		}
+		if len(out) == 0 {
+			out = append(out, map[string]any{"seq": "1", "type": "run.dispatched", "payload": `{"operation":"apply","build_server":"built-in"}`,
+				"at": at.UTC().Format(time.RFC3339Nano)})
+		}
+		out = append(out, map[string]any{"seq": strconv.Itoa(len(out) + 1), "type": typ, "resourceAddr": addr, "payload": payload,
+			"at": at.UTC().Format(time.RFC3339Nano)})
+	}
+	b, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		w.t.Fatal(err)
+	}
+	return append(b, '\n')
 }

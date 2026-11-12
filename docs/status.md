@@ -621,3 +621,34 @@ Decisions: [0027](adr/0027-plan-graph.md).
   graph some cross nodes.
 - A stored layout keeps positions for resources that later leave the plan.
 - `.tf.json` files are not parsed, so their resources have no links.
+
+## Phase 10: Live apply and replay
+
+Decisions: [0028](adr/0028-live-apply-and-replay.md).
+
+**Verified on 2026-11-12:**
+- The golden test now applies two plans in Docker with OpenTofu 1.10.7 and
+  keeps their events: `actions`, which applies every kind of change, and
+  `failing`, whose `local_file` cannot write and fails.
+- From those real events (unit tests): each node reaches done at its last
+  completion, in event order; a replace counts its create and its delete;
+  a failed node holds its diagnostic (`main.tf:10`), and the node after it
+  stays waiting; a stream fed in overlapping pieces ends in the same state
+  as one stream; a replay matches the live state after every event; replay
+  gaps are cut to 2 s.
+- The TypeScript and Go key stripping pass the same cases from
+  `internal/graph/testdata/keys.json`.
+- Playwright, in light and dark: during a live apply the stream drops, the
+  page resumes after the last sequence it had, and every node ends done; a
+  finished apply scrubs back to all waiting, replays at 10x, and ends with
+  the same node states as the live run; a failed node announces "failed"
+  and Enter shows its diagnostic.
+
+**Not verified:**
+- A live apply on the dev stack in the browser pane. The browser checks
+  stream recorded events from a real apply through a mocked API.
+- An apply of many resources over minutes, and replay of it.
+
+**Known gaps:**
+- After a failed apply, nodes that never started stay "waiting".
+- An apply that ran twice shows only its latest attempt on the graph.
