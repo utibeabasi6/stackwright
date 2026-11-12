@@ -80,6 +80,8 @@ export function Shell() {
       { id: "settings", label: "Settings: General", group: "Page", run: go("/$org/settings") },
       { id: "members", label: "Settings: Members", group: "Page", run: go("/$org/settings/members") },
       { id: "tokens", label: "Settings: API tokens", group: "Page", run: go("/$org/settings/tokens") },
+      { id: "variables", label: "Settings: Variables", group: "Page", run: go("/$org/settings/variables") },
+      { id: "cloud", label: "Settings: Cloud accounts", group: "Page", run: go("/$org/settings/cloud") },
     ];
     if (role >= Role.ADMIN) {
       list.push(

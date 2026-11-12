@@ -7,7 +7,9 @@ import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { Layout } from "../gen/stackwright/v1/projects_pb";
 import { useShell } from "../me";
 import { useLoad } from "../useLoad";
+import { CloudPanel } from "./CloudPanel";
 import { RunsPanel } from "./RunsPanel";
+import { Variables } from "./Variables";
 import { StatePanel } from "./StatePanel";
 
 export function Workspace() {
@@ -89,6 +91,17 @@ export function Workspace() {
       />
 
       <StatePanel org={org} project={project} workspace={workspace} engine={p.engine} admin={admin} />
+
+      <Variables org={org} project={project} workspace={workspace} admin={admin} />
+
+      <CloudPanel
+        org={org}
+        project={project}
+        workspace={workspace}
+        account={ws.data?.workspace?.cloudAccount ?? ""}
+        admin={admin}
+        reload={ws.reload}
+      />
 
       {error && <p className="error">{error}</p>}
 

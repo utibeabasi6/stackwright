@@ -88,6 +88,16 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.ExecutorServiceReportEventsProcedure: {Access: Job},
 	stackwrightv1connect.ExecutorServiceFinishJobProcedure:    {Access: Job},
 
+	stackwrightv1connect.VariableServiceListVariablesProcedure:  org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.VariableServiceSetVariableProcedure:    org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.VariableServiceDeleteVariableProcedure: org(v1.Role_ROLE_ADMIN),
+
+	stackwrightv1connect.CloudAccountServiceListCloudAccountsProcedure:        org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.CloudAccountServiceCreateCloudAccountProcedure:       org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.CloudAccountServiceDeleteCloudAccountProcedure:       org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.CloudAccountServiceGetAwsSetupProcedure:              org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.CloudAccountServiceSetWorkspaceCloudAccountProcedure: org(v1.Role_ROLE_ADMIN),
+
 	stackwrightv1connect.BuilderServiceEnrolProcedure:   {Access: Public},
 	stackwrightv1connect.BuilderServiceConnectProcedure: {Access: Builder},
 

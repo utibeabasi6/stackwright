@@ -18,6 +18,8 @@ const api = vi.hoisted(() => ({
   approved: [] as number[],
   created: [] as unknown[],
   updates: [] as unknown[],
+  variables: [] as unknown[],
+  setVariables: [] as unknown[],
 }));
 
 vi.mock("./api", () => ({
@@ -95,6 +97,26 @@ vi.mock("./api", () => ({
     getSSHKey: async () => ({ publicKey: "ssh-ed25519 AAAAkey stackwright-a" }),
     createJoinCommand: async () => ({ command: "echo 'swe_abcdefghijklmnop' | stackwright-builder enrol" }),
   },
+  variableApi: {
+    listVariables: async () => ({ variables: api.variables }),
+    setVariable: async (req: unknown) => {
+      api.setVariables.push(req);
+      return {};
+    },
+  },
+  cloudApi: {
+    listCloudAccounts: async () => ({
+      issuer: "",
+      accounts: [
+        {
+          id: "c1",
+          name: "prod-aws",
+          aws: { planRoleArn: "arn:aws:iam::123456789012:role/plan", applyRoleArn: "arn:aws:iam::123456789012:role/apply", region: "eu-west-1" },
+          workspaces: ["network/prod"],
+        },
+      ],
+    }),
+  },
   projectApi: {
     listProjects: async () => ({ projects: api.projects }),
     getWorkspace: async ({ project, workspace }: { project: string; workspace: string }) => {
@@ -142,6 +164,8 @@ beforeEach(() => {
   api.approved = [];
   api.created = [];
   api.updates = [];
+  api.variables = [];
+  api.setVariables = [];
   window.localStorage.clear();
 });
 
@@ -210,6 +234,8 @@ test("every page is in the command palette", async () => {
     "Build servers",
     "Settings: General",
     "Settings: Members",
+    "Settings: Variables",
+    "Settings: Cloud accounts",
     "Settings: Audit log",
     "Settings: Sign-in",
     "New project",
@@ -365,4 +391,33 @@ test("a join command hides its token until revealed", async () => {
   expect(command.textContent).not.toContain("abcdefghijklmnop");
   await userEvent.click(screen.getByRole("button", { name: "Reveal" }));
   expect(command.textContent).toContain("swe_abcdefghijklmnop");
+});
+
+test("a workspace shows its variables, and never a sensitive value", async () => {
+  signedInAs(Role.ADMIN);
+  api.projects = [network];
+  api.variables = [
+    { category: 1, key: "greeting", value: "hello-project", scope: { project: "network" } },
+    { category: 2, key: "DB_PASSWORD", value: "", sensitive: true, scope: { project: "network", workspace: "prod" } },
+  ];
+  at("/a/projects/network/prod");
+  const vars = await screen.findByRole("region", { name: "Variables" });
+  expect(await within(vars).findByText("hello-project")).toBeInTheDocument();
+  expect(within(vars).getByText("Sensitive, hidden")).toBeInTheDocument();
+  expect(within(vars).getByRole("cell", { name: "Project network" })).toBeInTheDocument();
+  expect(within(vars).getByRole("cell", { name: "This workspace" })).toBeInTheDocument();
+  await userEvent.type(within(vars).getByRole("textbox", { name: "Name" }), "token");
+  await userEvent.type(within(vars).getByRole("textbox", { name: "Value" }), "abcdefgh");
+  await userEvent.click(within(vars).getByRole("checkbox", { name: "Sensitive" }));
+  await userEvent.click(within(vars).getByRole("button", { name: "Set variable" }));
+  expect(api.setVariables).toMatchObject([
+    { org: "a", scope: { project: "network", workspace: "prod" }, key: "token", value: "abcdefgh", sensitive: true, keepValue: false },
+  ]);
+});
+
+test("cloud accounts warn when AWS cannot trust the issuer", async () => {
+  signedInAs(Role.ADMIN);
+  at("/a/settings/cloud");
+  expect(await screen.findByText(/AWS trusts only an https issuer/)).toBeInTheDocument();
+  expect(screen.getByText("network/prod")).toBeInTheDocument();
 });

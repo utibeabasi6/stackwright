@@ -22,6 +22,9 @@ services:
       STACKWRIGHT_SANDBOX_URL: ${STACKWRIGHT_SANDBOX_URL:-http://127.0.0.1:8080}
       STACKWRIGHT_S3_PUBLIC_URL: ${STACKWRIGHT_S3_PUBLIC_URL:-http://127.0.0.1:9000}
       STACKWRIGHT_EXECUTOR_IMAGE: ${STACKWRIGHT_EXECUTOR_IMAGE:-stackwright/executor:dev}
+      # AWS fetches the token issuer's keys from here; it must be public
+      # https. Empty uses STACKWRIGHT_PUBLIC_URL (adr/0022).
+      STACKWRIGHT_OIDC_ISSUER: ${STACKWRIGHT_OIDC_ISSUER:-}
     secrets: [app_db_password, kek, s3_access_key, s3_secret_key, nats_password, builder_token]
     depends_on:
       migrate:

@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service VariableService {
+  // ListVariables returns the variables set at one scope. With effective, it
+  // returns what a run in the workspace gets: workspace over project over
+  // org, for each category and key.
+  rpc ListVariables(ListVariablesRequest) returns (ListVariablesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc SetVariable(SetVariableRequest) returns (SetVariableResponse);
+  rpc DeleteVariable(DeleteVariableRequest) returns (DeleteVariableResponse);
+}
+
+enum VariableCategory {
+  VARIABLE_CATEGORY_UNSPECIFIED = 0;
+  // An input variable of the code: TF_VAR_<key> for the engine.
+  VARIABLE_CATEGORY_TERRAFORM = 1;
+  // An environment variable of the engine.
+  VARIABLE_CATEGORY_ENV = 2;
+}
+
+// No project and no workspace is the whole org. A project alone is every
+// workspace of that project.
+message VariableScope {
+  string project = 1;
+  string workspace = 2;
+}
+
+message Variable {
+  VariableCategory category = 1;
+  string key = 2;
+  // Empty for a sensitive variable: the API never returns its value.
+  string value = 3;
+  bool sensitive = 4;
+  string description = 5;
+  VariableScope scope = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  string updated_by = 8;
+}
+
+message ListVariablesRequest {
+  string org = 1;
+  VariableScope scope = 2;
+  bool effective = 3;
+}
+
+message ListVariablesResponse {
+  repeated Variable variables = 1;
+}
+
+message SetVariableRequest {
+  string org = 1;
+  VariableScope scope = 2;
+  VariableCategory category = 3;
+  string key = 4;
+  string value = 5;
+  bool sensitive = 6;
+  string description = 7;
+  // For a sensitive variable that exists: keep its sealed value, and change
+  // only the description.
+  bool keep_value = 8;
+}
+
+message SetVariableResponse {
+  Variable variable = 1;
+}
+
+message DeleteVariableRequest {
+  string org = 1;
+  VariableScope scope = 2;
+  VariableCategory category = 3;
+  string key = 4;
+}
+
+message DeleteVariableResponse {}

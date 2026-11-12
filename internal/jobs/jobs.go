@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +23,9 @@ import (
 	"github.com/stackwright/stackwright/internal/artifact"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/engine"
+	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/seal"
+	"github.com/stackwright/stackwright/internal/variables"
 )
 
 const (
@@ -50,6 +53,10 @@ type Service struct {
 	PresignRemote *minio.Client
 	Bucket        string
 	Engines       *engine.Mirror
+	// Issuer signs the web identity token of a job whose workspace has a
+	// cloud account. STSEndpoint is where the executor trades it.
+	Issuer      *oidc.Issuer
+	STSEndpoint string
 	// OnEnd runs in the transaction that ends a job, with the org setting.
 	// status is succeeded, failed or lost.
 	OnEnd func(ctx context.Context, tx pgx.Tx, jobID, status, msg string) error
@@ -107,6 +114,13 @@ func (s *Service) Create(ctx context.Context, r Request) (Created, error) {
 	var eng, version, platform, sourceSHA string
 	var sealedKey []byte
 	err := s.inOrg(ctx, r.OrgID, func(tx pgx.Tx) error {
+		var cloud bool
+		if err := tx.QueryRow(ctx, `SELECT cloud_account_id IS NOT NULL FROM workspaces WHERE id = $1`, r.WorkspaceID).Scan(&cloud); err != nil {
+			return err
+		}
+		if cloud && !strings.HasPrefix(s.Issuer.URL, "https://") {
+			return fmt.Errorf("the workspace has a cloud account, but %w (it is %s)", oidc.ErrIssuer, s.Issuer.URL)
+		}
 		switch r.Operation {
 		case v1.JobOperation_JOB_OPERATION_PLAN:
 			platform = r.Platform
@@ -184,7 +198,8 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	var (
 		orgID, operation, eng, version, platform string
 		orgSlug, project, projectPath, workspace string
-		sourceSHA                                string
+		sourceSHA, projectID, workspaceID        string
+		runID                                    *string
 		remote                                   bool
 		planJobID                                *string
 		sealedKey                                []byte
@@ -194,10 +209,10 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		FROM workspaces w, projects p, orgs o
 		WHERE j.id = $1 AND j.status = 'queued' AND w.id = j.workspace_id AND p.id = w.project_id AND o.id = j.org_id
 		RETURNING j.org_id, j.operation, j.plan_job_id, j.engine, j.engine_version, j.platform, j.artifact_key, j.deadline,
-			j.source_sha256, o.slug, p.slug, p.path, w.name,
+			j.source_sha256, o.slug, p.slug, p.path, w.name, p.id, w.id, j.run_id,
 			EXISTS (SELECT FROM build_servers b WHERE b.id = j.build_server_id AND b.org_id IS NOT NULL)`, jobID).
 		Scan(&orgID, &operation, &planJobID, &eng, &version, &platform, &sealedKey, &deadline,
-			&sourceSHA, &orgSlug, &project, &projectPath, &workspace, &remote)
+			&sourceSHA, &orgSlug, &project, &projectPath, &workspace, &projectID, &workspaceID, &runID, &remote)
 	if err != nil {
 		return nil, fmt.Errorf("claim job %s: %w", jobID, err)
 	}
@@ -262,6 +277,49 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 			return nil, err
 		}
 		job.Uploads[name] = u.String()
+	}
+
+	vars, err := variables.Effective(ctx, tx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range vars {
+		jv := &v1.JobVariable{Key: v.Key, Sensitive: v.Sensitive, Category: v1.VariableCategory_VARIABLE_CATEGORY_TERRAFORM}
+		if v.Category == "env" {
+			jv.Category = v1.VariableCategory_VARIABLE_CATEGORY_ENV
+		}
+		if v.Value != nil {
+			jv.Value = *v.Value
+		} else {
+			plain, err := s.KEK.Open(ctx, tx, orgID, v.Sealed)
+			if err != nil {
+				return nil, fmt.Errorf("open variable %s: %w", v.Key, err)
+			}
+			jv.Value = string(plain)
+		}
+		job.Variables = append(job.Variables, jv)
+	}
+
+	var planRole, applyRole, region *string
+	if err := tx.QueryRow(ctx, `SELECT a.aws_plan_role_arn, a.aws_apply_role_arn, a.aws_region FROM workspaces w
+		LEFT JOIN cloud_accounts a ON a.id = w.cloud_account_id WHERE w.id = $1`, workspaceID).Scan(&planRole, &applyRole, &region); err != nil {
+		return nil, err
+	}
+	if planRole != nil {
+		phase, role := "plan", *planRole
+		if operation == "apply" {
+			phase, role = "apply", *applyRole
+		}
+		c := oidc.Claims{OrgID: orgID, OrgSlug: orgSlug, ProjectID: projectID, ProjectSlug: project,
+			WorkspaceID: workspaceID, WorkspaceName: workspace, JobID: jobID, Phase: phase}
+		if runID != nil {
+			c.RunID = *runID
+		}
+		token, err := s.Issuer.Mint(c, oidc.AWSAudience)
+		if err != nil {
+			return nil, err
+		}
+		job.Aws = &v1.AwsCredentials{RoleArn: role, Region: *region, WebIdentityToken: token, StsEndpoint: s.STSEndpoint}
 	}
 	return job, nil
 }

@@ -4,6 +4,7 @@ package stackwright.v1;
 
 import "google/protobuf/timestamp.proto";
 import "stackwright/v1/projects.proto";
+import "stackwright/v1/variables.proto";
 
 // The executor in a sandbox calls this service. ClaimJob takes the job's
 // one-time ticket as its bearer token; the other calls take the job token
@@ -44,6 +45,25 @@ message Job {
   // Presigned PUT URLs by artifact name.
   map<string, string> uploads = 11;
   google.protobuf.Timestamp deadline = 12;
+  // Workspace over project over org, one for each category and key.
+  repeated JobVariable variables = 13;
+  AwsCredentials aws = 14;
+}
+
+message JobVariable {
+  VariableCategory category = 1;
+  string key = 2;
+  string value = 3;
+  bool sensitive = 4;
+}
+
+// The executor trades the token for credentials with
+// AssumeRoleWithWebIdentity and gives them only to the engine.
+message AwsCredentials {
+  string role_arn = 1;
+  string region = 2;
+  string web_identity_token = 3;
+  string sts_endpoint = 4;
 }
 
 message ClaimJobRequest {}

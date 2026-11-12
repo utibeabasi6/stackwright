@@ -14,6 +14,8 @@ import { NewOrg } from "./pages/NewOrg";
 import { Setup } from "./pages/Setup";
 import { SignIn } from "./pages/SignIn";
 import { Audit } from "./pages/settings/Audit";
+import { CloudAccounts } from "./pages/settings/CloudAccounts";
+import { OrgVariables } from "./pages/settings/OrgVariables";
 import { General } from "./pages/settings/General";
 import { Members } from "./pages/settings/Members";
 import { Settings } from "./pages/settings/Settings";
@@ -46,6 +48,8 @@ export const routeTree = root.addChildren([
         createRoute({ getParentRoute: () => settings, path: "members", component: Members }),
         createRoute({ getParentRoute: () => settings, path: "audit", component: Audit }),
         createRoute({ getParentRoute: () => settings, path: "tokens", component: Tokens }),
+        createRoute({ getParentRoute: () => settings, path: "variables", component: OrgVariables }),
+        createRoute({ getParentRoute: () => settings, path: "cloud", component: CloudAccounts }),
         createRoute({ getParentRoute: () => settings, path: "sign-in", component: SignInProviders }),
       ]),
     ]),

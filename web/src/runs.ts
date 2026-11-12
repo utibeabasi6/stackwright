@@ -90,6 +90,8 @@ export function describeEvent(e: RunEvent): Line {
           ? "The engine binary from the build server's cache matches its signed checksum"
           : "The engine binary matches its signed checksum",
       };
+    case "executor.credentials_issued":
+      return { text: `AWS credentials issued for ${p.role_arn}, until ${new Date(String(p.expires_at)).toLocaleTimeString()}` };
     case "executor.failed":
       return { text: `! ${p.stage} failed: ${p.error}`, tone: "error" };
     case "executor.finished":

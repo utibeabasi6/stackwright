@@ -46,6 +46,22 @@ Stackwright host, so set these in `.env` to addresses that it can reach:
 Compose publishes the builder port and RustFS on 127.0.0.1 only. Publish
 them beyond this host for build servers on other machines.
 
+### AWS credentials for runs
+
+A run can get short-lived AWS credentials, with no keys stored. Add a cloud
+account in Settings, choose it on a workspace, and deploy the CloudFormation
+template that its AWS setup shows. AWS checks each job's token against
+Stackwright's keys, which it fetches over public https from
+`STACKWRIGHT_OIDC_ISSUER`, or from `STACKWRIGHT_PUBLIC_URL` when that is
+empty. If AWS cannot reach your instance, choose a public https URL, such
+as an S3 bucket's, and set `STACKWRIGHT_OIDC_ISSUER` to it. Restart the
+server, then copy these two files to that URL under `/.well-known/`:
+
+```bash
+curl -fsS http://127.0.0.1:8080/.well-known/openid-configuration
+curl -fsS http://127.0.0.1:8080/.well-known/jwks.json
+```
+
 To reset a password when nobody can sign in:
 
 ```bash

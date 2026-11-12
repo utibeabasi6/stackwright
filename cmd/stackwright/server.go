@@ -29,6 +29,7 @@ import (
 	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/engine"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/runs"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/server"
@@ -116,9 +117,16 @@ func runServer(args []string) error {
 		hosts = append(hosts, strings.Split(extra, ",")...)
 	}
 
+	issuer, err := oidc.Load(ctx, pool, kek, strings.TrimRight(config.Env("STACKWRIGHT_OIDC_ISSUER", publicURL), "/"))
+	if err != nil {
+		return err
+	}
+
 	jobService := &jobs.Service{
 		Pool: pool, KEK: kek, S3: s3, Presign: presign, PresignRemote: presignRemote, Bucket: bucket,
-		Engines: &engine.Mirror{Pool: pool, S3: s3, Bucket: bucket, HTTP: &http.Client{Timeout: 10 * time.Minute}},
+		Engines:     &engine.Mirror{Pool: pool, S3: s3, Bucket: bucket, HTTP: &http.Client{Timeout: 10 * time.Minute}},
+		Issuer:      issuer,
+		STSEndpoint: config.Env("STACKWRIGHT_AWS_STS_ENDPOINT", "https://sts.amazonaws.com"),
 	}
 	hub := &builders.Hub{
 		Pool: pool, CA: ca, BuiltInToken: builderToken, BuilderURL: builderURL, Version: version.Version,
@@ -147,6 +155,7 @@ func runServer(args []string) error {
 		Runs:      orchestrator,
 		Builders:  hub,
 		Binaries:  binaries,
+		Issuer:    issuer,
 	}
 	handler := server.New(srvCfg)
 

@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service CloudAccountService {
+  rpc ListCloudAccounts(ListCloudAccountsRequest) returns (ListCloudAccountsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc CreateCloudAccount(CreateCloudAccountRequest) returns (CreateCloudAccountResponse);
+  // DeleteCloudAccount refuses an account that a workspace uses.
+  rpc DeleteCloudAccount(DeleteCloudAccountRequest) returns (DeleteCloudAccountResponse);
+  // GetAwsSetup returns the trust policies and a CloudFormation template for
+  // the workspaces that use the account.
+  rpc GetAwsSetup(GetAwsSetupRequest) returns (GetAwsSetupResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc SetWorkspaceCloudAccount(SetWorkspaceCloudAccountRequest) returns (SetWorkspaceCloudAccountResponse);
+}
+
+message AwsAccount {
+  // Plans assume this role. Keep it read-only.
+  string plan_role_arn = 1;
+  string apply_role_arn = 2;
+  string region = 3;
+}
+
+message CloudAccount {
+  string id = 1;
+  string name = 2;
+  AwsAccount aws = 3;
+  // "project/workspace" for each workspace that uses the account.
+  repeated string workspaces = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message ListCloudAccountsRequest {
+  string org = 1;
+}
+
+message ListCloudAccountsResponse {
+  repeated CloudAccount accounts = 1;
+  // The URL that cloud accounts trust, empty when the instance has no https
+  // issuer.
+  string issuer = 2;
+}
+
+message CreateCloudAccountRequest {
+  string org = 1;
+  string name = 2;
+  AwsAccount aws = 3;
+}
+
+message CreateCloudAccountResponse {
+  CloudAccount account = 1;
+}
+
+message DeleteCloudAccountRequest {
+  string org = 1;
+  string name = 2;
+}
+
+message DeleteCloudAccountResponse {}
+
+message GetAwsSetupRequest {
+  string org = 1;
+  string account = 2;
+}
+
+message GetAwsSetupResponse {
+  string issuer = 1;
+  string plan_role_trust_policy = 2;
+  string apply_role_trust_policy = 3;
+  string cloudformation_template = 4;
+}
+
+message SetWorkspaceCloudAccountRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  // Empty clears it.
+  string account = 4;
+}
+
+message SetWorkspaceCloudAccountResponse {}

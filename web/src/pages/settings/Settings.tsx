@@ -20,6 +20,12 @@ export function Settings() {
         <Link to="/$org/settings/tokens" params={{ org }}>
           API tokens
         </Link>
+        <Link to="/$org/settings/variables" params={{ org }}>
+          Variables
+        </Link>
+        <Link to="/$org/settings/cloud" params={{ org }}>
+          Cloud accounts
+        </Link>
         {admin && (
           <Link to="/$org/settings/audit" params={{ org }}>
             Audit log

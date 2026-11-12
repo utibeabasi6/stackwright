@@ -52,6 +52,8 @@ message Workspace {
   bool auto_apply = 3;
   // A run goes only to a build server that has every one of these labels.
   map<string, string> required_labels = 4;
+  // The cloud account's name, or empty.
+  string cloud_account = 5;
 }
 
 message ListProjectsRequest {

@@ -27,3 +27,4 @@ line to the old one that points to the new one.
 | [0019](0019-terraform-stacks-files.md) | Terraform Stacks files, run by Stackwright |
 | [0020](0020-runs-postgres-queue.md) | Runs: a Postgres queue, uploaded code, joined networks |
 | [0021](0021-build-server-enrolment.md) | Build servers: a builder port with its own CA, a binary install, a builder-filled cache |
+| [0022](0022-variables-and-cloud-credentials.md) | Variables and cloud credentials: an issuer the server serves, secrets in the claim |

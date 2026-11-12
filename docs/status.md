@@ -12,7 +12,8 @@ commit that finishes a phase.
 | 3 | Done, reviewed 2026-11-11 |
 | 4 | Done, reviewed 2026-11-11 |
 | 5 | Done, reviewed 2026-11-12 |
-| 6 | Built, waiting for review |
+| 6 | Done, reviewed 2026-11-12 |
+| 7 | Built; the real AWS check waits for the user |
 
 ## Phase 0: Repository and compose
 
@@ -343,3 +344,61 @@ On the compose stack, in the browser pane (OrbStack), with a Lima VM
   port. Phase 22 decides on a limit.
 - One server process holds the connected builders, as with the dispatcher.
 - Removing a build server does not uninstall the builder from the machine.
+
+## Phase 7: Variables and cloud credentials
+
+Decisions: [0022](adr/0022-variables-and-cloud-credentials.md).
+
+**Verified on 2026-11-12**, in Go tests with the race detector, real Docker,
+Postgres, NATS and RustFS, and a fake STS in the test process. The fake STS
+does what AWS does: it fetches the JWKS from the server's
+`/.well-known/jwks.json`, checks the signature, issuer, audience and expiry,
+and then the role's trust policy as `GetAwsSetup` wrote it.
+- A plan and apply on a workspace with org, project and workspace variables
+  and a cloud account: the engine got the project's `greeting` over the
+  org's, and a sensitive input. STS issued the plan role to the plan
+  subject and the apply role to the apply subject.
+- The sensitive input, a sensitive environment variable, the STS secret key
+  and session token, and both web identity tokens are in none of: the job
+  and run events, both `log.jsonl` files, `plan.json`, `GetRun` and
+  `ListVariables`. The plan shows `hello-project:(sensitive value)`.
+- A plan-phase token cannot assume the apply role.
+- A second workspace on the same account, which the deployed trust policy
+  does not name, fails its run with AccessDenied.
+- Variables: the effective list puts workspace over project over org;
+  reserved names (`AWS_*`, `TF_*` in any case, `HOME`) and sensitive values
+  under 6 characters are refused; the stored row has no plain value and the
+  sealed bytes do not hold it; `keepValue` changes only the description.
+- Cloud accounts: roles in two accounts, the same role twice, another
+  partition and a bad region are refused; the trust policies name only the
+  workspaces on the account, each for its own phase; the template keeps a
+  role's path; an account in use cannot be deleted.
+- The issuer: the JWK thumbprint matches the example of RFC 7638; a minted
+  token verifies against the JWKS; an http issuer cannot mint.
+- The executor puts variables first and credentials after them, and masks
+  the credentials as soon as it has them.
+- The audit test covers the five new writes; the policy tests cover the new
+  RPCs.
+
+On the compose stack, in the browser pane: the Cloud accounts page warns
+that the instance has no https issuer; an account was added from its form.
+A sensitive variable set on `sample › qa` shows as "Sensitive, hidden", is
+not in the page, and is stored sealed with no plain value. With the account
+chosen, a run failed at once with "the workspace has a cloud account, but
+the OIDC issuer must be an https:// URL". With it cleared, a plan ran on the
+Lima build server with the variable in its claim.
+
+**Not verified:**
+- A real AWS account. The exit checks "creates a bucket" and "the plan role
+  cannot write" wait for the user's run against their test account.
+- AWS fetching the issuer documents. AWS needs a public https issuer, and
+  the dev stack is on 127.0.0.1.
+- That the generated CloudFormation template deploys.
+- An environment variable reaching the engine in a real run. The executor
+  test checks the environment it builds; the sample code reads no
+  environment variable.
+
+**Known gaps:**
+- `plan.bin` and the state hold sensitive values, sealed at rest.
+- Credentials last an hour and are not renewed.
+- Only AWS.

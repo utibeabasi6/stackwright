@@ -155,8 +155,11 @@ type Job struct {
 	ArtifactKey []byte      `protobuf:"bytes,9,opt,name=artifact_key,json=artifactKey,proto3" json:"artifact_key,omitempty"`
 	Inputs      []*Download `protobuf:"bytes,10,rep,name=inputs,proto3" json:"inputs,omitempty"`
 	// Presigned PUT URLs by artifact name.
-	Uploads       map[string]string      `protobuf:"bytes,11,rep,name=uploads,proto3" json:"uploads,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Deadline      *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	Uploads  map[string]string      `protobuf:"bytes,11,rep,name=uploads,proto3" json:"uploads,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Deadline *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	// Workspace over project over org, one for each category and key.
+	Variables     []*JobVariable  `protobuf:"bytes,13,rep,name=variables,proto3" json:"variables,omitempty"`
+	Aws           *AwsCredentials `protobuf:"bytes,14,opt,name=aws,proto3" json:"aws,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -275,6 +278,158 @@ func (x *Job) GetDeadline() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Job) GetVariables() []*JobVariable {
+	if x != nil {
+		return x.Variables
+	}
+	return nil
+}
+
+func (x *Job) GetAws() *AwsCredentials {
+	if x != nil {
+		return x.Aws
+	}
+	return nil
+}
+
+type JobVariable struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Category      VariableCategory       `protobuf:"varint,1,opt,name=category,proto3,enum=stackwright.v1.VariableCategory" json:"category,omitempty"`
+	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Sensitive     bool                   `protobuf:"varint,4,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobVariable) Reset() {
+	*x = JobVariable{}
+	mi := &file_stackwright_v1_executor_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobVariable) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobVariable) ProtoMessage() {}
+
+func (x *JobVariable) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_executor_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobVariable.ProtoReflect.Descriptor instead.
+func (*JobVariable) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *JobVariable) GetCategory() VariableCategory {
+	if x != nil {
+		return x.Category
+	}
+	return VariableCategory_VARIABLE_CATEGORY_UNSPECIFIED
+}
+
+func (x *JobVariable) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *JobVariable) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *JobVariable) GetSensitive() bool {
+	if x != nil {
+		return x.Sensitive
+	}
+	return false
+}
+
+// The executor trades the token for credentials with
+// AssumeRoleWithWebIdentity and gives them only to the engine.
+type AwsCredentials struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RoleArn          string                 `protobuf:"bytes,1,opt,name=role_arn,json=roleArn,proto3" json:"role_arn,omitempty"`
+	Region           string                 `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
+	WebIdentityToken string                 `protobuf:"bytes,3,opt,name=web_identity_token,json=webIdentityToken,proto3" json:"web_identity_token,omitempty"`
+	StsEndpoint      string                 `protobuf:"bytes,4,opt,name=sts_endpoint,json=stsEndpoint,proto3" json:"sts_endpoint,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *AwsCredentials) Reset() {
+	*x = AwsCredentials{}
+	mi := &file_stackwright_v1_executor_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AwsCredentials) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AwsCredentials) ProtoMessage() {}
+
+func (x *AwsCredentials) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_executor_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AwsCredentials.ProtoReflect.Descriptor instead.
+func (*AwsCredentials) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AwsCredentials) GetRoleArn() string {
+	if x != nil {
+		return x.RoleArn
+	}
+	return ""
+}
+
+func (x *AwsCredentials) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *AwsCredentials) GetWebIdentityToken() string {
+	if x != nil {
+		return x.WebIdentityToken
+	}
+	return ""
+}
+
+func (x *AwsCredentials) GetStsEndpoint() string {
+	if x != nil {
+		return x.StsEndpoint
+	}
+	return ""
+}
+
 type ClaimJobRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -283,7 +438,7 @@ type ClaimJobRequest struct {
 
 func (x *ClaimJobRequest) Reset() {
 	*x = ClaimJobRequest{}
-	mi := &file_stackwright_v1_executor_proto_msgTypes[2]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +450,7 @@ func (x *ClaimJobRequest) String() string {
 func (*ClaimJobRequest) ProtoMessage() {}
 
 func (x *ClaimJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_executor_proto_msgTypes[2]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +463,7 @@ func (x *ClaimJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimJobRequest.ProtoReflect.Descriptor instead.
 func (*ClaimJobRequest) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{2}
+	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{4}
 }
 
 type ClaimJobResponse struct {
@@ -320,7 +475,7 @@ type ClaimJobResponse struct {
 
 func (x *ClaimJobResponse) Reset() {
 	*x = ClaimJobResponse{}
-	mi := &file_stackwright_v1_executor_proto_msgTypes[3]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -332,7 +487,7 @@ func (x *ClaimJobResponse) String() string {
 func (*ClaimJobResponse) ProtoMessage() {}
 
 func (x *ClaimJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_executor_proto_msgTypes[3]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -345,7 +500,7 @@ func (x *ClaimJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimJobResponse.ProtoReflect.Descriptor instead.
 func (*ClaimJobResponse) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{3}
+	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ClaimJobResponse) GetJob() *Job {
@@ -369,7 +524,7 @@ type JobEvent struct {
 
 func (x *JobEvent) Reset() {
 	*x = JobEvent{}
-	mi := &file_stackwright_v1_executor_proto_msgTypes[4]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -381,7 +536,7 @@ func (x *JobEvent) String() string {
 func (*JobEvent) ProtoMessage() {}
 
 func (x *JobEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_executor_proto_msgTypes[4]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -394,7 +549,7 @@ func (x *JobEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobEvent.ProtoReflect.Descriptor instead.
 func (*JobEvent) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{4}
+	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *JobEvent) GetSeq() int64 {
@@ -441,7 +596,7 @@ type ReportEventsRequest struct {
 
 func (x *ReportEventsRequest) Reset() {
 	*x = ReportEventsRequest{}
-	mi := &file_stackwright_v1_executor_proto_msgTypes[5]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -453,7 +608,7 @@ func (x *ReportEventsRequest) String() string {
 func (*ReportEventsRequest) ProtoMessage() {}
 
 func (x *ReportEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_executor_proto_msgTypes[5]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -466,7 +621,7 @@ func (x *ReportEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportEventsRequest.ProtoReflect.Descriptor instead.
 func (*ReportEventsRequest) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{5}
+	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ReportEventsRequest) GetEvents() []*JobEvent {
@@ -484,7 +639,7 @@ type ReportEventsResponse struct {
 
 func (x *ReportEventsResponse) Reset() {
 	*x = ReportEventsResponse{}
-	mi := &file_stackwright_v1_executor_proto_msgTypes[6]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +651,7 @@ func (x *ReportEventsResponse) String() string {
 func (*ReportEventsResponse) ProtoMessage() {}
 
 func (x *ReportEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_executor_proto_msgTypes[6]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +664,7 @@ func (x *ReportEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportEventsResponse.ProtoReflect.Descriptor instead.
 func (*ReportEventsResponse) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{6}
+	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{8}
 }
 
 type FinishJobRequest struct {
@@ -523,7 +678,7 @@ type FinishJobRequest struct {
 
 func (x *FinishJobRequest) Reset() {
 	*x = FinishJobRequest{}
-	mi := &file_stackwright_v1_executor_proto_msgTypes[7]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -535,7 +690,7 @@ func (x *FinishJobRequest) String() string {
 func (*FinishJobRequest) ProtoMessage() {}
 
 func (x *FinishJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_executor_proto_msgTypes[7]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -548,7 +703,7 @@ func (x *FinishJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinishJobRequest.ProtoReflect.Descriptor instead.
 func (*FinishJobRequest) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{7}
+	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *FinishJobRequest) GetSucceeded() bool {
@@ -580,7 +735,7 @@ type FinishJobResponse struct {
 
 func (x *FinishJobResponse) Reset() {
 	*x = FinishJobResponse{}
-	mi := &file_stackwright_v1_executor_proto_msgTypes[8]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -592,7 +747,7 @@ func (x *FinishJobResponse) String() string {
 func (*FinishJobResponse) ProtoMessage() {}
 
 func (x *FinishJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stackwright_v1_executor_proto_msgTypes[8]
+	mi := &file_stackwright_v1_executor_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -605,19 +760,19 @@ func (x *FinishJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinishJobResponse.ProtoReflect.Descriptor instead.
 func (*FinishJobResponse) Descriptor() ([]byte, []int) {
-	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{8}
+	return file_stackwright_v1_executor_proto_rawDescGZIP(), []int{10}
 }
 
 var File_stackwright_v1_executor_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"\n" +
-	"\x1dstackwright/v1/executor.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dstackwright/v1/projects.proto\"_\n" +
+	"\x1dstackwright/v1/executor.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dstackwright/v1/projects.proto\x1a\x1estackwright/v1/variables.proto\"_\n" +
 	"\bDownload\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x16\n" +
 	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x15\n" +
-	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xc4\x04\n" +
+	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xb1\x05\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12:\n" +
@@ -632,10 +787,22 @@ const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"\x06inputs\x18\n" +
 	" \x03(\v2\x18.stackwright.v1.DownloadR\x06inputs\x12:\n" +
 	"\auploads\x18\v \x03(\v2 .stackwright.v1.Job.UploadsEntryR\auploads\x126\n" +
-	"\bdeadline\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\bdeadline\x1a:\n" +
+	"\bdeadline\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\bdeadline\x129\n" +
+	"\tvariables\x18\r \x03(\v2\x1b.stackwright.v1.JobVariableR\tvariables\x120\n" +
+	"\x03aws\x18\x0e \x01(\v2\x1e.stackwright.v1.AwsCredentialsR\x03aws\x1a:\n" +
 	"\fUploadsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x11\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x91\x01\n" +
+	"\vJobVariable\x12<\n" +
+	"\bcategory\x18\x01 \x01(\x0e2 .stackwright.v1.VariableCategoryR\bcategory\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12\x1c\n" +
+	"\tsensitive\x18\x04 \x01(\bR\tsensitive\"\x94\x01\n" +
+	"\x0eAwsCredentials\x12\x19\n" +
+	"\brole_arn\x18\x01 \x01(\tR\aroleArn\x12\x16\n" +
+	"\x06region\x18\x02 \x01(\tR\x06region\x12,\n" +
+	"\x12web_identity_token\x18\x03 \x01(\tR\x10webIdentityToken\x12!\n" +
+	"\fsts_endpoint\x18\x04 \x01(\tR\vstsEndpoint\"\x11\n" +
 	"\x0fClaimJobRequest\"9\n" +
 	"\x10ClaimJobResponse\x12%\n" +
 	"\x03job\x18\x01 \x01(\v2\x13.stackwright.v1.JobR\x03job\"\x9b\x01\n" +
@@ -677,43 +844,49 @@ func file_stackwright_v1_executor_proto_rawDescGZIP() []byte {
 }
 
 var file_stackwright_v1_executor_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_stackwright_v1_executor_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_stackwright_v1_executor_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_stackwright_v1_executor_proto_goTypes = []any{
 	(JobOperation)(0),             // 0: stackwright.v1.JobOperation
 	(*Download)(nil),              // 1: stackwright.v1.Download
 	(*Job)(nil),                   // 2: stackwright.v1.Job
-	(*ClaimJobRequest)(nil),       // 3: stackwright.v1.ClaimJobRequest
-	(*ClaimJobResponse)(nil),      // 4: stackwright.v1.ClaimJobResponse
-	(*JobEvent)(nil),              // 5: stackwright.v1.JobEvent
-	(*ReportEventsRequest)(nil),   // 6: stackwright.v1.ReportEventsRequest
-	(*ReportEventsResponse)(nil),  // 7: stackwright.v1.ReportEventsResponse
-	(*FinishJobRequest)(nil),      // 8: stackwright.v1.FinishJobRequest
-	(*FinishJobResponse)(nil),     // 9: stackwright.v1.FinishJobResponse
-	nil,                           // 10: stackwright.v1.Job.UploadsEntry
-	(Engine)(0),                   // 11: stackwright.v1.Engine
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(*JobVariable)(nil),           // 3: stackwright.v1.JobVariable
+	(*AwsCredentials)(nil),        // 4: stackwright.v1.AwsCredentials
+	(*ClaimJobRequest)(nil),       // 5: stackwright.v1.ClaimJobRequest
+	(*ClaimJobResponse)(nil),      // 6: stackwright.v1.ClaimJobResponse
+	(*JobEvent)(nil),              // 7: stackwright.v1.JobEvent
+	(*ReportEventsRequest)(nil),   // 8: stackwright.v1.ReportEventsRequest
+	(*ReportEventsResponse)(nil),  // 9: stackwright.v1.ReportEventsResponse
+	(*FinishJobRequest)(nil),      // 10: stackwright.v1.FinishJobRequest
+	(*FinishJobResponse)(nil),     // 11: stackwright.v1.FinishJobResponse
+	nil,                           // 12: stackwright.v1.Job.UploadsEntry
+	(Engine)(0),                   // 13: stackwright.v1.Engine
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
+	(VariableCategory)(0),         // 15: stackwright.v1.VariableCategory
 }
 var file_stackwright_v1_executor_proto_depIdxs = []int32{
 	0,  // 0: stackwright.v1.Job.operation:type_name -> stackwright.v1.JobOperation
-	11, // 1: stackwright.v1.Job.engine:type_name -> stackwright.v1.Engine
+	13, // 1: stackwright.v1.Job.engine:type_name -> stackwright.v1.Engine
 	1,  // 2: stackwright.v1.Job.engine_binary:type_name -> stackwright.v1.Download
 	1,  // 3: stackwright.v1.Job.inputs:type_name -> stackwright.v1.Download
-	10, // 4: stackwright.v1.Job.uploads:type_name -> stackwright.v1.Job.UploadsEntry
-	12, // 5: stackwright.v1.Job.deadline:type_name -> google.protobuf.Timestamp
-	2,  // 6: stackwright.v1.ClaimJobResponse.job:type_name -> stackwright.v1.Job
-	12, // 7: stackwright.v1.JobEvent.at:type_name -> google.protobuf.Timestamp
-	5,  // 8: stackwright.v1.ReportEventsRequest.events:type_name -> stackwright.v1.JobEvent
-	3,  // 9: stackwright.v1.ExecutorService.ClaimJob:input_type -> stackwright.v1.ClaimJobRequest
-	6,  // 10: stackwright.v1.ExecutorService.ReportEvents:input_type -> stackwright.v1.ReportEventsRequest
-	8,  // 11: stackwright.v1.ExecutorService.FinishJob:input_type -> stackwright.v1.FinishJobRequest
-	4,  // 12: stackwright.v1.ExecutorService.ClaimJob:output_type -> stackwright.v1.ClaimJobResponse
-	7,  // 13: stackwright.v1.ExecutorService.ReportEvents:output_type -> stackwright.v1.ReportEventsResponse
-	9,  // 14: stackwright.v1.ExecutorService.FinishJob:output_type -> stackwright.v1.FinishJobResponse
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	12, // 4: stackwright.v1.Job.uploads:type_name -> stackwright.v1.Job.UploadsEntry
+	14, // 5: stackwright.v1.Job.deadline:type_name -> google.protobuf.Timestamp
+	3,  // 6: stackwright.v1.Job.variables:type_name -> stackwright.v1.JobVariable
+	4,  // 7: stackwright.v1.Job.aws:type_name -> stackwright.v1.AwsCredentials
+	15, // 8: stackwright.v1.JobVariable.category:type_name -> stackwright.v1.VariableCategory
+	2,  // 9: stackwright.v1.ClaimJobResponse.job:type_name -> stackwright.v1.Job
+	14, // 10: stackwright.v1.JobEvent.at:type_name -> google.protobuf.Timestamp
+	7,  // 11: stackwright.v1.ReportEventsRequest.events:type_name -> stackwright.v1.JobEvent
+	5,  // 12: stackwright.v1.ExecutorService.ClaimJob:input_type -> stackwright.v1.ClaimJobRequest
+	8,  // 13: stackwright.v1.ExecutorService.ReportEvents:input_type -> stackwright.v1.ReportEventsRequest
+	10, // 14: stackwright.v1.ExecutorService.FinishJob:input_type -> stackwright.v1.FinishJobRequest
+	6,  // 15: stackwright.v1.ExecutorService.ClaimJob:output_type -> stackwright.v1.ClaimJobResponse
+	9,  // 16: stackwright.v1.ExecutorService.ReportEvents:output_type -> stackwright.v1.ReportEventsResponse
+	11, // 17: stackwright.v1.ExecutorService.FinishJob:output_type -> stackwright.v1.FinishJobResponse
+	15, // [15:18] is the sub-list for method output_type
+	12, // [12:15] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_stackwright_v1_executor_proto_init() }
@@ -722,13 +895,14 @@ func file_stackwright_v1_executor_proto_init() {
 		return
 	}
 	file_stackwright_v1_projects_proto_init()
+	file_stackwright_v1_variables_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stackwright_v1_executor_proto_rawDesc), len(file_stackwright_v1_executor_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

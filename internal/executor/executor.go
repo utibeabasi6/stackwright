@@ -26,6 +26,8 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/artifact"
+	"github.com/stackwright/stackwright/internal/redact"
+	"github.com/stackwright/stackwright/internal/sts"
 )
 
 var (
@@ -34,7 +36,9 @@ var (
 	errNotFound       = errors.New("not found")
 )
 
-const mask = "(sensitive value)"
+// credentialLifetime is how long AWS credentials last. A job that runs
+// longer cannot renew them.
+const credentialLifetime = time.Hour
 
 // Run claims the job that ticket names and runs it in workDir. cacheDir is
 // the builder's read-only cache, or empty.
@@ -57,7 +61,13 @@ func Run(ctx context.Context, serverURL, ticket, workDir, cacheDir string) error
 	defer stopReporting()
 	go rep.run(reportCtx)
 
-	r := &runner{job: job, rep: rep, serverURL: serverURL, work: workDir, cache: cacheDir}
+	r := &runner{job: job, rep: rep, serverURL: serverURL, work: workDir, cache: cacheDir,
+		secrets: redact.New(job.GetToken(), job.GetAws().GetWebIdentityToken())}
+	for _, v := range job.GetVariables() {
+		if v.GetSensitive() {
+			r.secrets.Add(v.GetValue())
+		}
+	}
 	r.emit("executor.started", map[string]any{
 		"operation": job.GetOperation().String(), "engine": job.GetEngine().String(), "version": job.GetEngineVersion(),
 	})
@@ -83,10 +93,23 @@ func Run(ctx context.Context, serverURL, ticket, workDir, cacheDir string) error
 	finish := connect.NewRequest(&v1.FinishJobRequest{Succeeded: runErr == nil, Error: msg, HasChanges: r.hasChanges})
 	finish.Header().Set("Authorization", "Bearer "+job.GetToken())
 	if _, err := client.FinishJob(end, finish); err != nil {
-		return errors.Join(runErr, fmt.Errorf("finish job: %w", err))
+		return errors.Join(&redactedError{msg: msg, err: runErr}, fmt.Errorf("finish job: %w", err))
 	}
-	return runErr
+	if runErr != nil {
+		return &redactedError{msg: msg, err: runErr}
+	}
+	return nil
 }
+
+// redactedError keeps the cause for errors.Is and prints only the masked
+// text, so the sandbox's log holds no secret.
+type redactedError struct {
+	msg string
+	err error
+}
+
+func (e *redactedError) Error() string { return e.msg }
+func (e *redactedError) Unwrap() error { return e.err }
 
 type runner struct {
 	job        *v1.Job
@@ -94,6 +117,7 @@ type runner struct {
 	serverURL  string
 	work       string
 	cache      string
+	secrets    *redact.Redactor
 	log        bytes.Buffer
 	hasChanges bool
 }
@@ -107,7 +131,7 @@ func (e *stageError) Error() string { return e.stage + ": " + e.err.Error() }
 func (e *stageError) Unwrap() error { return e.err }
 
 func (r *runner) redact(b []byte) []byte {
-	return bytes.ReplaceAll(b, []byte(r.job.GetToken()), []byte(mask))
+	return r.secrets.Bytes(b)
 }
 
 func (r *runner) emit(typ string, payload map[string]any) {
@@ -176,7 +200,13 @@ func (r *runner) run(ctx context.Context) (err error) {
 	if err := os.MkdirAll(home, 0o700); err != nil {
 		return &stageError{"source", err}
 	}
-	env := []string{"HOME=" + home, "TF_IN_AUTOMATION=1", "TF_INPUT=0", "TF_HTTP_PASSWORD=" + job.GetToken()}
+	env, err := r.engineEnv(ctx)
+	if err != nil {
+		return &stageError{"credentials", err}
+	}
+	// Stackwright's own entries come last: with a key twice, the last one
+	// wins, so a variable cannot replace them.
+	env = append(env, "HOME="+home, "TF_IN_AUTOMATION=1", "TF_INPUT=0", "TF_HTTP_PASSWORD="+job.GetToken())
 	if providers := filepath.Join(r.cache, "providers"); r.cache != "" && isDir(providers) {
 		config := filepath.Join(home, "cli.tfrc")
 		if err := os.WriteFile(config, fmt.Appendf(nil, "provider_installation {\n  filesystem_mirror {\n    path = %q\n  }\n  direct {}\n}\n", providers), 0o600); err != nil {
@@ -226,6 +256,39 @@ func (r *runner) run(ctx context.Context) (err error) {
 		return &stageError{"artifacts", err}
 	}
 	return nil
+}
+
+// engineEnv is the workspace's variables, then the cloud credentials. The
+// engine gets nothing else from the executor's environment.
+func (r *runner) engineEnv(ctx context.Context) ([]string, error) {
+	var env []string
+	for _, v := range r.job.GetVariables() {
+		switch v.GetCategory() {
+		case v1.VariableCategory_VARIABLE_CATEGORY_TERRAFORM:
+			env = append(env, "TF_VAR_"+v.GetKey()+"="+v.GetValue())
+		case v1.VariableCategory_VARIABLE_CATEGORY_ENV:
+			env = append(env, v.GetKey()+"="+v.GetValue())
+		}
+	}
+	aws := r.job.GetAws()
+	if aws == nil {
+		return env, nil
+	}
+	creds, err := sts.Exchange(ctx, aws.GetStsEndpoint(), aws.GetRoleArn(), "stackwright-"+r.job.GetId(), aws.GetWebIdentityToken(), credentialLifetime)
+	if err != nil {
+		return nil, err
+	}
+	r.secrets.Add(creds.SecretAccessKey, creds.SessionToken)
+	r.emit("executor.credentials_issued", map[string]any{
+		"provider": "aws", "role_arn": aws.GetRoleArn(), "access_key_id": creds.AccessKeyID, "expires_at": creds.Expiration,
+	})
+	return append(env,
+		"AWS_ACCESS_KEY_ID="+creds.AccessKeyID,
+		"AWS_SECRET_ACCESS_KEY="+creds.SecretAccessKey,
+		"AWS_SESSION_TOKEN="+creds.SessionToken,
+		"AWS_REGION="+aws.GetRegion(),
+		"AWS_DEFAULT_REGION="+aws.GetRegion(),
+	), nil
 }
 
 func isDir(path string) bool {

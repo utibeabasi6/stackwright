@@ -33,6 +33,7 @@ import (
 	"github.com/stackwright/stackwright/internal/builders"
 	"github.com/stackwright/stackwright/internal/engine"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/runs"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/server"
@@ -46,6 +47,7 @@ const (
 	issuer    = "http://127.0.0.1:18071/default"
 
 	builderToken  = "builder-test-token"
+	testIssuer    = "https://stackwright.test"
 	serverVersion = "v0.6.0"
 )
 
@@ -61,6 +63,7 @@ type world struct {
 	hub    *builders.Hub
 	// builderLocal is the builder port as the test process reaches it.
 	builderLocal string
+	sts          *fakeSTS
 }
 
 func newWorld(t *testing.T, web fstest.MapFS) *world {
@@ -113,8 +116,13 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	if err != nil {
 		t.Fatal(err)
 	}
+	issuer, err := oidc.Load(context.Background(), d.App, kek, testIssuer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sts := newFakeSTS(t, srv)
 	js := &jobs.Service{Pool: d.App, KEK: kek, S3: s3, Presign: presign, PresignRemote: presign, Bucket: bucket,
-		Engines: &engine.Mirror{Pool: d.App, S3: s3, Bucket: bucket, HTTP: http.DefaultClient}}
+		Engines: &engine.Mirror{Pool: d.App, S3: s3, Bucket: bucket, HTTP: http.DefaultClient}, Issuer: issuer, STSEndpoint: sts.url}
 	ca, err := builders.LoadCA(context.Background(), d.App, kek)
 	if err != nil {
 		t.Fatal(err)
@@ -133,7 +141,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	t.Cleanup(cancel)
 	go orch.Run(ctx)
 	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
-		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries}
+		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries, Issuer: issuer}
 	if web != nil {
 		cfg.Web = web
 	}
@@ -144,7 +152,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	}()
 	t.Cleanup(func() { _ = bsrv.Close() })
 	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public, jobs: js, runs: orch, hub: hub,
-		builderLocal: fmt.Sprintf("https://127.0.0.1:%d", builderPort)}
+		builderLocal: fmt.Sprintf("https://127.0.0.1:%d", builderPort), sts: sts}
 }
 
 type client struct {
@@ -243,7 +251,7 @@ func methods() []method {
 		v1.File_stackwright_v1_instance_proto, v1.File_stackwright_v1_meta_proto,
 		v1.File_stackwright_v1_projects_proto, v1.File_stackwright_v1_state_proto,
 		v1.File_stackwright_v1_executor_proto, v1.File_stackwright_v1_runs_proto, v1.File_stackwright_v1_builder_proto,
-		v1.File_stackwright_v1_build_servers_proto,
+		v1.File_stackwright_v1_build_servers_proto, v1.File_stackwright_v1_variables_proto, v1.File_stackwright_v1_cloud_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -591,6 +599,19 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 		})
 	}
 	org := map[string]any{"org": "a"}
+	variable := map[string]any{"org": "a", "scope": map[string]any{"project": "web"}, "category": "VARIABLE_CATEGORY_TERRAFORM", "key": "region"}
+	step("VariableService/SetVariable", func() { owner.must("VariableService/SetVariable", merge(variable, map[string]any{"value": "eu"})) })
+	step("VariableService/DeleteVariable", func() { owner.must("VariableService/DeleteVariable", variable) })
+	step("CloudAccountService/CreateCloudAccount", func() {
+		owner.must("CloudAccountService/CreateCloudAccount", map[string]any{"org": "a", "name": "audited", "aws": map[string]any{
+			"planRoleArn": "arn:aws:iam::123456789012:role/plan", "applyRoleArn": "arn:aws:iam::123456789012:role/apply", "region": "eu-west-1"}})
+	})
+	step("CloudAccountService/SetWorkspaceCloudAccount", func() {
+		owner.must("CloudAccountService/SetWorkspaceCloudAccount", map[string]any{"org": "a", "project": "web", "workspace": "prod"})
+	})
+	step("CloudAccountService/DeleteCloudAccount", func() {
+		owner.must("CloudAccountService/DeleteCloudAccount", map[string]any{"org": "a", "name": "audited"})
+	})
 	var cmd string
 	step("BuildServerService/CreateJoinCommand", func() {
 		cmd = owner.must("BuildServerService/CreateJoinCommand", map[string]any{"org": "a", "name": "audited", "slots": 1})["command"].(string)

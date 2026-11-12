@@ -2,6 +2,8 @@ import { ConnectError, createClient, type Interceptor } from "@connectrpc/connec
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AuthService } from "./gen/stackwright/v1/auth_pb";
 import { BuildServerService } from "./gen/stackwright/v1/build_servers_pb";
+import { CloudAccountService } from "./gen/stackwright/v1/cloud_pb";
+import { VariableService } from "./gen/stackwright/v1/variables_pb";
 import { InstanceService } from "./gen/stackwright/v1/instance_pb";
 import { MetaService } from "./gen/stackwright/v1/meta_pb";
 import { OrgService } from "./gen/stackwright/v1/orgs_pb";
@@ -26,6 +28,8 @@ export const stateApi = createClient(StateService, transport);
 export const tokenApi = createClient(TokenService, transport);
 export const runApi = createClient(RunService, transport);
 export const buildServerApi = createClient(BuildServerService, transport);
+export const variableApi = createClient(VariableService, transport);
+export const cloudApi = createClient(CloudAccountService, transport);
 
 export function message(err: unknown): string {
   return err instanceof ConnectError ? err.rawMessage : "Something went wrong. Try again.";

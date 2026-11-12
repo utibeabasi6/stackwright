@@ -244,8 +244,10 @@ type Workspace struct {
 	AutoApply bool `protobuf:"varint,3,opt,name=auto_apply,json=autoApply,proto3" json:"auto_apply,omitempty"`
 	// A run goes only to a build server that has every one of these labels.
 	RequiredLabels map[string]string `protobuf:"bytes,4,rep,name=required_labels,json=requiredLabels,proto3" json:"required_labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// The cloud account's name, or empty.
+	CloudAccount  string `protobuf:"bytes,5,opt,name=cloud_account,json=cloudAccount,proto3" json:"cloud_account,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Workspace) Reset() {
@@ -304,6 +306,13 @@ func (x *Workspace) GetRequiredLabels() map[string]string {
 		return x.RequiredLabels
 	}
 	return nil
+}
+
+func (x *Workspace) GetCloudAccount() string {
+	if x != nil {
+		return x.CloudAccount
+	}
+	return ""
 }
 
 type ListProjectsRequest struct {
@@ -1338,14 +1347,15 @@ const file_stackwright_v1_projects_proto_rawDesc = "" +
 	"workspaces\x129\n" +
 	"\n" +
 	"created_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x94\x02\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xb9\x02\n" +
 	"\tWorkspace\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
 	"\n" +
 	"auto_apply\x18\x03 \x01(\bR\tautoApply\x12V\n" +
-	"\x0frequired_labels\x18\x04 \x03(\v2-.stackwright.v1.Workspace.RequiredLabelsEntryR\x0erequiredLabels\x1aA\n" +
+	"\x0frequired_labels\x18\x04 \x03(\v2-.stackwright.v1.Workspace.RequiredLabelsEntryR\x0erequiredLabels\x12#\n" +
+	"\rcloud_account\x18\x05 \x01(\tR\fcloudAccount\x1aA\n" +
 	"\x13RequiredLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"'\n" +

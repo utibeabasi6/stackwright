@@ -19,6 +19,7 @@ import (
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builders"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/runs"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/state"
@@ -36,6 +37,7 @@ type Config struct {
 	Builders  *builders.Hub
 	// Binaries are the builder binaries that the builder port hands out.
 	Binaries map[string]builders.Binary
+	Issuer   *oidc.Issuer
 }
 
 func New(c Config) http.Handler {
@@ -58,6 +60,16 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewRunServiceHandler(api.Runs{Pool: c.Pool, Orchestrator: c.Runs}, opts, connect.WithReadMaxBytes(48<<20)))
 	serve(stackwrightv1connect.NewBuilderServiceHandler(c.Builders, opts))
 	serve(stackwrightv1connect.NewBuildServerServiceHandler(api.BuildServers{KEK: c.KEK, Hub: c.Builders, Binaries: c.Binaries}, opts))
+	serve(stackwrightv1connect.NewVariableServiceHandler(api.Variables{KEK: c.KEK}, opts))
+	serve(stackwrightv1connect.NewCloudAccountServiceHandler(api.CloudAccounts{Issuer: c.Issuer}, opts))
+	mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(c.Issuer.Discovery())
+	})
+	mux.HandleFunc("GET /.well-known/jwks.json", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(c.Issuer.JWKS())
+	})
 	mux.Handle("/state/", state.Handler{Pool: c.Pool, Store: c.State})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)

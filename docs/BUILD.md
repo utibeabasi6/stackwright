@@ -31,6 +31,7 @@ Each decision has a record in [adr/](adr/).
 | Terraform Stacks | Stackwright reads Stacks files and runs each component as a workspace; no HCP Terraform | [0019](adr/0019-terraform-stacks-files.md) |
 | Runs | A Postgres queue, NATS for fan-out only, code by upload until GitHub, sandboxes join the server's network | [0020](adr/0020-runs-postgres-queue.md) |
 | Build servers | Port 8443 with Stackwright's own CA, a static builder binary under systemd, executor images from a registry, a cache only the builder writes, no Docker install | [0021](adr/0021-build-server-enrolment.md) |
+| Cloud credentials | The server is the OIDC issuer, with a key sealed in Postgres; a token for each job, in the claim with the variables | [0022](adr/0022-variables-and-cloud-credentials.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
 | Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
 | Default engine | OpenTofu; Terraform up to 1.5.7 | — |
@@ -388,8 +389,9 @@ static keys stored.
 **Build.**
 - Variables at org, project and workspace scope; sensitive values sealed and
   write-only.
-- An OIDC issuer with a JWT for each run; AWS role ARNs for plan and for
-  apply.
+- An OIDC issuer, served by the server, with a JWT for each job; AWS role
+  ARNs for plan and for apply
+  ([0022](adr/0022-variables-and-cloud-credentials.md)).
 - The executor exchanges the JWT for AWS credentials and gives them to the
   engine only.
 - A generated trust policy in the UI.

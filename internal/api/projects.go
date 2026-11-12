@@ -116,8 +116,9 @@ func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, er
 	for _, pr := range projects {
 		byID[pr.id] = pr.p
 	}
-	rows, err = tx.Query(ctx, `SELECT project_id, name, created_at, auto_apply, required_labels FROM workspaces
-		WHERE org_id = app_org_id() AND archived_at IS NULL ORDER BY name`)
+	rows, err = tx.Query(ctx, `SELECT w.project_id, w.name, w.created_at, w.auto_apply, w.required_labels, coalesce(a.name, '')
+		FROM workspaces w LEFT JOIN cloud_accounts a ON a.id = w.cloud_account_id
+		WHERE w.org_id = app_org_id() AND w.archived_at IS NULL ORDER BY w.name`)
 	if err != nil {
 		return nil, err
 	}
@@ -127,12 +128,13 @@ func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, er
 		var created time.Time
 		var autoApply bool
 		var labels map[string]string
-		if err := rows.Scan(&projectID, &name, &created, &autoApply, &labels); err != nil {
+		var account string
+		if err := rows.Scan(&projectID, &name, &created, &autoApply, &labels, &account); err != nil {
 			return nil, err
 		}
 		if p := byID[projectID]; p != nil {
 			p.Workspaces = append(p.Workspaces, &v1.Workspace{Name: name, CreatedAt: timestamppb.New(created), AutoApply: autoApply,
-				RequiredLabels: labels})
+				RequiredLabels: labels, CloudAccount: account})
 		}
 	}
 	return projects, rows.Err()
