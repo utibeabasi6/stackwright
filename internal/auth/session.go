@@ -108,6 +108,22 @@ func Middleware(pool *pgxpool.Pool, publicURL string, next http.Handler) http.Ha
 	})
 }
 
+// NavigationUser returns the user of a top-level GET that another site
+// sent the browser to, which carries the session cookie but no CSRF
+// header. Only a handler that also checks a one-time state bound to this
+// user may trust it.
+func NavigationUser(ctx context.Context, pool *pgxpool.Pool, r *http.Request) (string, bool) {
+	token := SessionToken(r.Header)
+	if r.Method != http.MethodGet || token == "" {
+		return "", false
+	}
+	var id string
+	if err := pool.QueryRow(ctx, `SELECT user_id FROM sessions WHERE id_hash = $1 AND expires_at > now()`, HashToken(token)).Scan(&id); err != nil {
+		return "", false
+	}
+	return id, true
+}
+
 func originOf(publicURL string) string {
 	u, err := url.Parse(publicURL)
 	if err != nil {

@@ -5,7 +5,6 @@ package oidc
 
 import (
 	"context"
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -21,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/stackwright/stackwright/internal/jws"
 	"github.com/stackwright/stackwright/internal/seal"
 )
 
@@ -145,23 +145,12 @@ func (is *Issuer) Mint(c Claims, aud string) (string, error) {
 	}
 	k := is.keys[0]
 	now := time.Now()
-	header, _ := json.Marshal(map[string]string{"alg": "RS256", "typ": "JWT", "kid": k.kid})
-	payload, err := json.Marshal(map[string]any{
+	return jws.SignRS256(k.priv, k.kid, map[string]any{
 		"iss": is.URL, "sub": Subject(c.OrgID, c.WorkspaceID, c.Phase), "aud": aud,
 		"iat": now.Unix(), "nbf": now.Add(-30 * time.Second).Unix(), "exp": now.Add(TokenLifetime).Unix(),
 		"org": c.OrgSlug, "org_id": c.OrgID, "project": c.ProjectSlug, "project_id": c.ProjectID,
 		"workspace": c.WorkspaceName, "workspace_id": c.WorkspaceID, "run_id": c.RunID, "job_id": c.JobID, "phase": c.Phase,
 	})
-	if err != nil {
-		return "", err
-	}
-	signing := b64(header) + "." + b64(payload)
-	digest := sha256.Sum256([]byte(signing))
-	sig, err := rsa.SignPKCS1v15(rand.Reader, k.priv, crypto.SHA256, digest[:])
-	if err != nil {
-		return "", err
-	}
-	return signing + "." + b64(sig), nil
 }
 
 // Discovery is /.well-known/openid-configuration.

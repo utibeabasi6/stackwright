@@ -25,6 +25,9 @@ services:
       # AWS fetches the token issuer's keys from here; it must be public
       # https. Empty uses STACKWRIGHT_PUBLIC_URL (adr/0022).
       STACKWRIGHT_OIDC_ISSUER: ${STACKWRIGHT_OIDC_ISSUER:-}
+      # Empty means github.com (adr/0023).
+      STACKWRIGHT_GITHUB_URL: ${STACKWRIGHT_GITHUB_URL:-}
+      STACKWRIGHT_GITHUB_API_URL: ${STACKWRIGHT_GITHUB_API_URL:-}
     secrets: [app_db_password, kek, s3_access_key, s3_secret_key, nats_password, builder_token]
     depends_on:
       migrate:

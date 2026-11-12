@@ -5,7 +5,7 @@ import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run } from "../gen/stackwright/v1/runs_pb";
 import { formatLabels, parseLabels } from "../labels";
 import { useShell } from "../me";
-import { runTitle, statusOf } from "../runs";
+import { origin, runTitle, statusOf } from "../runs";
 import { useLoad } from "../useLoad";
 
 type Props = {
@@ -80,7 +80,7 @@ export function RunsPanel({ org, project, workspace, sample, autoApply, required
               <li key={r.id}>
                 <Link to="/$org/projects/$project/$workspace/runs/$number" params={{ org, project, workspace, number: String(r.number) }}>
                   <span>
-                    <span className="mono">#{r.number}</span> {r.planOnly ? "plan only" : "plan and apply"} · {r.source}
+                    <span className="mono">#{r.number}</span> {r.planOnly ? "plan only" : "plan and apply"} · {origin(r)}
                   </span>
                   <span className={statusOf(r.status).tone}>{statusOf(r.status).text}</span>
                 </Link>

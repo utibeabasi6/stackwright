@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// The instance has one GitHub App, made from a manifest. Each org links
+// installations of it (adr/0023).
+service GitHubService {
+  rpc GetGitHub(GetGitHubRequest) returns (GetGitHubResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // StartAppManifest returns the form that the browser posts to GitHub to
+  // make the App. GitHub sends the browser back to the server.
+  rpc StartAppManifest(StartAppManifestRequest) returns (StartAppManifestResponse);
+  // DeleteGitHubApp forgets the App, so that another can be made. It does
+  // not delete the App on GitHub.
+  rpc DeleteGitHubApp(DeleteGitHubAppRequest) returns (DeleteGitHubAppResponse);
+  // StartInstall returns the GitHub page that installs the App. GitHub sends
+  // the browser back, and the installer then authorizes the App, which
+  // proves they can see the installation.
+  rpc StartInstall(StartInstallRequest) returns (StartInstallResponse);
+  rpc UnlinkInstallation(UnlinkInstallationRequest) returns (UnlinkInstallationResponse);
+  rpc RefreshRepos(RefreshReposRequest) returns (RefreshReposResponse);
+}
+
+message GitHubApp {
+  string name = 1;
+  string slug = 2;
+  string html_url = 3;
+  // The GitHub user or organization that owns the App.
+  string owner = 4;
+}
+
+message Repo {
+  string full_name = 1;
+  string default_branch = 2;
+  bool private = 3;
+  // The org's projects that use this repo.
+  repeated string projects = 4;
+}
+
+message Installation {
+  int64 installation_id = 1;
+  string account = 2;
+  string linked_by = 3;
+  google.protobuf.Timestamp linked_at = 4;
+  repeated Repo repos = 5;
+}
+
+message GetGitHubRequest {
+  string org = 1;
+}
+
+message GetGitHubResponse {
+  // Unset when the instance has no App yet.
+  GitHubApp app = 1;
+  repeated Installation installations = 2;
+}
+
+message StartAppManifestRequest {
+  // The GitHub organization to own the App. Empty makes it the signed-in
+  // GitHub user's.
+  string github_organization = 1;
+  // The Stackwright page to come back to, such as /acme/settings/github.
+  string return_to = 2;
+}
+
+message StartAppManifestResponse {
+  // POST manifest to this URL, as a form.
+  string url = 1;
+  string manifest = 2;
+}
+
+message DeleteGitHubAppRequest {}
+
+message DeleteGitHubAppResponse {}
+
+message StartInstallRequest {
+  string org = 1;
+}
+
+message StartInstallResponse {
+  string url = 1;
+}
+
+message UnlinkInstallationRequest {
+  string org = 1;
+  int64 installation_id = 2;
+}
+
+message UnlinkInstallationResponse {}
+
+message RefreshReposRequest {
+  string org = 1;
+}
+
+message RefreshReposResponse {}

@@ -116,7 +116,14 @@ type Run struct {
 	// The run's last event, for a reader that resumes.
 	LastSeq int64 `protobuf:"varint,19,opt,name=last_seq,json=lastSeq,proto3" json:"last_seq,omitempty"`
 	// The build server of the run's latest job.
-	BuildServer   string `protobuf:"bytes,20,opt,name=build_server,json=buildServer,proto3" json:"build_server,omitempty"`
+	BuildServer string `protobuf:"bytes,20,opt,name=build_server,json=buildServer,proto3" json:"build_server,omitempty"`
+	// "ui", "pull_request" or "push".
+	Trigger   string `protobuf:"bytes,21,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	CommitSha string `protobuf:"bytes,22,opt,name=commit_sha,json=commitSha,proto3" json:"commit_sha,omitempty"`
+	PrNumber  int32  `protobuf:"varint,23,opt,name=pr_number,json=prNumber,proto3" json:"pr_number,omitempty"`
+	Branch    string `protobuf:"bytes,24,opt,name=branch,proto3" json:"branch,omitempty"`
+	// The repository as "owner/name".
+	Repo          string `protobuf:"bytes,25,opt,name=repo,proto3" json:"repo,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -287,6 +294,41 @@ func (x *Run) GetLastSeq() int64 {
 func (x *Run) GetBuildServer() string {
 	if x != nil {
 		return x.BuildServer
+	}
+	return ""
+}
+
+func (x *Run) GetTrigger() string {
+	if x != nil {
+		return x.Trigger
+	}
+	return ""
+}
+
+func (x *Run) GetCommitSha() string {
+	if x != nil {
+		return x.CommitSha
+	}
+	return ""
+}
+
+func (x *Run) GetPrNumber() int32 {
+	if x != nil {
+		return x.PrNumber
+	}
+	return 0
+}
+
+func (x *Run) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *Run) GetRepo() string {
+	if x != nil {
+		return x.Repo
 	}
 	return ""
 }
@@ -1289,7 +1331,7 @@ var File_stackwright_v1_runs_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x19stackwright/v1/runs.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x05\n" +
+	"\x19stackwright/v1/runs.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa4\x06\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06number\x18\x02 \x01(\x05R\x06number\x12\x18\n" +
@@ -1317,7 +1359,13 @@ const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"\vfinished_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12\x19\n" +
 	"\blast_seq\x18\x13 \x01(\x03R\alastSeq\x12!\n" +
-	"\fbuild_server\x18\x14 \x01(\tR\vbuildServer\"\xb1\x01\n" +
+	"\fbuild_server\x18\x14 \x01(\tR\vbuildServer\x12\x18\n" +
+	"\atrigger\x18\x15 \x01(\tR\atrigger\x12\x1d\n" +
+	"\n" +
+	"commit_sha\x18\x16 \x01(\tR\tcommitSha\x12\x1b\n" +
+	"\tpr_number\x18\x17 \x01(\x05R\bprNumber\x12\x16\n" +
+	"\x06branch\x18\x18 \x01(\tR\x06branch\x12\x12\n" +
+	"\x04repo\x18\x19 \x01(\tR\x04repo\"\xb1\x01\n" +
 	"\bRunEvent\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12#\n" +

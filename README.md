@@ -46,6 +46,15 @@ Stackwright host, so set these in `.env` to addresses that it can reach:
 Compose publishes the builder port and RustFS on 127.0.0.1 only. Publish
 them beyond this host for build servers on other machines.
 
+### GitHub
+
+A pull request plans the workspaces it touches, and a push to a project's
+branch plans and applies them. An instance admin creates the GitHub App in
+Settings › GitHub; an org admin then installs it on the repositories. A
+project uses the repository whose URL it has. GitHub must reach
+`STACKWRIGHT_PUBLIC_URL` to deliver webhooks. For GitHub Enterprise Server,
+set `STACKWRIGHT_GITHUB_URL` and `STACKWRIGHT_GITHUB_API_URL`.
+
 ### AWS credentials for runs
 
 A run can get short-lived AWS credentials, with no keys stored. Add a cloud

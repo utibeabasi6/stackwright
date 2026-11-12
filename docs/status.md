@@ -14,6 +14,7 @@ commit that finishes a phase.
 | 5 | Done, reviewed 2026-11-12 |
 | 6 | Done, reviewed 2026-11-12 |
 | 7 | Built; the real AWS check waits for the user |
+| 8 | Built, waiting for review; the real GitHub check waits |
 
 ## Phase 0: Repository and compose
 
@@ -402,3 +403,63 @@ Lima build server with the variable in its claim.
 - `plan.bin` and the state hold sensitive values, sealed at rest.
 - Credentials last an hour and are not renewed.
 - Only AWS.
+
+## Phase 8: GitHub
+
+Decisions: [0023](adr/0023-github-app.md).
+
+**Verified on 2026-11-12**, in Go tests with the race detector, real Docker,
+Postgres, NATS and RustFS, and a fake GitHub in the test process. The fake
+answers the manifest exchange, installation tokens (it checks the App's
+RS256 JWT with the App's key), OAuth, the user's installations, the
+repositories, the compare API, tarballs built as GitHub builds them (a pax
+global header and a top folder), check runs and comments.
+- A pull request that changes only a module that `network` calls plans
+  `network/dev` and `network/prod`, plan only, and not `app`.
+- The same delivery sent twice, and a second event for the same commit,
+  make one run per workspace.
+- Two green checks ("Planned: +1 ~0 −0") and one comment.
+- A push to the pull request that breaks `network/main.tf` turns its checks
+  red, with an annotation at `network/main.tf` line 3, the line of the
+  error. The comment is edited in place, not posted again, and shows the
+  new commit.
+- A pull request from a fork starts no run and gets one neutral
+  `stackwright` check.
+- A push to `main` applies `dev`, which has auto-apply, and leaves `prod`
+  waiting for approval. Their checks are success and action required.
+- One sealed archive for each of the three commits that ran.
+- The App: only an instance admin starts the manifest, a second App is
+  refused, and the callback stores it.
+- Linking: an installation that the user's GitHub token does not list is
+  not linked; a spent state, and another user's state, are refused; a
+  failed link still spends its state.
+- Webhooks: a wrong signature gets 401.
+- The module walker follows local modules through `.tf`, `.tofu` and
+  `.tf.json` files and nested modules, and a file that does not parse
+  touches only its own folder.
+- The audit test covers the five new RPC writes; the policy tests cover the
+  new RPCs.
+- `make licenses` passes. The allowlist now has Unicode-DFS-2016, the
+  licence of the Unicode tables in `go-textseg`, which HCL needs; the user
+  chose this on 2026-11-12.
+
+On the compose stack, in the browser pane: Settings › GitHub shows the
+create form to an instance admin, and a callback's error; the CSP lets a
+form post to `https://github.com`; a webhook with no App gets 404, and a
+signed-out callback 400; the new project form suggests linked repositories;
+older runs still show their source.
+
+**Not verified:**
+- Real GitHub: the manifest form, the install and authorize redirects,
+  webhooks from GitHub, and whether GitHub accepts the check annotations
+  and the comment with the App's permissions. GitHub must reach the
+  instance for webhooks.
+- A compare of 300 files or more, which runs every project. The code path
+  has no test.
+- A repository rename on GitHub. Projects find their repository by the URL
+  typed in Stackwright.
+
+**Known gaps:**
+- Nothing deletes old source archives.
+- The App cannot push; phase 12 needs contents: write.
+- One server process runs the webhook and check loops.

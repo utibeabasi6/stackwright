@@ -62,7 +62,7 @@ vuln:
 	$(TOOL) govulncheck ./...
 
 licenses:
-	$(TOOL) go-licenses check ./... --allowed_licenses=Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0
+	$(TOOL) go-licenses check ./... --allowed_licenses=Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,Unicode-DFS-2016
 	cd web && $(PNPM) licenses list --prod --json | node scripts/licenses.mjs
 
 smoke:

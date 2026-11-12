@@ -26,6 +26,17 @@ export function runTitle(r: Run) {
   return `${r.planOnly ? "Plan" : "Run"} #${r.number}`;
 }
 
+// origin says what started a run: a pull request, a push, or a person.
+export function origin(r: Pick<Run, "trigger" | "prNumber" | "branch" | "commitSha" | "source">) {
+  switch (r.trigger) {
+    case "pull_request":
+      return `pull request #${r.prNumber} · ${r.commitSha.slice(0, 7)}`;
+    case "push":
+      return `push to ${r.branch} · ${r.commitSha.slice(0, 7)}`;
+  }
+  return r.source;
+}
+
 export function changes(r: Pick<Run, "adds" | "changes" | "destroys">) {
   return [
     { text: `+${r.adds}`, tone: r.adds ? "ok" : "muted" },

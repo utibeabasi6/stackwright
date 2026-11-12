@@ -139,29 +139,59 @@ func latestSerial(ctx context.Context, tx pgx.Tx, workspaceID string) (int64, er
 }
 
 // Create queues a run. s.Tx needs the org setting.
-func (o *Orchestrator) Create(ctx context.Context, s *authz.Scope, workspaceID string, planOnly bool, source []byte, sourceName, sourceSHA string) (string, int32, error) {
+// NewRun is a run to queue. Its code is Source, which the run seals for
+// itself, or SourceKey, a sealed archive that runs share.
+type NewRun struct {
+	WorkspaceID string
+	PlanOnly    bool
+	Source      []byte
+	SourceKey   string
+	SourceName  string
+	SourceSHA   string
+	CreatedBy   string
+	// Trigger is "ui", "pull_request" or "push". The others need a commit.
+	Trigger   string
+	CommitSHA string
+	Branch    string
+	PRNumber  int
+	RepoID    string
+}
+
+// Create queues a run. tx needs the org setting.
+func (o *Orchestrator) Create(ctx context.Context, tx pgx.Tx, orgID string, r NewRun) (string, int32, error) {
 	var number int32
-	if err := s.Tx.QueryRow(ctx, `UPDATE workspaces SET runs_started = runs_started + 1 WHERE id = $1 RETURNING runs_started`,
-		workspaceID).Scan(&number); err != nil {
+	if err := tx.QueryRow(ctx, `UPDATE workspaces SET runs_started = runs_started + 1 WHERE id = $1 RETURNING runs_started`,
+		r.WorkspaceID).Scan(&number); err != nil {
 		return "", 0, err
 	}
 	runID := uuid.NewString()
-	sealed, err := o.KEK.Seal(ctx, s.Tx, s.OrgID, source)
-	if err != nil {
+	if r.SourceKey == "" {
+		sealed, err := o.KEK.Seal(ctx, tx, orgID, r.Source)
+		if err != nil {
+			return "", 0, err
+		}
+		if _, err := o.S3.PutObject(ctx, o.Bucket, sourceKey(orgID, runID), bytes.NewReader(sealed), int64(len(sealed)),
+			minio.PutObjectOptions{ContentType: "application/octet-stream"}); err != nil {
+			return "", 0, fmt.Errorf("store run source: %w", err)
+		}
+	}
+	trigger := r.Trigger
+	if trigger == "" {
+		trigger = "ui"
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO runs (id, org_id, workspace_id, number, plan_only, source, source_sha256, created_by,
+		trigger, commit_sha, branch, pr_number, repo_id, source_key)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, nullif($8, '')::uuid, $9, nullif($10, ''), nullif($11, ''), nullif($12, 0), nullif($13, '')::uuid, nullif($14, ''))`,
+		runID, orgID, r.WorkspaceID, number, r.PlanOnly, r.SourceName, r.SourceSHA, r.CreatedBy,
+		trigger, r.CommitSHA, r.Branch, r.PRNumber, r.RepoID, r.SourceKey); err != nil {
 		return "", 0, err
 	}
-	if _, err := o.S3.PutObject(ctx, o.Bucket, sourceKey(s.OrgID, runID), bytes.NewReader(sealed), int64(len(sealed)),
-		minio.PutObjectOptions{ContentType: "application/octet-stream"}); err != nil {
-		return "", 0, fmt.Errorf("store run source: %w", err)
-	}
-	if _, err := s.Tx.Exec(ctx, `INSERT INTO runs (id, org_id, workspace_id, number, plan_only, source, source_sha256, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, runID, s.OrgID, workspaceID, number, planOnly, sourceName, sourceSHA, s.UserID); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO run_queue (run_id, org_id) VALUES ($1, $2)`, runID, orgID); err != nil {
 		return "", 0, err
 	}
-	if _, err := s.Tx.Exec(ctx, `INSERT INTO run_queue (run_id, org_id) VALUES ($1, $2)`, runID, s.OrgID); err != nil {
-		return "", 0, err
-	}
-	if err := appendEvent(ctx, s.Tx, runID, "run.queued", map[string]any{"source": sourceName, "plan_only": planOnly}, s.UserID); err != nil {
+	if err := appendEvent(ctx, tx, runID, "run.queued", map[string]any{
+		"source": r.SourceName, "plan_only": r.PlanOnly, "trigger": trigger, "commit": r.CommitSHA, "pr": r.PRNumber, "branch": r.Branch,
+	}, r.CreatedBy); err != nil {
 		return "", 0, err
 	}
 	o.afterCommit(ctx, runID)
@@ -217,6 +247,7 @@ func (o *Orchestrator) dispatch(ctx context.Context) error {
 
 type runRow struct {
 	id, orgID, status, workspaceID string
+	sourceKey                      *string
 	planJobID, applyJobID          *string
 	createdBy                      *string
 	stateSerial                    *int64
@@ -226,9 +257,9 @@ func (o *Orchestrator) step(ctx context.Context, runID, orgID string) error {
 	var r runRow
 	var started bool
 	err := o.inOrg(ctx, orgID, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `SELECT id, org_id, status, workspace_id, plan_job_id, apply_job_id, created_by, state_serial
+		err := tx.QueryRow(ctx, `SELECT id, org_id, status, workspace_id, plan_job_id, apply_job_id, created_by, state_serial, source_key
 			FROM runs WHERE id = $1 FOR UPDATE`, runID).
-			Scan(&r.id, &r.orgID, &r.status, &r.workspaceID, &r.planJobID, &r.applyJobID, &r.createdBy, &r.stateSerial)
+			Scan(&r.id, &r.orgID, &r.status, &r.workspaceID, &r.planJobID, &r.applyJobID, &r.createdBy, &r.stateSerial, &r.sourceKey)
 		if err != nil || r.status != "queued" {
 			return err
 		}
@@ -299,7 +330,11 @@ func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperatio
 			req.PlanJobID = *r.planJobID
 			return o.refuseStale(ctx, tx, r)
 		}
-		obj, err := o.S3.GetObject(ctx, o.Bucket, sourceKey(r.orgID, r.id), minio.GetObjectOptions{})
+		key := sourceKey(r.orgID, r.id)
+		if r.sourceKey != nil {
+			key = *r.sourceKey
+		}
+		obj, err := o.S3.GetObject(ctx, o.Bucket, key, minio.GetObjectOptions{})
 		if err != nil {
 			return err
 		}

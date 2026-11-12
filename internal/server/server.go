@@ -18,6 +18,7 @@ import (
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builders"
+	"github.com/stackwright/stackwright/internal/github"
 	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/runs"
@@ -38,6 +39,7 @@ type Config struct {
 	// Binaries are the builder binaries that the builder port hands out.
 	Binaries map[string]builders.Binary
 	Issuer   *oidc.Issuer
+	GitHub   *github.GitHub
 }
 
 func New(c Config) http.Handler {
@@ -62,6 +64,9 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewBuildServerServiceHandler(api.BuildServers{KEK: c.KEK, Hub: c.Builders, Binaries: c.Binaries}, opts))
 	serve(stackwrightv1connect.NewVariableServiceHandler(api.Variables{KEK: c.KEK}, opts))
 	serve(stackwrightv1connect.NewCloudAccountServiceHandler(api.CloudAccounts{Issuer: c.Issuer}, opts))
+	serve(stackwrightv1connect.NewGitHubServiceHandler(api.GitHub{GitHub: c.GitHub}, opts))
+	mux.Handle("/github/", c.GitHub.Callbacks())
+	mux.HandleFunc("POST /webhooks/github", c.GitHub.Webhook)
 	mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(c.Issuer.Discovery())
@@ -99,13 +104,18 @@ func New(c Config) http.Handler {
 			files.ServeHTTP(w, r)
 		})
 	}
-	return secure(mux)
+	return secure(mux, c.GitHub.WebURL)
 }
 
-func secure(next http.Handler) http.Handler {
+// secure sets the headers of every page. formTargets are the origins a
+// form may post to besides this one: GitHub takes the App manifest as a
+// form.
+func secure(next http.Handler, formTargets ...string) http.Handler {
+	csp := "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action " +
+		strings.Join(append([]string{"'self'"}, formTargets...), " ")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		h.Set("Content-Security-Policy", csp)
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "same-origin")
 		next.ServeHTTP(w, r)

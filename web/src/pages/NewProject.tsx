@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { message, projectApi } from "../api";
+import { githubApi, message, projectApi } from "../api";
+import { useLoad } from "../useLoad";
 import { Engine, Layout } from "../gen/stackwright/v1/projects_pb";
 import { useShell } from "../me";
 
@@ -15,6 +16,7 @@ export function NewProject() {
   const [layout, setLayout] = useState(Layout.CLI_WORKSPACES);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const repos = useLoad(`github:${org}`, () => githubApi.getGitHub({ org }));
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -102,7 +104,13 @@ export function NewProject() {
         <div className="row">
           <label className="field grow">
             <span>Repository URL (optional)</span>
-            <input name="repoUrl" type="url" placeholder="https://github.com/acme/infra" />
+            <input name="repoUrl" type="url" list="linked-repos" placeholder="https://github.com/acme/infra" />
+            <datalist id="linked-repos">
+              {repos.data?.installations.flatMap((i) =>
+                i.repos.map((r) => <option key={r.fullName} value={`https://github.com/${r.fullName}`} />),
+              )}
+            </datalist>
+            <span className="hint">A repository that the org's GitHub installation covers plans pull requests and applies merges.</span>
           </label>
           <label className="field">
             <span>Branch</span>

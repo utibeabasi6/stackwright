@@ -28,3 +28,4 @@ line to the old one that points to the new one.
 | [0020](0020-runs-postgres-queue.md) | Runs: a Postgres queue, uploaded code, joined networks |
 | [0021](0021-build-server-enrolment.md) | Build servers: a builder port with its own CA, a binary install, a builder-filled cache |
 | [0022](0022-variables-and-cloud-credentials.md) | Variables and cloud credentials: an issuer the server serves, secrets in the claim |
+| [0023](0023-github-app.md) | GitHub: one App per instance from a manifest, forks never plan |

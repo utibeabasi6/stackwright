@@ -28,6 +28,7 @@ import (
 	"github.com/stackwright/stackwright/internal/config"
 	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/engine"
+	"github.com/stackwright/stackwright/internal/github"
 	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/runs"
@@ -137,6 +138,14 @@ func runServer(args []string) error {
 	orchestrator := &runs.Orchestrator{Pool: pool, KEK: kek, S3: s3, Bucket: bucket, Jobs: jobService, Hub: hub, NATS: nc}
 	jobService.OnEnd = orchestrator.JobEnded
 	hub.OnExit = orchestrator.SandboxExited
+	gh := &github.GitHub{
+		Pool: pool, KEK: kek, PublicURL: publicURL, Runs: orchestrator, S3: s3, Bucket: bucket,
+		WebURL: strings.TrimRight(config.Env("STACKWRIGHT_GITHUB_URL", "https://github.com"), "/"),
+		APIURL: strings.TrimRight(config.Env("STACKWRIGHT_GITHUB_API_URL", "https://api.github.com"), "/"),
+		HTTP:   &http.Client{Timeout: 2 * time.Minute},
+	}
+	go gh.RunWebhooks(ctx, 2*time.Second)
+	go gh.RunChecks(ctx, 2*time.Second)
 	go jobService.RunReaper(ctx, 5*time.Second)
 	go orchestrator.Run(ctx)
 
@@ -156,6 +165,7 @@ func runServer(args []string) error {
 		Builders:  hub,
 		Binaries:  binaries,
 		Issuer:    issuer,
+		GitHub:    gh,
 	}
 	handler := server.New(srvCfg)
 

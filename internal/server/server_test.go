@@ -32,6 +32,7 @@ import (
 	"github.com/stackwright/stackwright/internal/builder"
 	"github.com/stackwright/stackwright/internal/builders"
 	"github.com/stackwright/stackwright/internal/engine"
+	"github.com/stackwright/stackwright/internal/github"
 	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/runs"
@@ -64,6 +65,7 @@ type world struct {
 	// builderLocal is the builder port as the test process reaches it.
 	builderLocal string
 	sts          *fakeSTS
+	github       *fakeGitHub
 }
 
 func newWorld(t *testing.T, web fstest.MapFS) *world {
@@ -137,11 +139,16 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 		Images:     map[string]string{"docker": executorImage}, ServerURL: public, BuiltInServerURL: public}
 	orch := &runs.Orchestrator{Pool: d.App, KEK: kek, S3: s3, Bucket: bucket, Jobs: js, Hub: hub, NATS: testenv.NATS(t)}
 	js.OnEnd, hub.OnExit = orch.JobEnded, orch.SandboxExited
+	fake := newFakeGitHub(t)
+	gh := &github.GitHub{Pool: d.App, KEK: kek, WebURL: fake.srv.URL, APIURL: fake.srv.URL, PublicURL: public, HTTP: http.DefaultClient,
+		Runs: orch, S3: s3, Bucket: bucket}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go orch.Run(ctx)
+	go gh.RunWebhooks(ctx, 200*time.Millisecond)
+	go gh.RunChecks(ctx, 200*time.Millisecond)
 	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
-		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries, Issuer: issuer}
+		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries, Issuer: issuer, GitHub: gh}
 	if web != nil {
 		cfg.Web = web
 	}
@@ -152,7 +159,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	}()
 	t.Cleanup(func() { _ = bsrv.Close() })
 	return &world{t: t, srv: srv, owner: d.Owner, s3: s3, bucket: bucket, public: public, jobs: js, runs: orch, hub: hub,
-		builderLocal: fmt.Sprintf("https://127.0.0.1:%d", builderPort), sts: sts}
+		builderLocal: fmt.Sprintf("https://127.0.0.1:%d", builderPort), sts: sts, github: fake}
 }
 
 type client struct {
@@ -252,6 +259,7 @@ func methods() []method {
 		v1.File_stackwright_v1_projects_proto, v1.File_stackwright_v1_state_proto,
 		v1.File_stackwright_v1_executor_proto, v1.File_stackwright_v1_runs_proto, v1.File_stackwright_v1_builder_proto,
 		v1.File_stackwright_v1_build_servers_proto, v1.File_stackwright_v1_variables_proto, v1.File_stackwright_v1_cloud_proto,
+		v1.File_stackwright_v1_github_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -599,6 +607,18 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 		})
 	}
 	org := map[string]any{"org": "a"}
+	var manifest map[string]any
+	step("GitHubService/StartAppManifest", func() {
+		manifest = owner.must("GitHubService/StartAppManifest", map[string]any{"returnTo": "/a/settings/github"})
+	})
+	owner.visit("/github/manifest?code=c&state=" + stateOf(t, manifest["url"].(string)))
+	step("GitHubService/StartInstall", func() { owner.must("GitHubService/StartInstall", org) })
+	w.link(owner)
+	step("GitHubService/RefreshRepos", func() { owner.must("GitHubService/RefreshRepos", org) })
+	step("GitHubService/UnlinkInstallation", func() {
+		owner.must("GitHubService/UnlinkInstallation", map[string]any{"org": "a", "installationId": 7})
+	})
+	step("GitHubService/DeleteGitHubApp", func() { owner.must("GitHubService/DeleteGitHubApp", map[string]any{}) })
 	variable := map[string]any{"org": "a", "scope": map[string]any{"project": "web"}, "category": "VARIABLE_CATEGORY_TERRAFORM", "key": "region"}
 	step("VariableService/SetVariable", func() { owner.must("VariableService/SetVariable", merge(variable, map[string]any{"value": "eu"})) })
 	step("VariableService/DeleteVariable", func() { owner.must("VariableService/DeleteVariable", variable) })

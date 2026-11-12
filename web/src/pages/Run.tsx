@@ -5,7 +5,7 @@ import { message, runApi } from "../api";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run as RunType, type RunEvent } from "../gen/stackwright/v1/runs_pb";
 import { useShell } from "../me";
-import { changes, describeEvent, finished, runTitle, statusOf } from "../runs";
+import { changes, describeEvent, finished, origin, runTitle, statusOf } from "../runs";
 
 function useRun(org: string, project: string, workspace: string, number: number) {
   const [run, setRun] = useState<RunType>();
@@ -86,7 +86,8 @@ export function Run() {
               </span>
             )}
             <span className="muted">
-              {run.source} · started by {run.createdBy || "someone"}
+              {origin(run)}
+              {run.createdBy && ` · started by ${run.createdBy}`}
               {run.buildServer && ` · on build server ${run.buildServer}`}
             </span>
           </>

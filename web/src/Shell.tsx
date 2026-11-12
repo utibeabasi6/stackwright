@@ -82,6 +82,7 @@ export function Shell() {
       { id: "tokens", label: "Settings: API tokens", group: "Page", run: go("/$org/settings/tokens") },
       { id: "variables", label: "Settings: Variables", group: "Page", run: go("/$org/settings/variables") },
       { id: "cloud", label: "Settings: Cloud accounts", group: "Page", run: go("/$org/settings/cloud") },
+      { id: "github", label: "Settings: GitHub", group: "Page", run: go("/$org/settings/github") },
     ];
     if (role >= Role.ADMIN) {
       list.push(

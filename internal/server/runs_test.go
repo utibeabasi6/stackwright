@@ -89,8 +89,12 @@ func (w *runWorld) waitFor(ws map[string]any, number int, statuses ...string) ma
 		for k, v := range ws {
 			req[k] = v
 		}
-		run := w.owner.must("RunService/GetRun", req)["run"].(map[string]any)
-		if slices.Contains(statuses, run["status"].(string)) {
+		out, code := w.owner.call("RunService/GetRun", req)
+		if code != "" && code != "not_found" {
+			w.t.Fatalf("RunService/GetRun: %s %v", code, out["message"])
+		}
+		run, _ := out["run"].(map[string]any)
+		if run != nil && slices.Contains(statuses, run["status"].(string)) {
 			return run
 		}
 		if time.Now().After(deadline) {

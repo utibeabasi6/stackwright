@@ -98,6 +98,13 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.CloudAccountServiceGetAwsSetupProcedure:              org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.CloudAccountServiceSetWorkspaceCloudAccountProcedure: org(v1.Role_ROLE_ADMIN),
 
+	stackwrightv1connect.GitHubServiceGetGitHubProcedure:          org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.GitHubServiceStartAppManifestProcedure:   {Access: InstanceAdmin},
+	stackwrightv1connect.GitHubServiceDeleteGitHubAppProcedure:    {Access: InstanceAdmin},
+	stackwrightv1connect.GitHubServiceStartInstallProcedure:       org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.GitHubServiceUnlinkInstallationProcedure: org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.GitHubServiceRefreshReposProcedure:       org(v1.Role_ROLE_ADMIN),
+
 	stackwrightv1connect.BuilderServiceEnrolProcedure:   {Access: Public},
 	stackwrightv1connect.BuilderServiceConnectProcedure: {Access: Builder},
 

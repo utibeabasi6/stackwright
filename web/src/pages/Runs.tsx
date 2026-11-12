@@ -3,7 +3,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { runApi } from "../api";
 import { useShell } from "../me";
-import { runTitle, statusOf } from "../runs";
+import { origin, runTitle, statusOf } from "../runs";
 import { useLoad } from "../useLoad";
 
 export function Runs() {
@@ -41,7 +41,7 @@ export function Runs() {
                   </td>
                   <td className={statusOf(r.status).tone}>{statusOf(r.status).text}</td>
                   <td className="mono">{r.hasChanges ? `+${r.adds} ~${r.changes} −${r.destroys}` : ""}</td>
-                  <td>{r.source}</td>
+                  <td>{origin(r)}</td>
                   <td>
                     {r.createdAt ? timestampDate(r.createdAt).toLocaleString() : ""}
                     {r.createdBy && <span className="muted"> · {r.createdBy}</span>}

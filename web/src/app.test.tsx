@@ -104,6 +104,14 @@ vi.mock("./api", () => ({
       return {};
     },
   },
+  githubApi: {
+    getGitHub: async () => ({
+      app: { name: "Stackwright test", slug: "stackwright-test", htmlUrl: "https://github.com/apps/stackwright-test", owner: "acme" },
+      installations: [
+        { installationId: 7n, account: "acme", linkedBy: "Owner", repos: [{ fullName: "acme/infra", defaultBranch: "main", projects: ["network"] }] },
+      ],
+    }),
+  },
   cloudApi: {
     listCloudAccounts: async () => ({
       issuer: "",
@@ -236,6 +244,7 @@ test("every page is in the command palette", async () => {
     "Settings: Members",
     "Settings: Variables",
     "Settings: Cloud accounts",
+    "Settings: GitHub",
     "Settings: Audit log",
     "Settings: Sign-in",
     "New project",
@@ -420,4 +429,21 @@ test("cloud accounts warn when AWS cannot trust the issuer", async () => {
   at("/a/settings/cloud");
   expect(await screen.findByText(/AWS trusts only an https issuer/)).toBeInTheDocument();
   expect(screen.getByText("network/prod")).toBeInTheDocument();
+});
+
+test("the GitHub page lists linked repositories and their projects", async () => {
+  signedInAs(Role.ADMIN);
+  at("/a/settings/github");
+  const install = await screen.findByRole("region", { name: "Installation on acme" });
+  expect(within(install).getByRole("cell", { name: "acme/infra" })).toBeInTheDocument();
+  expect(within(install).getByRole("cell", { name: "network" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Install on GitHub" })).toBeInTheDocument();
+});
+
+test("a run from a pull request says so", async () => {
+  signedInAs(Role.VIEWER);
+  api.projects = [network];
+  api.runs = [{ ...waitingRun, trigger: "pull_request", prNumber: 12, commitSha: "2222222222222222222222222222222222222222", createdBy: "" }];
+  at("/a/projects/network/prod/runs/1");
+  expect(await screen.findByText("pull request #12 · 2222222")).toBeInTheDocument();
 });
