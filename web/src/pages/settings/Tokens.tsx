@@ -4,6 +4,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { message, tokenApi } from "../../api";
 import { Copy } from "../../Copy";
 import { useLoad } from "../../useLoad";
+import { Select } from "../../Select";
 
 export function Tokens() {
   const { org } = useParams({ strict: false }) as { org: string };
@@ -80,11 +81,15 @@ export function Tokens() {
           </label>
           <label className="field">
             <span>Expires in</span>
-            <select name="days" defaultValue="90">
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-              <option value="365">1 year</option>
-            </select>
+            <Select
+              name="days"
+              defaultValue="90"
+              options={[
+                { value: "30", label: "30 days" },
+                { value: "90", label: "90 days" },
+                { value: "365", label: "1 year" },
+              ]}
+            />
           </label>
           <button type="submit" className="primary">
             Make token

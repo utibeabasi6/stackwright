@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { cloudApi, githubApi, message, projectApi } from "../api";
+import { Combobox } from "../Combobox";
 import { EngineVersion } from "../EngineVersion";
+import { Select } from "../Select";
 import { useLoad } from "../useLoad";
 import { Engine, Layout } from "../gen/stackwright/v1/projects_pb";
 import { useShell } from "../me";
@@ -62,17 +64,17 @@ export function NewProject() {
         <div className="row">
           <label className="field">
             <span>Engine</span>
-            <select
-              value={engine}
-              onChange={(e) => {
-                const next = Number(e.target.value) as Engine;
-                setEngine(next);
+            <Select
+              value={String(engine)}
+              onChange={(v) => {
+                setEngine(Number(v) as Engine);
                 setVersion("");
               }}
-            >
-              <option value={Engine.OPENTOFU}>OpenTofu</option>
-              <option value={Engine.TERRAFORM}>Terraform</option>
-            </select>
+              options={[
+                { value: String(Engine.OPENTOFU), label: "OpenTofu" },
+                { value: String(Engine.TERRAFORM), label: "Terraform" },
+              ]}
+            />
           </label>
           <EngineVersion engine={engine} value={version} onChange={setVersion} />
         </div>
@@ -97,12 +99,14 @@ export function NewProject() {
         <div className="row">
           <label className="field grow">
             <span>Repository URL (optional)</span>
-            <input name="repoUrl" type="url" list="linked-repos" placeholder="https://github.com/acme/infra" />
-            <datalist id="linked-repos">
-              {repos.data?.installations.flatMap((i) =>
-                i.repos.map((r) => <option key={r.fullName} value={`https://github.com/${r.fullName}`} />),
+            <Combobox
+              name="repoUrl"
+              type="url"
+              placeholder="https://github.com/acme/infra"
+              options={(repos.data?.installations ?? []).flatMap((i) =>
+                i.repos.map((r) => ({ value: `https://github.com/${r.fullName}`, label: r.fullName })),
               )}
-            </datalist>
+            />
             <span className="hint">A repository that the org's GitHub installation covers plans pull requests and applies merges.</span>
           </label>
           <label className="field">
@@ -113,14 +117,14 @@ export function NewProject() {
         {(accounts.data?.length ?? 0) > 0 && (
           <label className="field">
             <span>Cloud account</span>
-            <select name="cloudAccount" defaultValue="">
-              <option value="">None</option>
-              {accounts.data?.map((a) => (
-                <option key={a.id} value={a.name}>
-                  {a.name} (AWS {a.aws?.region})
-                </option>
-              ))}
-            </select>
+            <Select
+              name="cloudAccount"
+              defaultValue=""
+              options={[
+                { value: "", label: "None" },
+                ...(accounts.data ?? []).map((a) => ({ value: a.name, label: `${a.name} (AWS ${a.aws?.region})`, text: a.name })),
+              ]}
+            />
             <span className="hint">Every workspace of the project starts with it. Each workspace can change it later.</span>
           </label>
         )}

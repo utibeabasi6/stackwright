@@ -524,3 +524,32 @@ Decisions: [0025](adr/0025-newer-terraform.md).
 **Not verified:**
 - A select's opened list. macOS draws it, and the browser pane cannot
   capture it.
+
+### Phase 8, controls and plans that change build server
+
+**Verified on 2026-11-12:**
+- A plan made on one build server applies on another. The first real
+  apply on AWS failed: its plan ran on the built-in builder, and the plan
+  file kept that builder's state address, which the Lima VM cannot reach.
+  The state addresses now go in `TF_HTTP_ADDRESS`, `TF_HTTP_LOCK_ADDRESS`
+  and `TF_HTTP_UNLOCK_ADDRESS`, so a plan file holds no host. A Docker test
+  plans through a host name that only the plan sandbox knows and applies
+  through another, on OpenTofu and on Terraform 1.5.7. It failed before the
+  change. Terraform 1.0.0 reads the address from these variables (checked
+  in its container).
+- Every select is the app's own select-only combobox, with keyboard,
+  typeahead and labels (web tests, and in the browser pane in both themes).
+- The repository field suggests the linked repositories as you type and
+  takes any URL (web tests; in the browser with 161 repositories).
+- A switch of engine on the new project form picks that engine's newest
+  version. It used to keep the other engine's version, because `useLoad`
+  returned the previous key's data while the new key loaded.
+- Auto-apply and the build server labels moved from the Runs tab to the
+  Settings tab (web test).
+
+**Not verified:**
+- The selects on the Members, Tokens, Variables and sign-in providers
+  pages were not opened in the browser. Web tests cover the Variables and
+  new project forms.
+- A list near the bottom of the window opens down, past the window's edge.
+- A real apply on AWS after the fix.

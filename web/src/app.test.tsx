@@ -126,7 +126,9 @@ vi.mock("./api", () => ({
     }),
   },
   projectApi: {
-    listEngineVersions: async () => ({ versions: ["1.17.2", "1.16.7", "1.5.7"] }),
+    listEngineVersions: async ({ engine }: { engine: Engine }) => ({
+      versions: engine === Engine.TERRAFORM ? ["1.17.2", "1.16.7", "1.5.7"] : ["1.13.9", "1.13.2"],
+    }),
     createProject: async (req: { slug: string }) => {
       api.created.push(req);
       return { project: { slug: req.slug, workspaces: [{ name: "default" }] } };
@@ -137,6 +139,10 @@ vi.mock("./api", () => ({
       const w = p?.workspaces.find((x) => x.name === workspace);
       if (!p || !w) throw new ConnectError("not found", Code.NotFound);
       return { project: p, workspace: w };
+    },
+    updateWorkspace: async (req: unknown) => {
+      api.updates.push(req);
+      return {};
     },
   },
 }));
@@ -429,6 +435,22 @@ test("a workspace shows its variables, and never a sensitive value", async () =>
   ]);
 });
 
+test("an admin sets auto-apply and build server labels on the Settings tab, not the Runs tab", async () => {
+  signedInAs(Role.ADMIN);
+  api.projects = [network];
+  at("/a/projects/network/prod");
+  await screen.findByRole("heading", { name: "Start a run" });
+  expect(screen.queryByRole("checkbox", { name: /Auto-apply/ })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("tab", { name: "Settings" }));
+  await userEvent.click(await screen.findByRole("checkbox", { name: /Auto-apply plans/ }));
+  await userEvent.type(screen.getByRole("textbox", { name: "Build server labels this workspace requires" }), "region=eu");
+  await userEvent.click(screen.getByRole("button", { name: "Save labels" }));
+  expect(api.updates).toMatchObject([
+    { org: "a", project: "network", workspace: "prod", autoApply: true },
+    { org: "a", project: "network", workspace: "prod", requiredLabels: { values: { region: "eu" } } },
+  ]);
+});
+
 test("cloud accounts warn when AWS cannot trust the issuer", async () => {
   signedInAs(Role.ADMIN);
   at("/a/settings/cloud");
@@ -505,11 +527,13 @@ test("a new project picks the newest engine version and can start with a cloud a
   signedInAs(Role.ADMIN);
   at("/a/projects/new");
   await userEvent.type(await screen.findByRole("textbox", { name: "Short name" }), "lab");
-  await userEvent.selectOptions(screen.getByRole("combobox", { name: "Engine" }), "Terraform");
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "Version" })).toHaveTextContent("1.13.9 (newest)"));
+  await userEvent.click(screen.getByRole("combobox", { name: "Engine" }));
+  await userEvent.click(screen.getByRole("option", { name: "Terraform" }));
   const version = await screen.findByRole("combobox", { name: "Version" });
-  await waitFor(() => expect(version).toHaveValue("1.17.2"));
-  expect(within(version).getByRole("option", { name: "1.17.2 (newest)" })).toBeInTheDocument();
-  await userEvent.selectOptions(await screen.findByRole("combobox", { name: /^Cloud account/ }), "prod-aws");
+  await waitFor(() => expect(version).toHaveTextContent("1.17.2 (newest)"));
+  await userEvent.click(await screen.findByRole("combobox", { name: /^Cloud account/ }));
+  await userEvent.click(screen.getByRole("option", { name: "prod-aws (AWS eu-west-1)" }));
   await userEvent.click(screen.getByRole("button", { name: /Create/ }));
   expect(api.created).toMatchObject([{ slug: "lab", engineVersion: "1.17.2", cloudAccount: "prod-aws" }]);
 });

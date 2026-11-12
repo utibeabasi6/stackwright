@@ -3,6 +3,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { message, variableApi } from "../api";
 import { VariableCategory, type Variable } from "../gen/stackwright/v1/variables_pb";
 import { useLoad } from "../useLoad";
+import { Select } from "../Select";
 
 type Props = { org: string; project?: string; workspace?: string; admin: boolean };
 
@@ -128,10 +129,14 @@ export function Variables({ org, project, workspace, admin }: Props) {
           <div className="row">
             <label className="field">
               <span>Kind</span>
-              <select name="category" defaultValue={VariableCategory.TERRAFORM}>
-                <option value={VariableCategory.TERRAFORM}>Input variable</option>
-                <option value={VariableCategory.ENV}>Environment variable</option>
-              </select>
+              <Select
+                name="category"
+                defaultValue={String(VariableCategory.TERRAFORM)}
+                options={[
+                  { value: String(VariableCategory.TERRAFORM), label: "Input variable" },
+                  { value: String(VariableCategory.ENV), label: "Environment variable" },
+                ]}
+              />
             </label>
             <label className="field">
               <span>Name</span>
@@ -144,10 +149,14 @@ export function Variables({ org, project, workspace, admin }: Props) {
             {effective && (
               <label className="field">
                 <span>Set at</span>
-                <select name="scope" defaultValue="workspace">
-                  <option value="workspace">This workspace</option>
-                  <option value="project">Project {project}</option>
-                </select>
+                <Select
+                  name="scope"
+                  defaultValue="workspace"
+                  options={[
+                    { value: "workspace", label: "This workspace" },
+                    { value: "project", label: `Project ${project}` },
+                  ]}
+                />
               </label>
             )}
           </div>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { cloudApi, message } from "../api";
 import { useLoad } from "../useLoad";
+import { Select } from "../Select";
 
 type Props = { org: string; project: string; workspace: string; account: string; admin: boolean; reload: () => void };
 
@@ -39,14 +40,11 @@ export function CloudPanel({ org, project, workspace, account, admin, reload }: 
       {admin && (accounts.data?.accounts.length ?? 0) > 0 && (
         <label className="field">
           <span>Cloud account</span>
-          <select value={account} onChange={(e) => choose(e.target.value)}>
-            <option value="">None</option>
-            {accounts.data?.accounts.map((a) => (
-              <option key={a.id} value={a.name}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={account}
+            onChange={choose}
+            options={[{ value: "", label: "None" }, ...(accounts.data?.accounts ?? []).map((a) => ({ value: a.name, label: a.name }))]}
+          />
         </label>
       )}
       {admin && accounts.data?.accounts.length === 0 && (

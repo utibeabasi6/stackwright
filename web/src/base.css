@@ -140,7 +140,6 @@ code,
 }
 
 input:not([type="checkbox"], [type="radio"]),
-select,
 textarea {
   box-sizing: border-box;
   font: inherit;
@@ -152,11 +151,15 @@ textarea {
   color: var(--ink);
 }
 
-/* The chevron is drawn here, so that padding and colors behave the same
-   in both themes and every browser. */
-select {
-  appearance: none;
-  padding-right: 32px;
+.select {
+  position: relative;
+  min-width: 0;
+}
+
+.select > button {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0 32px 0 var(--space-3);
   background-image:
     linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
     linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
@@ -165,6 +168,59 @@ select {
     right 10px center;
   background-size: 5px 5px;
   background-repeat: no-repeat;
+  text-align: left;
+}
+
+.select > input {
+  width: 100%;
+}
+
+.select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  min-width: 100%;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--window);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.select-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  border-radius: calc(var(--radius-control) - 2px);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.select-list li::before {
+  content: "";
+  width: 12px;
+  flex: none;
+}
+
+.select-list li[aria-selected="true"]::before {
+  content: "✓";
+  color: var(--accent);
+}
+
+.select-list li.active {
+  background: var(--selection);
 }
 
 input[type="file"] {
@@ -348,7 +404,7 @@ button:disabled {
   gap: var(--space-2);
 }
 
-.toolbar .org select {
+.toolbar .org .select > button {
   font-weight: 600;
 }
 

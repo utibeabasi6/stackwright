@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { projectApi } from "./api";
+import { Select } from "./Select";
 import type { Engine } from "./gen/stackwright/v1/projects_pb";
 import { useLoad } from "./useLoad";
 
@@ -28,15 +29,17 @@ export function EngineVersion({ engine, value, onChange, label = "Version" }: Pr
   return (
     <label className="field">
       <span>{label}</span>
-      <select className="mono" required value={value} onChange={(e) => onChange(e.target.value)} disabled={!list.data}>
-        {!list.data && <option value="">Loading…</option>}
-        {value && !versions.includes(value) && <option value={value}>{value}</option>}
-        {versions.map((v, i) => (
-          <option key={v} value={v}>
-            {i === 0 ? `${v} (newest)` : v}
-          </option>
-        ))}
-      </select>
+      <Select
+        className="mono"
+        value={list.data ? value : ""}
+        onChange={onChange}
+        disabled={!list.data}
+        options={[
+          ...(!list.data ? [{ value: "", label: "Loading…" }] : []),
+          ...(value && !versions.includes(value) ? [{ value, label: value }] : []),
+          ...versions.map((v, i) => ({ value: v, label: i === 0 ? `${v} (newest)` : v, text: v })),
+        ]}
+      />
     </label>
   );
 }

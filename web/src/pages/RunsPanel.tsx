@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { message, projectApi, runApi } from "../api";
+import { message, runApi } from "../api";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run } from "../gen/stackwright/v1/runs_pb";
-import { formatLabels, parseLabels } from "../labels";
+import { formatLabels } from "../labels";
 import { useShell } from "../me";
 import { origin, runTitle, statusOf } from "../runs";
 import { useLoad } from "../useLoad";
@@ -17,10 +17,9 @@ type Props = {
   runBranch: string;
   autoApply: boolean;
   requiredLabels: Record<string, string>;
-  reload: () => void;
 };
 
-export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBranch, autoApply, requiredLabels, reload }: Props) {
+export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBranch, autoApply, requiredLabels }: Props) {
   const { me, reloadWaiting } = useShell();
   const navigate = useNavigate();
   const runs = useLoad(`runs:${org}/${project}/${workspace}`, () => runApi.listRuns({ org, project, workspace }).then((r) => r.runs));
@@ -55,19 +54,6 @@ export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBran
     }
   };
 
-  const update = async (change: Parameters<typeof projectApi.updateWorkspace>[0]) => {
-    setError(undefined);
-    try {
-      await projectApi.updateWorkspace({ org, project, workspace, ...change });
-      reload();
-    } catch (err) {
-      setError(message(err));
-    }
-  };
-  const saveLabels = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    void update({ requiredLabels: { values: parseLabels(String(new FormData(e.currentTarget).get("labels"))) } });
-  };
   const labels = formatLabels(requiredLabels);
 
   return (
@@ -133,21 +119,6 @@ export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBran
                 </button>
               </div>
             </form>
-            {role >= Role.ADMIN && (
-              <>
-                <label className="check">
-                  <input type="checkbox" checked={autoApply} onChange={(e) => update({ autoApply: e.target.checked })} /> Auto-apply plans
-                  in this workspace
-                </label>
-                <form className="row" onSubmit={saveLabels} key={labels}>
-                  <label className="field grow">
-                    <span>Build server labels this workspace requires</span>
-                    <input name="labels" defaultValue={labels} placeholder="region=eu" className="mono" />
-                  </label>
-                  <button type="submit">Save labels</button>
-                </form>
-              </>
-            )}
           </section>
         )}
       </div>

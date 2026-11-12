@@ -8,6 +8,7 @@ import { ShellContext } from "./me";
 import { Palette, type Command } from "./Palette";
 import { useTabs } from "./tabs";
 import { useLoad } from "./useLoad";
+import { Select } from "./Select";
 
 export function Shell() {
   const navigate = useNavigate();
@@ -143,21 +144,14 @@ export function Shell() {
           {org && (
             <label className="org">
               <span className="sr-only">Org</span>
-              <select
+              <Select
                 value={org}
-                onChange={(e) =>
-                  e.target.value === "+"
-                    ? navigate({ to: "/new-org" })
-                    : navigate({ to: "/$org", params: { org: e.target.value } })
-                }
-              >
-                {me.orgs.map((o) => (
-                  <option key={o.slug} value={o.slug}>
-                    {o.name}
-                  </option>
-                ))}
-                {me.user?.instanceAdmin && <option value="+">New org…</option>}
-              </select>
+                onChange={(v) => (v === "+" ? navigate({ to: "/new-org" }) : navigate({ to: "/$org", params: { org: v } }))}
+                options={[
+                  ...me.orgs.map((o) => ({ value: o.slug, label: o.name })),
+                  ...(me.user?.instanceAdmin ? [{ value: "+", label: "New org…" }] : []),
+                ]}
+              />
             </label>
           )}
           <span className="grow" />

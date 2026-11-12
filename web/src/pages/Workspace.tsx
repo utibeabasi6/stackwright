@@ -7,6 +7,7 @@ import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { Layout } from "../gen/stackwright/v1/projects_pb";
 import { EngineVersion } from "../EngineVersion";
 import { useShell } from "../me";
+import { formatLabels, parseLabels } from "../labels";
 import { useLoad } from "../useLoad";
 import { CloudPanel } from "./CloudPanel";
 import { RunsPanel } from "./RunsPanel";
@@ -78,6 +79,12 @@ export function Workspace() {
       }),
     );
   };
+  const saveLabels = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const values = parseLabels(String(new FormData(e.currentTarget).get("labels")));
+    act(() => projectApi.updateWorkspace({ org, project, workspace, requiredLabels: { values } }));
+  };
+  const labels = formatLabels(ws.data?.workspace?.requiredLabels ?? {});
   const addWorkspace = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -123,7 +130,6 @@ export function Workspace() {
             runBranch={p.runBranch}
             autoApply={ws.data?.workspace?.autoApply ?? false}
             requiredLabels={ws.data?.workspace?.requiredLabels ?? {}}
-            reload={ws.reload}
           />
         )}
 
@@ -182,6 +188,28 @@ export function Workspace() {
                 </ul>
               </section>
             </div>
+
+            {admin && (
+              <section className="card stack" aria-labelledby="ws-settings-h">
+                <h2 id="ws-settings-h">Runs in {workspace}</h2>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={ws.data?.workspace?.autoApply ?? false}
+                    onChange={(e) => act(() => projectApi.updateWorkspace({ org, project, workspace, autoApply: e.target.checked }))}
+                  />{" "}
+                  Auto-apply plans: a plan with changes applies with no approval
+                </label>
+                <form className="row" onSubmit={saveLabels} key={labels}>
+                  <label className="field grow">
+                    <span>Build server labels this workspace requires</span>
+                    <input name="labels" defaultValue={labels} placeholder="region=eu" className="mono" />
+                  </label>
+                  <button type="submit">Save labels</button>
+                </form>
+                <p className="hint">Runs go only to build servers with all of these labels. Leave it empty for any build server.</p>
+              </section>
+            )}
 
             {admin && (
               <section className="card stack" aria-labelledby="settings-h">

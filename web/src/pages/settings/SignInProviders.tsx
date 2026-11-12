@@ -3,6 +3,7 @@ import { instanceApi, message } from "../../api";
 import { SignInProviderKind } from "../../gen/stackwright/v1/instance_pb";
 import { useMe } from "../../me";
 import { useLoad } from "../../useLoad";
+import { Select } from "../../Select";
 
 export function SignInProviders() {
   const me = useMe();
@@ -77,10 +78,14 @@ export function SignInProviders() {
         <form className="stack" style={{ maxWidth: 520 }} onSubmit={add}>
           <label className="field">
             <span>Kind</span>
-            <select value={kind} onChange={(e) => setKind(Number(e.target.value) as SignInProviderKind)}>
-              <option value={SignInProviderKind.OIDC}>OIDC: Google, Okta, Keycloak and others</option>
-              <option value={SignInProviderKind.GITHUB}>GitHub</option>
-            </select>
+            <Select
+              value={String(kind)}
+              onChange={(v) => setKind(Number(v) as SignInProviderKind)}
+              options={[
+                { value: String(SignInProviderKind.OIDC), label: "OIDC: Google, Okta, Keycloak and others" },
+                { value: String(SignInProviderKind.GITHUB), label: "GitHub" },
+              ]}
+            />
           </label>
           <label className="field">
             <span>Name on the sign-in button</span>

@@ -5,6 +5,7 @@ import { Role } from "../../gen/stackwright/v1/orgs_pb";
 import { useMe } from "../../me";
 import { roleName, roles } from "../../roles";
 import { useLoad } from "../../useLoad";
+import { Select } from "../../Select";
 
 export function Members() {
   const { org } = useParams({ strict: false }) as { org: string };
@@ -67,19 +68,14 @@ export function Members() {
                 </td>
                 <td>
                   {admin ? (
-                    <select
+                    <Select
                       aria-label={`Role of ${m.email}`}
-                      value={m.role}
-                      onChange={(e) => act(() => orgApi.setMemberRole({ org, userId: m.userId, role: Number(e.target.value) as Role }))}
-                    >
-                      {roles
+                      value={String(m.role)}
+                      onChange={(v) => act(() => orgApi.setMemberRole({ org, userId: m.userId, role: Number(v) as Role }))}
+                      options={roles
                         .filter((r) => r.role === m.role || offered.includes(r))
-                        .map((r) => (
-                          <option key={r.role} value={r.role}>
-                            {r.name}
-                          </option>
-                        ))}
-                    </select>
+                        .map((r) => ({ value: String(r.role), label: r.name }))}
+                    />
                   ) : (
                     roleName(m.role)
                   )}
@@ -114,13 +110,7 @@ export function Members() {
             </label>
             <label className="field">
               <span>Role</span>
-              <select name="role" defaultValue={Role.WRITER}>
-                {offered.map((r) => (
-                  <option key={r.role} value={r.role}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
+              <Select name="role" defaultValue={String(Role.WRITER)} options={offered.map((r) => ({ value: String(r.role), label: r.name }))} />
             </label>
             <button type="submit" className="primary">
               Make invite link
