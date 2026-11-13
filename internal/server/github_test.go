@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -328,5 +329,47 @@ func TestGitHubLinkedProjectRunsItsBranchHead(t *testing.T) {
 	upload := merge(dev, map[string]any{"source": base64.StdEncoding.EncodeToString(source(t, "ok")), "sourceName": "ok.tar.gz"})
 	if _, code := owner.call("RunService/CreateRun", upload); code != "invalid_argument" {
 		t.Errorf("an upload to a linked project: %q", code)
+	}
+}
+
+func TestUnlinkWaitsForARunInProgress(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, nil)
+	owner := w.setup()
+	w.createApp(owner)
+	w.link(owner)
+	w.github.commit(shaBase, map[string]string{"network/main.tf": `resource "terraform_data" "vpc" {}`})
+	w.github.mu.Lock()
+	w.github.heads["main"] = shaBase
+	w.github.mu.Unlock()
+	owner.must("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "network", "path": "network", "engine": "ENGINE_OPENTOFU",
+		"engineVersion": "1.10.7", "layout": "LAYOUT_CLI_WORKSPACES", "workspaces": []string{"dev"}, "repoUrl": "https://github.com/acme/infra"})
+	run := owner.must("RunService/CreateRun", map[string]any{"org": "a", "project": "network", "workspace": "dev", "planOnly": true})["run"].(map[string]any)
+
+	ctx := context.Background()
+	tx, err := w.owner.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	// The dispatcher's order: the run, and then its repository, which
+	// Postgres locks to check runs.repo_id again on a second update.
+	if _, err := tx.Exec(ctx, `UPDATE runs SET updated_at = now() WHERE id = $1`, run["id"]); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan string)
+	go func() {
+		_, code := owner.call("GitHubService/UnlinkInstallation", map[string]any{"org": "a", "installationId": 7})
+		done <- code
+	}()
+	time.Sleep(time.Second)
+	if _, err := tx.Exec(ctx, `UPDATE runs SET last_seq = last_seq + 1 WHERE id = $1`, run["id"]); err != nil {
+		t.Fatalf("the run's second update: %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if code := <-done; code != "" {
+		t.Errorf("unlink: %q", code)
 	}
 }

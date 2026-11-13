@@ -169,6 +169,9 @@ func (g *GitHub) FinishManifest(ctx context.Context, userID, state, code string)
 
 // DeleteApp forgets the App and every link to it. tx needs no org setting.
 func (g *GitHub) DeleteApp(ctx context.Context, tx pgx.Tx) error {
+	if _, err := tx.Exec(ctx, `SELECT lock_repo_runs(NULL)`); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `DELETE FROM github_installations`); err != nil {
 		return err
 	}
@@ -359,6 +362,9 @@ func (g *GitHub) syncRepos(ctx context.Context, tx pgx.Tx, orgID string, install
 		if len(out.Repositories) < 100 {
 			break
 		}
+	}
+	if _, err := tx.Exec(ctx, `SELECT lock_repo_runs($1, $2)`, installation, keep); err != nil {
+		return err
 	}
 	tag, err := tx.Exec(ctx, `DELETE FROM repos WHERE installation_id = $1 AND NOT github_id = ANY($2)`, installation, keep)
 	if err != nil {

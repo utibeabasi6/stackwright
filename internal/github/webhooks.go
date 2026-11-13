@@ -173,6 +173,9 @@ func (g *GitHub) process(ctx context.Context, event string, raw []byte) error {
 		}
 		switch {
 		case event == "installation" && p.Action == "deleted":
+			if _, err := tx.Exec(ctx, `SELECT lock_repo_runs($1)`, p.Installation.ID); err != nil {
+				return err
+			}
 			_, err := tx.Exec(ctx, `DELETE FROM github_installations WHERE installation_id = $1`, p.Installation.ID)
 			return err
 		case event == "installation_repositories", event == "installation":

@@ -1146,13 +1146,12 @@ Trivy on the host was refused, so it ran only inside Docker images.
 - A build server with an executor image older than this phase uploads no
   scan, so its plans that would apply fail. Redeploy, then load the new
   executor image into each build server.
-- Unlinking a GitHub installation can deadlock with the dispatcher. The
-  dispatcher updates a run twice in one transaction, so Postgres checks
-  `runs.repo_id` again and takes a lock on the repository row. The unlink
-  holds that row and waits for the run. This dates from phase 7, and
-  phase 15's import made the audit test hit it. It showed in all three
-  full runs on 2026-11-13, and Unlink returned an internal error in two
-  of them, which failed the test. It is not fixed.
+- Unlinking a GitHub installation could deadlock with the dispatcher,
+  which locks a run and then, as Postgres checks `runs.repo_id` again,
+  its repository. Fixed on 2026-11-13: every delete that removes
+  repositories first locks their runs, through `lock_repo_runs`
+  (migration 18). `TestUnlinkWaitsForARunInProgress` makes the race on
+  purpose; it failed before the fix and passed five times in a row after.
 - The nightly run skips a night on which no server runs.
 
 ## Phase 17: Topology
