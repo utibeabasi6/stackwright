@@ -7,6 +7,7 @@ import { Role } from "./gen/stackwright/v1/orgs_pb";
 import { Engine, Layout } from "./gen/stackwright/v1/projects_pb";
 import { RunStatus } from "./gen/stackwright/v1/runs_pb";
 import { AgentSessionStatus } from "./gen/stackwright/v1/agent_pb";
+import { Severity } from "./gen/stackwright/v1/security_pb";
 
 const api = vi.hoisted(() => ({
   me: undefined as unknown,
@@ -27,6 +28,8 @@ const api = vi.hoisted(() => ({
   sent: [] as unknown[],
   variables: [] as unknown[],
   setVariables: [] as unknown[],
+  findings: [] as unknown[],
+  accepted: [] as unknown[],
 }));
 
 vi.mock("./api", () => ({
@@ -57,6 +60,15 @@ vi.mock("./api", () => ({
       api.decisions.push(req);
       return {};
     },
+  },
+  securityApi: {
+    listFindings: async () => ({ findings: api.findings }),
+    listRunFindings: async () => ({ findings: api.findings }),
+    acceptRisk: async (req: unknown) => {
+      api.accepted.push(req);
+      return {};
+    },
+    getSecurityPolicy: async () => ({ policySets: [], skippedChecks: [] }),
   },
   meta: { getVersion: async () => ({ version: "0.1.0" }) },
   authApi: {
@@ -94,7 +106,7 @@ vi.mock("./api", () => ({
   },
   runApi: {
     listRuns: async () => ({ runs: api.runs }),
-    listWaiting: async () => ({ approvals: api.runs.filter((r) => (r as { status: number }).status === 3), failures: [] }),
+    listWaiting: async () => ({ approvals: api.runs.filter((r) => (r as { status: number }).status === 3), failures: [], findings: api.findings }),
     createRun: async (req: unknown) => {
       api.created.push(req);
       return { run: { number: 7 } };
@@ -226,6 +238,8 @@ beforeEach(() => {
   api.sent = [];
   api.variables = [];
   api.setVariables = [];
+  api.findings = [];
+  api.accepted = [];
   window.localStorage.clear();
 });
 
@@ -413,6 +427,59 @@ test("waiting approvals show in the toolbar and on Waiting on you", async () => 
   at("/a/inbox");
   expect(await screen.findByText(/Run #1 waits for approval/)).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Review plan" })).toHaveAttribute("href", "/a/projects/network/prod/runs/1");
+  expect(await screen.findByLabelText("1 waiting")).toBeInTheDocument();
+});
+
+const sshOpen = {
+  id: "f1",
+  project: "network",
+  workspace: "prod",
+  checkId: "AWS-0107",
+  severity: Severity.HIGH,
+  title: "An ingress security group rule allows traffic from /0.",
+  message: "Security group rule allows ingress from public internet.",
+  resource: "aws_security_group.ssh",
+  fixed: false,
+  blocking: true,
+};
+
+test("a blocked run shows the finding that blocks it, and the security role accepts the risk", async () => {
+  signedInAs(Role.SECURITY);
+  api.projects = [network];
+  api.runs = [{ ...waitingRun, status: RunStatus.BLOCKED }];
+  api.findings = [sshOpen];
+  at("/a/projects/network/prod/runs/1");
+  expect(await screen.findByText(/1 security finding/)).toBeInTheDocument();
+  expect(screen.getByText("! Blocked")).toBeInTheDocument();
+  expect(screen.getByText("! Blocks this apply")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Approve and apply" })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Accept risk" }));
+  await userEvent.type(screen.getByLabelText("Why is this risk acceptable?"), "a bastion");
+  await userEvent.click(screen.getByRole("button", { name: "Accept risk" }));
+  await waitFor(() => expect(api.accepted).toHaveLength(1));
+  const req = api.accepted[0] as { id: string; reason: string; expiresAt: { seconds: bigint } };
+  expect(req.id).toBe("f1");
+  expect(req.reason).toBe("a bastion");
+  const days = (Number(req.expiresAt.seconds) * 1000 - Date.now()) / 86_400_000;
+  expect(days).toBeGreaterThan(29);
+  expect(days).toBeLessThanOrEqual(30);
+});
+
+test("a writer sees findings but cannot accept a risk", async () => {
+  signedInAs(Role.WRITER);
+  api.projects = [network];
+  api.findings = [{ ...sshOpen, blocking: false }];
+  at("/a/projects/network/prod/security");
+  expect(await screen.findByText("aws_security_group.ssh")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Accept risk" })).not.toBeInTheDocument();
+});
+
+test("open findings wait on the security role", async () => {
+  signedInAs(Role.SECURITY);
+  api.projects = [network];
+  api.findings = [{ ...sshOpen, blocking: false }];
+  at("/a/inbox");
+  expect(await screen.findByRole("heading", { name: "Open High and Critical findings" })).toBeInTheDocument();
   expect(await screen.findByLabelText("1 waiting")).toBeInTheDocument();
 });
 

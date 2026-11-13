@@ -24,6 +24,7 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builders"
+	"github.com/stackwright/stackwright/internal/findings"
 	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/seal"
 )
@@ -40,7 +41,7 @@ func lockProviders(lock []byte) []string {
 }
 
 // Active is every status that holds its workspace.
-var Active = []string{"planning", "needs_approval", "applying"}
+var Active = []string{"planning", "needs_approval", "blocked", "applying"}
 
 type Orchestrator struct {
 	Pool   *pgxpool.Pool
@@ -149,9 +150,9 @@ type NewRun struct {
 	SourceName  string
 	SourceSHA   string
 	CreatedBy   string
-	// Trigger is "ui", "pull_request", "push" or "agent". Pull requests and
-	// pushes need a commit; an agent run needs AgentSessionID and is
-	// plan-only.
+	// Trigger is "ui", "pull_request", "push", "agent" or "schedule". Pull
+	// requests and pushes need a commit; an agent run needs AgentSessionID
+	// and is plan-only.
 	Trigger        string
 	AgentSessionID string
 	CommitSHA      string
@@ -426,11 +427,11 @@ func (o *Orchestrator) JobEnded(ctx context.Context, tx pgx.Tx, jobID, status, m
 	if runID == nil {
 		return nil
 	}
-	var runStatus, workspaceID string
+	var runStatus, workspaceID, orgID, trigger string
 	var planOnly, autoApply bool
-	if err := tx.QueryRow(ctx, `SELECT r.status, r.workspace_id, r.plan_only, w.auto_apply FROM runs r
+	if err := tx.QueryRow(ctx, `SELECT r.status, r.workspace_id, r.plan_only, w.auto_apply, r.org_id, r.trigger FROM runs r
 		JOIN workspaces w ON w.id = r.workspace_id WHERE r.id = $1 FOR UPDATE OF r`, *runID).
-		Scan(&runStatus, &workspaceID, &planOnly, &autoApply); err != nil {
+		Scan(&runStatus, &workspaceID, &planOnly, &autoApply, &orgID, &trigger); err != nil {
 		return err
 	}
 	defer o.afterCommit(ctx, *runID)
@@ -503,10 +504,20 @@ func (o *Orchestrator) JobEnded(ctx context.Context, tx pgx.Tx, jobID, status, m
 	}, ""); err != nil {
 		return err
 	}
+	applies := changed && !planOnly
+	blocked, err := o.review(ctx, tx, orgID, jobID, workspaceID, trigger, applies)
+	if errors.Is(err, errNoScan) {
+		return finish(ctx, tx, *runID, "failed", err.Error(), "")
+	}
+	if err != nil {
+		return err
+	}
 	next, event := "needs_approval", "run.needs_approval"
 	switch {
-	case !changed || planOnly:
+	case !applies:
 		return finish(ctx, tx, *runID, "planned", "", "")
+	case blocked:
+		next, event = "blocked", "run.blocked"
 	case autoApply:
 		next, event = "applying", "run.auto_approved"
 	}
@@ -514,6 +525,78 @@ func (o *Orchestrator) JobEnded(ctx context.Context, tx pgx.Tx, jobID, status, m
 		return err
 	}
 	return appendEvent(ctx, tx, *runID, event, nil, "")
+}
+
+var errNoScan = errors.New("the plan has no security scan; the build server's executor image is older than the server")
+
+// review records the findings of a plan of the workspace's own code, and
+// reports whether one blocks the plan's apply (adr/0037). A plan that
+// would apply with no scan fails: no review must not pass for a clean one.
+func (o *Orchestrator) review(ctx context.Context, tx pgx.Tx, orgID, jobID, workspaceID, trigger string, applies bool) (bool, error) {
+	raw, err := o.Jobs.ReadArtifact(ctx, tx, jobID, "scan.json")
+	switch {
+	case errors.Is(err, jobs.ErrNoArtifact) && applies:
+		return false, errNoScan
+	case errors.Is(err, jobs.ErrNoArtifact):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	results, err := findings.Parse(raw)
+	if err != nil {
+		return false, err
+	}
+	if trigger == "ui" || trigger == "push" || trigger == "schedule" {
+		if err := findings.Record(ctx, tx, orgID, workspaceID, results); err != nil {
+			return false, err
+		}
+	}
+	if !applies {
+		return false, nil
+	}
+	ids, err := o.blocking(ctx, tx, jobID, workspaceID)
+	return len(ids) > 0, err
+}
+
+// blocking returns the findings that block the apply of a plan job.
+func (o *Orchestrator) blocking(ctx context.Context, tx pgx.Tx, planJobID, workspaceID string) ([]string, error) {
+	plan, err := o.Jobs.ReadArtifact(ctx, tx, planJobID, "plan.json")
+	if err != nil {
+		return nil, err
+	}
+	changed, err := findings.Changed(plan)
+	if err != nil {
+		return nil, err
+	}
+	return findings.Blocking(ctx, tx, workspaceID, changed)
+}
+
+// Unblock moves a workspace's blocked run on when no finding blocks it any
+// more, as after a risk is accepted. tx needs the org setting.
+func (o *Orchestrator) Unblock(ctx context.Context, tx pgx.Tx, workspaceID string) error {
+	var runID, planJob string
+	var autoApply bool
+	err := tx.QueryRow(ctx, `SELECT r.id, r.plan_job_id, w.auto_apply FROM runs r JOIN workspaces w ON w.id = r.workspace_id
+		WHERE r.workspace_id = $1 AND r.status = 'blocked' FOR UPDATE OF r`, workspaceID).Scan(&runID, &planJob, &autoApply)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	ids, err := o.blocking(ctx, tx, planJob, workspaceID)
+	if err != nil || len(ids) > 0 {
+		return err
+	}
+	next, event := "needs_approval", "run.unblocked"
+	if autoApply {
+		next = "applying"
+	}
+	if _, err := tx.Exec(ctx, `UPDATE runs SET status = $2, updated_at = now() WHERE id = $1`, runID, next); err != nil {
+		return err
+	}
+	o.afterCommit(ctx, runID)
+	return appendEvent(ctx, tx, runID, event, nil, "")
 }
 
 // SandboxExited fails a job whose sandbox stopped before the job ended.
@@ -531,16 +614,35 @@ func refuse(code connect.Code, format string, args ...any) error {
 	return connect.NewError(code, fmt.Errorf(format, args...))
 }
 
-// Approve starts the apply, unless the state changed after the plan; then
-// the run fails, and Approve returns no error. s.Tx needs the org setting.
+// Approve starts the apply, unless the state changed after the plan or an
+// accepted risk expired since it; then the run fails or is blocked, and
+// Approve returns no error. s.Tx needs the org setting.
 func (o *Orchestrator) Approve(ctx context.Context, s *authz.Scope, runID string) error {
 	var r runRow
-	if err := s.Tx.QueryRow(ctx, `SELECT id, org_id, status, workspace_id, state_serial FROM runs WHERE id = $1 FOR UPDATE`, runID).
-		Scan(&r.id, &r.orgID, &r.status, &r.workspaceID, &r.stateSerial); err != nil {
+	var planJob *string
+	if err := s.Tx.QueryRow(ctx, `SELECT id, org_id, status, workspace_id, state_serial, plan_job_id FROM runs WHERE id = $1 FOR UPDATE`, runID).
+		Scan(&r.id, &r.orgID, &r.status, &r.workspaceID, &r.stateSerial, &planJob); err != nil {
 		return err
+	}
+	if r.status == "blocked" {
+		return refuse(connect.CodeFailedPrecondition, "a High finding blocks this apply; accept its risk on the Security tab, or fix the code")
 	}
 	if r.status != "needs_approval" {
 		return refuse(connect.CodeFailedPrecondition, "the run is %s, so it waits for no approval", r.status)
+	}
+	// An accepted risk may have expired since the plan (adr/0037).
+	if planJob != nil {
+		ids, err := o.blocking(ctx, s.Tx, *planJob, r.workspaceID)
+		if err != nil {
+			return err
+		}
+		if len(ids) > 0 {
+			if _, err := s.Tx.Exec(ctx, `UPDATE runs SET status = 'blocked', updated_at = now() WHERE id = $1`, runID); err != nil {
+				return err
+			}
+			o.afterCommit(ctx, runID)
+			return appendEvent(ctx, s.Tx, runID, "run.blocked", nil, s.UserID)
+		}
 	}
 	if err := o.refuseStale(ctx, s.Tx, r); errors.Is(err, errStale) {
 		return nil
@@ -559,7 +661,7 @@ func (o *Orchestrator) Reject(ctx context.Context, s *authz.Scope, runID string)
 	if err := s.Tx.QueryRow(ctx, `SELECT status FROM runs WHERE id = $1 FOR UPDATE`, runID).Scan(&status); err != nil {
 		return err
 	}
-	if status != "needs_approval" {
+	if status != "needs_approval" && status != "blocked" {
 		return refuse(connect.CodeFailedPrecondition, "the run is %s, so it waits for no approval", status)
 	}
 	o.afterCommit(ctx, runID)
@@ -577,7 +679,7 @@ func (o *Orchestrator) Cancel(ctx context.Context, s *authz.Scope, runID string)
 	}
 	var job *string
 	switch status {
-	case "queued", "needs_approval":
+	case "queued", "needs_approval", "blocked":
 	case "planning":
 		job = planJob
 	case "applying":

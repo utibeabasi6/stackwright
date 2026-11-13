@@ -159,6 +159,7 @@ func runServer(args []string) error {
 	go gh.RunChecks(ctx, 2*time.Second)
 	go jobService.RunReaper(ctx, 5*time.Second)
 	go orchestrator.Run(ctx)
+	go orchestrator.Nightly(ctx, gh.BranchHead)
 	if err := agentService.Recover(ctx); err != nil {
 		return err
 	}

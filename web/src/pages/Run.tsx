@@ -4,6 +4,7 @@ import { useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { graphApi, message, runApi } from "../api";
 import { AskAgent } from "../agent/AgentPanel";
+import { RunFindings } from "./Findings";
 import { Divider, paneWidth, useSavedWidth } from "../Divider";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run as RunType, type RunEvent } from "../gen/stackwright/v1/runs_pb";
@@ -192,11 +193,17 @@ export function Run() {
         )}
       </div>
 
+      {run && <RunFindings org={org} project={project} workspace={workspace} number={number} status={run.status} />}
       {run && (
         <div className="next-bar">
           <NextStep run={run} role={role} />
           {actionError && <span className="error">{actionError}</span>}
           <span className="grow" />
+          {run.status === RunStatus.BLOCKED && role >= Role.REVIEWER && (
+            <Action run={() => act(() => runApi.rejectRun(target))} busy="Rejecting…" done="Rejected">
+              Reject
+            </Action>
+          )}
           {run.status === RunStatus.NEEDS_APPROVAL && role >= Role.REVIEWER && (
             <>
               <Action run={() => act(() => runApi.rejectRun(target))} busy="Rejecting…" done="Rejected">
@@ -346,6 +353,12 @@ function NextStep({ run, role }: { run: RunType; role: Role }) {
         <span>Apply these changes? The apply uses this plan only.</span>
       ) : (
         <span>Waits for a reviewer to approve or reject it.</span>
+      );
+    case RunStatus.BLOCKED:
+      return (
+        <span className="error">
+          ! A High or Critical finding blocks the apply. Fix the code, or accept the risk to send the plan for approval.
+        </span>
       );
     case RunStatus.APPLYING:
       return <span>Applying the approved plan.</span>;

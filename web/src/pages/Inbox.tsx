@@ -1,6 +1,7 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { runApi } from "../api";
+import { FindingsTable } from "./Findings";
 import type { Run } from "../gen/stackwright/v1/runs_pb";
 import { useShell } from "../me";
 import { changes, runTitle } from "../runs";
@@ -10,6 +11,7 @@ export function Inbox() {
   const { org } = useParams({ strict: false }) as { org: string };
   const { waitingVersion } = useShell();
   const waiting = useLoad(`waiting:${org}:${waitingVersion}`, () => runApi.listWaiting({ org }));
+  const findings = waiting.data?.findings ?? [];
   const items = [
     ...(waiting.data?.approvals ?? []).map((run) => ({ kind: "Approval", run })),
     ...(waiting.data?.failures ?? []).map((run) => ({ kind: "Failure", run })),
@@ -20,9 +22,9 @@ export function Inbox() {
       <div>
         <h1>Waiting on you</h1>
         <p className="muted">
-          {items.length === 0
+          {items.length + findings.length === 0
             ? "Nothing waits on you or your team."
-            : `${items.length} ${items.length === 1 ? "thing needs" : "things need"} you or your team. Each one leaves this list when someone acts on it.`}
+            : `${items.length + findings.length} ${items.length + findings.length === 1 ? "thing needs" : "things need"} you or your team. Each one leaves this list when someone acts on it.`}
         </p>
       </div>
       {waiting.error && <p className="error">{waiting.error}</p>}
@@ -56,6 +58,12 @@ export function Inbox() {
           </li>
         ))}
       </ul>
+      {findings.length > 0 && (
+        <section className="stack" aria-labelledby="findings-h">
+          <h2 id="findings-h">Open High and Critical findings</h2>
+          <FindingsTable org={org} findings={findings} reload={waiting.reload} where />
+        </section>
+      )}
     </div>
   );
 }

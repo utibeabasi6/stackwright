@@ -35,21 +35,25 @@ const (
 	RunStatus_RUN_STATUS_FAILED         RunStatus = 7
 	RunStatus_RUN_STATUS_REJECTED       RunStatus = 8
 	RunStatus_RUN_STATUS_CANCELED       RunStatus = 9
+	// A High or Critical finding on what the plan changes holds the apply
+	// until someone accepts the risk (adr/0037).
+	RunStatus_RUN_STATUS_BLOCKED RunStatus = 10
 )
 
 // Enum value maps for RunStatus.
 var (
 	RunStatus_name = map[int32]string{
-		0: "RUN_STATUS_UNSPECIFIED",
-		1: "RUN_STATUS_QUEUED",
-		2: "RUN_STATUS_PLANNING",
-		3: "RUN_STATUS_NEEDS_APPROVAL",
-		4: "RUN_STATUS_APPLYING",
-		5: "RUN_STATUS_PLANNED",
-		6: "RUN_STATUS_APPLIED",
-		7: "RUN_STATUS_FAILED",
-		8: "RUN_STATUS_REJECTED",
-		9: "RUN_STATUS_CANCELED",
+		0:  "RUN_STATUS_UNSPECIFIED",
+		1:  "RUN_STATUS_QUEUED",
+		2:  "RUN_STATUS_PLANNING",
+		3:  "RUN_STATUS_NEEDS_APPROVAL",
+		4:  "RUN_STATUS_APPLYING",
+		5:  "RUN_STATUS_PLANNED",
+		6:  "RUN_STATUS_APPLIED",
+		7:  "RUN_STATUS_FAILED",
+		8:  "RUN_STATUS_REJECTED",
+		9:  "RUN_STATUS_CANCELED",
+		10: "RUN_STATUS_BLOCKED",
 	}
 	RunStatus_value = map[string]int32{
 		"RUN_STATUS_UNSPECIFIED":    0,
@@ -62,6 +66,7 @@ var (
 		"RUN_STATUS_FAILED":         7,
 		"RUN_STATUS_REJECTED":       8,
 		"RUN_STATUS_CANCELED":       9,
+		"RUN_STATUS_BLOCKED":        10,
 	}
 )
 
@@ -1277,8 +1282,11 @@ type ListWaitingResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Runs that need an approval the caller may give, then runs whose
 	// workspace's latest run failed.
-	Approvals     []*Run `protobuf:"bytes,1,rep,name=approvals,proto3" json:"approvals,omitempty"`
-	Failures      []*Run `protobuf:"bytes,2,rep,name=failures,proto3" json:"failures,omitempty"`
+	Approvals []*Run `protobuf:"bytes,1,rep,name=approvals,proto3" json:"approvals,omitempty"`
+	Failures  []*Run `protobuf:"bytes,2,rep,name=failures,proto3" json:"failures,omitempty"`
+	// Open High and Critical findings that no one accepted, for those who
+	// may accept them.
+	Findings      []*Finding `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1327,11 +1335,18 @@ func (x *ListWaitingResponse) GetFailures() []*Run {
 	return nil
 }
 
+func (x *ListWaitingResponse) GetFindings() []*Finding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
 var File_stackwright_v1_runs_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x19stackwright/v1/runs.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa4\x06\n" +
+	"\x19stackwright/v1/runs.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dstackwright/v1/security.proto\"\xa4\x06\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06number\x18\x02 \x01(\x05R\x06number\x12\x18\n" +
@@ -1427,10 +1442,11 @@ const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"\x11CancelRunResponse\x12%\n" +
 	"\x03run\x18\x01 \x01(\v2\x13.stackwright.v1.RunR\x03run\"&\n" +
 	"\x12ListWaitingRequest\x12\x10\n" +
-	"\x03org\x18\x01 \x01(\tR\x03org\"y\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\"\xae\x01\n" +
 	"\x13ListWaitingResponse\x121\n" +
 	"\tapprovals\x18\x01 \x03(\v2\x13.stackwright.v1.RunR\tapprovals\x12/\n" +
-	"\bfailures\x18\x02 \x03(\v2\x13.stackwright.v1.RunR\bfailures*\x88\x02\n" +
+	"\bfailures\x18\x02 \x03(\v2\x13.stackwright.v1.RunR\bfailures\x123\n" +
+	"\bfindings\x18\x03 \x03(\v2\x17.stackwright.v1.FindingR\bfindings*\xa0\x02\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11RUN_STATUS_QUEUED\x10\x01\x12\x17\n" +
@@ -1441,7 +1457,9 @@ const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"\x12RUN_STATUS_APPLIED\x10\x06\x12\x15\n" +
 	"\x11RUN_STATUS_FAILED\x10\a\x12\x17\n" +
 	"\x13RUN_STATUS_REJECTED\x10\b\x12\x17\n" +
-	"\x13RUN_STATUS_CANCELED\x10\t2\xac\x05\n" +
+	"\x13RUN_STATUS_CANCELED\x10\t\x12\x16\n" +
+	"\x12RUN_STATUS_BLOCKED\x10\n" +
+	"2\xac\x05\n" +
 	"\n" +
 	"RunService\x12P\n" +
 	"\tCreateRun\x12 .stackwright.v1.CreateRunRequest\x1a!.stackwright.v1.CreateRunResponse\x12R\n" +
@@ -1490,6 +1508,7 @@ var file_stackwright_v1_runs_proto_goTypes = []any{
 	(*ListWaitingRequest)(nil),    // 17: stackwright.v1.ListWaitingRequest
 	(*ListWaitingResponse)(nil),   // 18: stackwright.v1.ListWaitingResponse
 	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(*Finding)(nil),               // 20: stackwright.v1.Finding
 }
 var file_stackwright_v1_runs_proto_depIdxs = []int32{
 	0,  // 0: stackwright.v1.Run.status:type_name -> stackwright.v1.RunStatus
@@ -1507,27 +1526,28 @@ var file_stackwright_v1_runs_proto_depIdxs = []int32{
 	1,  // 12: stackwright.v1.CancelRunResponse.run:type_name -> stackwright.v1.Run
 	1,  // 13: stackwright.v1.ListWaitingResponse.approvals:type_name -> stackwright.v1.Run
 	1,  // 14: stackwright.v1.ListWaitingResponse.failures:type_name -> stackwright.v1.Run
-	3,  // 15: stackwright.v1.RunService.CreateRun:input_type -> stackwright.v1.CreateRunRequest
-	5,  // 16: stackwright.v1.RunService.ListRuns:input_type -> stackwright.v1.ListRunsRequest
-	7,  // 17: stackwright.v1.RunService.GetRun:input_type -> stackwright.v1.GetRunRequest
-	9,  // 18: stackwright.v1.RunService.WatchRun:input_type -> stackwright.v1.WatchRunRequest
-	11, // 19: stackwright.v1.RunService.ApproveRun:input_type -> stackwright.v1.ApproveRunRequest
-	13, // 20: stackwright.v1.RunService.RejectRun:input_type -> stackwright.v1.RejectRunRequest
-	15, // 21: stackwright.v1.RunService.CancelRun:input_type -> stackwright.v1.CancelRunRequest
-	17, // 22: stackwright.v1.RunService.ListWaiting:input_type -> stackwright.v1.ListWaitingRequest
-	4,  // 23: stackwright.v1.RunService.CreateRun:output_type -> stackwright.v1.CreateRunResponse
-	6,  // 24: stackwright.v1.RunService.ListRuns:output_type -> stackwright.v1.ListRunsResponse
-	8,  // 25: stackwright.v1.RunService.GetRun:output_type -> stackwright.v1.GetRunResponse
-	10, // 26: stackwright.v1.RunService.WatchRun:output_type -> stackwright.v1.WatchRunResponse
-	12, // 27: stackwright.v1.RunService.ApproveRun:output_type -> stackwright.v1.ApproveRunResponse
-	14, // 28: stackwright.v1.RunService.RejectRun:output_type -> stackwright.v1.RejectRunResponse
-	16, // 29: stackwright.v1.RunService.CancelRun:output_type -> stackwright.v1.CancelRunResponse
-	18, // 30: stackwright.v1.RunService.ListWaiting:output_type -> stackwright.v1.ListWaitingResponse
-	23, // [23:31] is the sub-list for method output_type
-	15, // [15:23] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	20, // 15: stackwright.v1.ListWaitingResponse.findings:type_name -> stackwright.v1.Finding
+	3,  // 16: stackwright.v1.RunService.CreateRun:input_type -> stackwright.v1.CreateRunRequest
+	5,  // 17: stackwright.v1.RunService.ListRuns:input_type -> stackwright.v1.ListRunsRequest
+	7,  // 18: stackwright.v1.RunService.GetRun:input_type -> stackwright.v1.GetRunRequest
+	9,  // 19: stackwright.v1.RunService.WatchRun:input_type -> stackwright.v1.WatchRunRequest
+	11, // 20: stackwright.v1.RunService.ApproveRun:input_type -> stackwright.v1.ApproveRunRequest
+	13, // 21: stackwright.v1.RunService.RejectRun:input_type -> stackwright.v1.RejectRunRequest
+	15, // 22: stackwright.v1.RunService.CancelRun:input_type -> stackwright.v1.CancelRunRequest
+	17, // 23: stackwright.v1.RunService.ListWaiting:input_type -> stackwright.v1.ListWaitingRequest
+	4,  // 24: stackwright.v1.RunService.CreateRun:output_type -> stackwright.v1.CreateRunResponse
+	6,  // 25: stackwright.v1.RunService.ListRuns:output_type -> stackwright.v1.ListRunsResponse
+	8,  // 26: stackwright.v1.RunService.GetRun:output_type -> stackwright.v1.GetRunResponse
+	10, // 27: stackwright.v1.RunService.WatchRun:output_type -> stackwright.v1.WatchRunResponse
+	12, // 28: stackwright.v1.RunService.ApproveRun:output_type -> stackwright.v1.ApproveRunResponse
+	14, // 29: stackwright.v1.RunService.RejectRun:output_type -> stackwright.v1.RejectRunResponse
+	16, // 30: stackwright.v1.RunService.CancelRun:output_type -> stackwright.v1.CancelRunResponse
+	18, // 31: stackwright.v1.RunService.ListWaiting:output_type -> stackwright.v1.ListWaitingResponse
+	24, // [24:32] is the sub-list for method output_type
+	16, // [16:24] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_stackwright_v1_runs_proto_init() }
@@ -1535,6 +1555,7 @@ func file_stackwright_v1_runs_proto_init() {
 	if File_stackwright_v1_runs_proto != nil {
 		return
 	}
+	file_stackwright_v1_security_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

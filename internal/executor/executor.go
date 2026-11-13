@@ -41,7 +41,10 @@ var (
 
 // credentialLifetime is how long AWS credentials last. A job that runs
 // longer cannot renew them.
-const credentialLifetime = time.Hour
+const (
+	credentialLifetime = time.Hour
+	scanTimeout        = 5 * time.Minute
+)
 
 // Run claims the job that ticket names and runs it in workDir. cacheDir is
 // the builder's read-only cache, or empty.
@@ -282,6 +285,15 @@ func (r *runner) run(ctx context.Context) (err error) {
 	if err := r.upload(ctx, "plan.json", planJSON); err != nil {
 		return &stageError{"artifacts", err}
 	}
+	// A scan that fails fails the plan: a plan with no review must not
+	// pass as one with no findings (adr/0037).
+	scan, err := r.scan(ctx, planJSON, job)
+	if err != nil {
+		return &stageError{"scan", err}
+	}
+	if err := r.upload(ctx, "scan.json", scan); err != nil {
+		return &stageError{"artifacts", err}
+	}
 	// A file that does not parse only costs the graph its links, so the plan
 	// goes on without it.
 	sources, err := graph.ReadSources(root, dir)
@@ -300,6 +312,43 @@ func (r *runner) run(ctx context.Context) (err error) {
 		return &stageError{"artifacts", err}
 	}
 	return nil
+}
+
+// scan runs Trivy on the plan JSON with its own checks and the org's, with
+// no network, and returns its JSON report (adr/0037).
+func (r *runner) scan(ctx context.Context, planJSON []byte, job *v1.Job) ([]byte, error) {
+	dir := filepath.Join(r.work, "scan")
+	checks := filepath.Join(dir, "checks")
+	if err := os.MkdirAll(checks, 0o700); err != nil {
+		return nil, err
+	}
+	plan, ignore := filepath.Join(dir, "plan.json"), filepath.Join(dir, "skipped")
+	if err := os.WriteFile(plan, planJSON, 0o600); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(ignore, []byte(strings.Join(job.GetSkippedChecks(), "\n")), 0o600); err != nil {
+		return nil, err
+	}
+	args := []string{"config", "--skip-check-update", "--quiet", "--format", "json", "--cache-dir", filepath.Join(dir, "cache"), "--ignorefile", ignore}
+	for _, p := range job.GetPolicies() {
+		if err := os.WriteFile(filepath.Join(checks, filepath.Base(p.GetName())+".rego"), []byte(p.GetRego()), 0o600); err != nil {
+			return nil, err
+		}
+	}
+	if len(job.GetPolicies()) > 0 {
+		args = append(args, "--config-check", checks, "--check-namespaces", "user")
+	}
+	ctx, cancel := context.WithTimeout(ctx, scanTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "trivy", append(args, plan)...) //nolint:gosec // the scanner in the image, with arguments this function builds
+	cmd.Env = []string{"HOME=" + filepath.Join(r.work, "home"), "PATH=/usr/local/bin:/usr/bin:/bin"}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("the security scan failed: %w: %s", err, r.redact(stderr.Bytes()))
+	}
+	return out, nil
 }
 
 // engineEnv is the workspace's variables, then the cloud credentials. The

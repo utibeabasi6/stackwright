@@ -1651,3 +1651,16 @@ button.action {
   font: var(--type-code);
   color: var(--ink-muted);
 }
+
+.run-findings {
+  max-height: 40vh;
+  overflow: auto;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--hairline);
+  background: var(--chrome);
+}
+
+.run-findings summary {
+  cursor: pointer;
+  font: var(--type-label);
+}

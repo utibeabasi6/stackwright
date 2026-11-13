@@ -48,6 +48,7 @@ Each decision has a record in [adr/](adr/).
 | Editor | Edits in a session's checkout; a save writes, never commits; three-way merge with the agent; `tofu-ls` in the sandbox over a WebSocket relayed through the toolbox stream | [0034](adr/0034-editor.md) |
 | Project labels | Labels on projects; groups and nested groups are views that group by label keys | [0035](adr/0035-project-labels.md) |
 | Importer | Runs use the code's own backend, so the repo still works alone; committed state is plan-only; no state copy, no migration PR | [0036](adr/0036-importer-and-the-codes-backend.md) |
+| Security review | Trivy scans each plan in the sandbox, offline; Rego policy sets are Trivy custom checks; findings by workspace, check and resource; High on what the plan changes blocks; the security role or an admin accepts a risk for up to 90 days; a nightly plan | [0037](adr/0037-security-review-with-trivy.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**
@@ -621,8 +622,8 @@ can block an apply.
 - New High findings in "Waiting on you".
 
 **Done when.**
-- [ ] SSH open to `0.0.0.0/0` makes one High finding, not one for each run
-- [ ] A High finding blocks the apply; an accepted risk unblocks it until it
+- [x] SSH open to `0.0.0.0/0` makes one High finding, not one for each run
+- [x] A High finding blocks the apply; an accepted risk unblocks it until it
       expires
 
 **Depends on:** 5, 12.

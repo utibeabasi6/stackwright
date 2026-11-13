@@ -13,6 +13,7 @@ const statuses: Record<RunStatus, { text: string; tone: Tone }> = {
   [RunStatus.FAILED]: { text: "! Failed", tone: "error" },
   [RunStatus.REJECTED]: { text: "Rejected", tone: "muted" },
   [RunStatus.CANCELED]: { text: "Canceled", tone: "muted" },
+  [RunStatus.BLOCKED]: { text: "! Blocked", tone: "error" },
 };
 
 export const statusOf = (s: RunStatus) => statuses[s];
@@ -20,7 +21,7 @@ export const statusOf = (s: RunStatus) => statuses[s];
 export const finished = (s: RunStatus) =>
   [RunStatus.PLANNED, RunStatus.APPLIED, RunStatus.FAILED, RunStatus.REJECTED, RunStatus.CANCELED].includes(s);
 
-export const active = (s: RunStatus) => [RunStatus.PLANNING, RunStatus.NEEDS_APPROVAL, RunStatus.APPLYING].includes(s);
+export const active = (s: RunStatus) => [RunStatus.PLANNING, RunStatus.NEEDS_APPROVAL, RunStatus.BLOCKED, RunStatus.APPLYING].includes(s);
 
 export function runTitle(r: Run) {
   return `${r.planOnly ? "Plan" : "Run"} #${r.number}`;
@@ -35,6 +36,8 @@ export function origin(r: Pick<Run, "trigger" | "prNumber" | "branch" | "commitS
       return `push to ${r.branch} · ${r.commitSha.slice(0, 7)}`;
     case "agent":
       return `the agent, on ${r.branch}`;
+    case "schedule":
+      return `the nightly review, from ${r.source}`;
   }
   return r.source;
 }
@@ -89,6 +92,10 @@ export function describeEvent(e: RunEvent): Line {
         : { text: "Plan: no changes" };
     case "run.needs_approval":
       return { text: "Waits for approval", tone: "warn" };
+    case "run.blocked":
+      return { text: "! A High or Critical finding blocks the apply", tone: "error" };
+    case "run.unblocked":
+      return { text: "An accepted risk unblocked the apply" };
     case "run.auto_approved":
       return { text: "Auto-apply is on, so the apply starts" };
     case "run.approved":

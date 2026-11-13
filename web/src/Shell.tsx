@@ -105,7 +105,7 @@ export function Shell() {
   const [waitingVersion, setWaitingVersion] = useState(0);
   const reloadWaiting = useCallback(() => setWaitingVersion((v) => v + 1), []);
   const waiting = useLoad(`waiting:${org}:${waitingVersion}`, () =>
-    org ? runApi.listWaiting({ org }).then((r) => r.approvals.length + r.failures.length) : Promise.resolve(0),
+    org ? runApi.listWaiting({ org }).then((r) => r.approvals.length + r.failures.length + r.findings.length) : Promise.resolve(0),
   );
   useEffect(() => {
     const id = window.setInterval(reloadWaiting, 15000);
@@ -231,6 +231,9 @@ export function Shell() {
                 </Link>
                 <Link to="/$org/projects/$project/$workspace/cloud" params={ws}>
                   Cloud credentials
+                </Link>
+                <Link to="/$org/projects/$project/$workspace/security" params={ws}>
+                  Security
                 </Link>
                 <Link to="/$org/projects/$project/$workspace/settings" params={ws}>
                   Settings

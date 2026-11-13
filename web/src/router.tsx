@@ -23,6 +23,7 @@ import { GitHub } from "./pages/settings/GitHub";
 import { OrgVariables } from "./pages/settings/OrgVariables";
 import { General } from "./pages/settings/General";
 import { Members } from "./pages/settings/Members";
+import { SecuritySettings } from "./pages/settings/Security";
 import { Settings } from "./pages/settings/Settings";
 import { SignInProviders } from "./pages/settings/SignInProviders";
 import { Tokens } from "./pages/settings/Tokens";
@@ -51,6 +52,7 @@ export const routeTree = root.addChildren([
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/state", component: () => <Workspace section="state" /> }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/variables", component: () => <Workspace section="variables" /> }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/cloud", component: () => <Workspace section="cloud" /> }),
+      createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/security", component: () => <Workspace section="security" /> }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/settings", component: () => <Workspace section="settings" /> }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/runs", component: Runs }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/runs/$number", component: Run }),
@@ -64,6 +66,7 @@ export const routeTree = root.addChildren([
         createRoute({ getParentRoute: () => settings, path: "cloud", component: CloudAccounts }),
         createRoute({ getParentRoute: () => settings, path: "github", component: GitHub }),
         createRoute({ getParentRoute: () => settings, path: "agent", component: AgentSettings }),
+        createRoute({ getParentRoute: () => settings, path: "security", component: SecuritySettings }),
         createRoute({ getParentRoute: () => settings, path: "sign-in", component: SignInProviders }),
       ]),
     ]),

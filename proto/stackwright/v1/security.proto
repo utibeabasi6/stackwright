@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// SecurityService holds the security review's findings, risk acceptances
+// and the org's policy (adr/0037).
+service SecurityService {
+  // ListFindings lists a workspace's findings, or the org's with no
+  // workspace.
+  rpc ListFindings(ListFindingsRequest) returns (ListFindingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // ListRunFindings lists what a run's plan found, and which block it.
+  rpc ListRunFindings(ListRunFindingsRequest) returns (ListRunFindingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // AcceptRisk accepts a finding's risk until expires_at, at most 90 days
+  // ahead. It needs the security role, an admin or an owner.
+  rpc AcceptRisk(AcceptRiskRequest) returns (AcceptRiskResponse);
+  rpc GetSecurityPolicy(GetSecurityPolicyRequest) returns (GetSecurityPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc SetPolicySet(SetPolicySetRequest) returns (SetPolicySetResponse);
+  rpc DeletePolicySet(DeletePolicySetRequest) returns (DeletePolicySetResponse);
+  rpc SetSkippedChecks(SetSkippedChecksRequest) returns (SetSkippedChecksResponse);
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_LOW = 1;
+  SEVERITY_MEDIUM = 2;
+  SEVERITY_HIGH = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+message Finding {
+  string id = 1;
+  string project = 2;
+  string workspace = 3;
+  // The check, such as "AWS-0107", or an org's own, such as "ACME-0001".
+  string check_id = 4;
+  Severity severity = 5;
+  string title = 6;
+  string message = 7;
+  // The resource address, such as "aws_security_group.ssh".
+  string resource = 8;
+  // Fixed when the newest plan of the workspace's code no longer has it.
+  bool fixed = 9;
+  google.protobuf.Timestamp first_seen_at = 10;
+  google.protobuf.Timestamp last_seen_at = 11;
+  // The accepted risk in force, if any.
+  RiskAcceptance acceptance = 12;
+  // In a run's list: this finding blocks the run.
+  bool blocking = 13;
+}
+
+message RiskAcceptance {
+  string accepted_by = 1;
+  string reason = 2;
+  google.protobuf.Timestamp accepted_at = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message ListFindingsRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  bool include_fixed = 4;
+}
+
+message ListFindingsResponse {
+  repeated Finding findings = 1;
+}
+
+message ListRunFindingsRequest {
+  string org = 1;
+  string project = 2;
+  string workspace = 3;
+  int32 number = 4;
+}
+
+message ListRunFindingsResponse {
+  repeated Finding findings = 1;
+}
+
+message AcceptRiskRequest {
+  string org = 1;
+  string id = 2;
+  string reason = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message AcceptRiskResponse {
+  Finding finding = 1;
+}
+
+message PolicySet {
+  string name = 1;
+  string rego = 2;
+  string updated_by = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message GetSecurityPolicyRequest {
+  string org = 1;
+}
+
+message GetSecurityPolicyResponse {
+  repeated PolicySet policy_sets = 1;
+  repeated string skipped_checks = 2;
+}
+
+message SetPolicySetRequest {
+  string org = 1;
+  string name = 2;
+  string rego = 3;
+}
+
+message SetPolicySetResponse {
+  PolicySet policy_set = 1;
+}
+
+message DeletePolicySetRequest {
+  string org = 1;
+  string name = 2;
+}
+
+message DeletePolicySetResponse {}
+
+message SetSkippedChecksRequest {
+  string org = 1;
+  repeated string skipped_checks = 2;
+}
+
+message SetSkippedChecksResponse {}

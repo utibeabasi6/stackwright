@@ -333,6 +333,12 @@ func (Runs) ListWaiting(ctx context.Context, _ *connect.Request[v1.ListWaitingRe
 			return nil, err
 		}
 	}
+	if mayDecideRisk(s.Role) == nil {
+		if out.Findings, err = queryFindings(ctx, s.Tx, `f.fixed_at IS NULL AND f.severity IN ('high', 'critical') AND a.reason IS NULL
+			AND w.archived_at IS NULL AND p.archived_at IS NULL ORDER BY f.first_seen_at DESC`); err != nil {
+			return nil, err
+		}
+	}
 	if out.Failures, err = queryRuns(ctx, s.Tx, `r.status = 'failed' AND w.archived_at IS NULL
 		AND r.id IN (SELECT DISTINCT ON (workspace_id) id FROM runs ORDER BY workspace_id, number DESC)
 		ORDER BY r.finished_at DESC`); err != nil {

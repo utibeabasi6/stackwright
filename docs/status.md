@@ -1095,3 +1095,63 @@ none.
 - A local backend with no committed state imports as plan-only, and its
   first plan shows everything as new; the wizard says so.
 - Terragrunt units are listed and wait for phase 18.
+
+## Phase 16: Security review
+
+Decision: [0037](adr/0037-security-review-with-trivy.md). Trivy 0.76.1
+scans each plan's JSON in the sandbox, offline. The user chose the
+scanner, the roles that accept risks (security, admins and owners), a
+nightly plan-only run, and blocks only on what a plan changes. Running
+Trivy on the host was refused, so it ran only inside Docker images.
+
+**Verified on 2026-11-13:**
+- By hand, in the executor image with a read-only root, user 65532 and no
+  network: Trivy reports AWS-0107 as High on `aws_security_group.ssh`, and
+  runs an org's Rego check in the `user` namespace.
+- A Go test with real sandboxes and the AWS provider with fake keys:
+  - A plan of a security group with SSH open to `0.0.0.0/0` goes to
+    Blocked, with one High AWS-0107 finding that blocks it. Approve
+    refuses the run.
+  - A writer, a reviewer and a viewer cannot accept the risk. An expiry of
+    91 days is refused. The finding waits on the security role, not on a
+    reviewer.
+  - The security role accepts it for a day, and the run moves to Needs
+    approval. With the acceptance expired in the database, Approve moves
+    the run back to Blocked.
+  - A second plan of the same code keeps the one finding. A plan with the
+    rule closed to `10.0.0.0/8` marks it fixed.
+  - A policy set raises its own finding on an S3 bucket, and a skipped
+    built-in check raises none.
+  - The nightly queue gives each workspace one plan-only run with trigger
+    `schedule`, even when called twice, and it plans the last upload.
+- The meta-tests cover the security service's policy and the audit rows
+  of its four writes. The role matrix knows that the four writes admit
+  the security role, admins and owners only.
+- Web tests: a blocked run shows its finding and no Approve button; the
+  security role accepts a risk for 30 days with a reason; a writer sees
+  findings but no Accept risk; open findings show on Waiting on you.
+- The first run of the test found a bug: a plan with no findings closed
+  none, since an empty list went to Postgres as NULL. It is fixed.
+
+**Not verified:**
+- The nightly loop itself at 02:00 UTC; the test calls the queue
+  directly. A linked workspace's nightly run of its branch's newest
+  commit has no test.
+- The pages in the browser on the development stack.
+- An apply after an accepted risk; the AWS fixture has fake keys, so the
+  test rejects the run instead.
+- Scan time on large code.
+
+**Known gaps:**
+- A build server with an executor image older than this phase uploads no
+  scan, so its plans that would apply fail. Redeploy, then load the new
+  executor image into each build server.
+- Unlinking a GitHub installation can deadlock with the dispatcher. The
+  dispatcher updates a run twice in one transaction, so Postgres checks
+  `runs.repo_id` again and takes a lock on the repository row. The unlink
+  holds that row and waits for the run. This dates from phase 7, and
+  phase 15's import made the audit test hit it: it failed once in two
+  full runs on 2026-11-13, with Unlink returning an internal error. It is
+  not fixed.
+- The nightly run skips a night on which no server runs.
+

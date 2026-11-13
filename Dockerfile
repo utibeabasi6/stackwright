@@ -37,11 +37,25 @@ RUN case "$TARGETARCH" in \
     echo "$sum  /tmp/tofu-ls.tar.gz" | sha256sum -c - && \
     tar -xzf /tmp/tofu-ls.tar.gz -C /usr/local/bin tofu-ls
 
+# The security scanner (adr/0037), checked against the release's checksums.
+FROM alpine:3.22.2 AS trivy
+ARG TARGETARCH
+ARG TRIVY_VERSION=0.76.1
+RUN case "$TARGETARCH" in \
+      arm64) arch=ARM64; sum=e174dff2a6dba5e3ae41f8d0537a6324405bd08132497340304c6b20e0f16a1f ;; \
+      amd64) arch=64bit; sum=c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0 ;; \
+      *) echo "no trivy for $TARGETARCH"; exit 1 ;; \
+    esac && \
+    wget -q -O /tmp/trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-${arch}.tar.gz" && \
+    echo "$sum  /tmp/trivy.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy
+
 # Alpine for git, which the engines use to download most modules
 # (adr/0024). The sandbox still runs as 65532 with a read-only root.
 FROM alpine:3.22.2 AS executor
 RUN apk add --no-cache git ca-certificates
 COPY --from=tofu-ls /usr/local/bin/tofu-ls /usr/local/bin/tofu-ls
+COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
 USER 65532:65532
 COPY --from=go /out/stackwright-executor /stackwright-executor
 COPY --from=go --chown=65532:65532 /out/files /run/stackwright

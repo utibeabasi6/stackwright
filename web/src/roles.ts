@@ -9,4 +9,8 @@ export const roles = [
   { role: Role.OWNER, name: "Owner", about: "Admin, and makes or removes owners." },
 ];
 
+// decidesRisk says who accepts risks and edits the security policy: the
+// security role, admins and owners, but not writers or reviewers.
+export const decidesRisk = (r: Role) => r === Role.SECURITY || r >= Role.ADMIN;
+
 export const roleName = (r: Role) => roles.find((x) => x.role === r)?.name ?? "Unknown";

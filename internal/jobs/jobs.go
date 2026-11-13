@@ -266,6 +266,24 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	if eng == "terraform" {
 		job.Engine = v1.Engine_ENGINE_TERRAFORM
 	}
+	// The org's policy sets and skipped checks go to the scan (adr/0037).
+	rows, err := tx.Query(ctx, `SELECT name, rego FROM policy_sets ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	if job.Policies, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (*v1.PolicyFile, error) {
+		p := &v1.PolicyFile{}
+		return p, r.Scan(&p.Name, &p.Rego)
+	}); err != nil {
+		return nil, err
+	}
+	rows, err = tx.Query(ctx, `SELECT check_id FROM skipped_checks ORDER BY check_id`)
+	if err != nil {
+		return nil, err
+	}
+	if job.SkippedChecks, err = pgx.CollectRows(rows, pgx.RowTo[string]); err != nil {
+		return nil, err
+	}
 	// A project on the code's backend runs it as written (adr/0036).
 	if stateBackend != "stackwright" {
 		job.CodeBackend = true
@@ -273,7 +291,8 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 			job.Workspace = workspace
 		}
 	}
-	sourceJob, inputs, outputs := jobID, []string{"source.tar.gz"}, []string{"plan.bin", "plan.json", "lock.hcl", "sources.json", "workdir.tar.gz", "log.jsonl"}
+	sourceJob, inputs, outputs := jobID, []string{"source.tar.gz"}, []string{"plan.bin", "plan.json", "lock.hcl", "sources.json", "workdir.tar.gz", "log.jsonl",
+		"scan.json"}
 	if operation == "apply" {
 		job.Operation = v1.JobOperation_JOB_OPERATION_APPLY
 		sourceJob, inputs, outputs = *planJobID, []string{"source.tar.gz", "workdir.tar.gz", "plan.bin", "lock.hcl"}, []string{"log.jsonl"}

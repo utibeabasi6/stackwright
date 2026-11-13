@@ -32,6 +32,9 @@ export function Settings() {
         <Link to="/$org/settings/agent" params={{ org }}>
           Agent
         </Link>
+        <Link to="/$org/settings/security" params={{ org }}>
+          Security
+        </Link>
         {admin && (
           <Link to="/$org/settings/audit" params={{ org }}>
             Audit log

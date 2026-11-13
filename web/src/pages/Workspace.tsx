@@ -11,6 +11,7 @@ import { useShell } from "../me";
 import { formatLabels, parseLabels } from "../labels";
 import { useLoad } from "../useLoad";
 import { CloudPanel } from "./CloudPanel";
+import { WorkspaceSecurity } from "./Findings";
 import { RunsPanel } from "./RunsPanel";
 import { Variables } from "./Variables";
 import { StatePanel } from "./StatePanel";
@@ -20,6 +21,7 @@ const titles = {
   state: "State",
   variables: "Variables",
   cloud: "Cloud credentials",
+  security: "Security",
   settings: "Settings",
 } as const;
 
@@ -143,6 +145,8 @@ export function Workspace({ section }: { section: Section }) {
             reload={ws.reload}
           />
         )}
+
+        {section === "security" && <WorkspaceSecurity org={org} project={project} workspace={workspace} />}
 
         {section === "settings" && (
           <>

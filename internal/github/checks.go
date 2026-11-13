@@ -153,6 +153,8 @@ func (c checkRun) state() (status, conclusion, title string) {
 		return "in_progress", "", "Applying"
 	case "needs_approval":
 		return "completed", "action_required", "Waits for approval: " + c.changesText()
+	case "blocked":
+		return "completed", "action_required", "Blocked by a security finding: " + c.changesText()
 	case "planned":
 		return "completed", "success", "Planned: " + c.changesText()
 	case "applied":

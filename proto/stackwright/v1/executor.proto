@@ -52,6 +52,15 @@ message Job {
   // (adr/0036); workspace then names the CLI workspace, if any.
   bool code_backend = 15;
   string workspace = 16;
+  // The org's Rego policy sets, as Trivy custom checks, and the built-in
+  // checks it skips (adr/0037).
+  repeated PolicyFile policies = 17;
+  repeated string skipped_checks = 18;
+}
+
+message PolicyFile {
+  string name = 1;
+  string rego = 2;
 }
 
 message JobVariable {

@@ -3,6 +3,7 @@ syntax = "proto3";
 package stackwright.v1;
 
 import "google/protobuf/timestamp.proto";
+import "stackwright/v1/security.proto";
 
 service RunService {
   rpc CreateRun(CreateRunRequest) returns (CreateRunResponse);
@@ -36,6 +37,9 @@ enum RunStatus {
   RUN_STATUS_FAILED = 7;
   RUN_STATUS_REJECTED = 8;
   RUN_STATUS_CANCELED = 9;
+  // A High or Critical finding on what the plan changes holds the apply
+  // until someone accepts the risk (adr/0037).
+  RUN_STATUS_BLOCKED = 10;
 }
 
 message Run {
@@ -173,4 +177,7 @@ message ListWaitingResponse {
   // workspace's latest run failed.
   repeated Run approvals = 1;
   repeated Run failures = 2;
+  // Open High and Critical findings that no one accepted, for those who
+  // may accept them.
+  repeated Finding findings = 3;
 }

@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/agent"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
@@ -302,7 +303,7 @@ func methods() []method {
 		v1.File_stackwright_v1_executor_proto, v1.File_stackwright_v1_runs_proto, v1.File_stackwright_v1_builder_proto,
 		v1.File_stackwright_v1_build_servers_proto, v1.File_stackwright_v1_variables_proto, v1.File_stackwright_v1_cloud_proto,
 		v1.File_stackwright_v1_github_proto, v1.File_stackwright_v1_graph_proto, v1.File_stackwright_v1_agent_proto,
-		v1.File_stackwright_v1_imports_proto,
+		v1.File_stackwright_v1_imports_proto, v1.File_stackwright_v1_security_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -450,6 +451,15 @@ func TestAWrongCSRFHeaderCountsAsSignedOut(t *testing.T) {
 	}
 }
 
+// decidesRisk are the procedures whose handlers admit the security role,
+// admins and owners only, narrower than the policy's rank (adr/0037).
+var decidesRisk = map[string]bool{
+	stackwrightv1connect.SecurityServiceAcceptRiskProcedure:       true,
+	stackwrightv1connect.SecurityServiceSetPolicySetProcedure:     true,
+	stackwrightv1connect.SecurityServiceDeletePolicySetProcedure:  true,
+	stackwrightv1connect.SecurityServiceSetSkippedChecksProcedure: true,
+}
+
 func TestRoleMatrix(t *testing.T) {
 	w := newWorld(t, nil)
 	owner := w.setup()
@@ -483,7 +493,11 @@ func TestRoleMatrix(t *testing.T) {
 		case authz.InOrg:
 			for role, c := range as {
 				_, code := c.call(short(m.procedure), map[string]any{"org": "a"})
-				if denied, want := code == "permission_denied", !authz.AtLeast(role, rule.Min); denied != want {
+				want := !authz.AtLeast(role, rule.Min)
+				if decidesRisk[m.procedure] {
+					want = role != v1.Role_ROLE_SECURITY && !authz.AtLeast(role, v1.Role_ROLE_ADMIN)
+				}
+				if denied := code == "permission_denied"; denied != want {
 					t.Errorf("%s as %s: %q, want denied=%v", m.procedure, role, code, want)
 				}
 			}
@@ -763,6 +777,26 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 		if _, _, err := enrolOverSSH(owner, map[string]any{"name": "audited-ssh", "port": port, "hostKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"}); err == nil {
 			t.Error("enrol with a wrong host key passed")
 		}
+	})
+	orgID, workspaceID := w.workspaceIDs("web", "prod")
+	var findingID string
+	if err := w.owner.QueryRow(context.Background(), `INSERT INTO findings (id, org_id, workspace_id, check_id, resource, severity, title, message)
+		VALUES (gen_random_uuid(), $1, $2, 'AWS-0107', 'aws_security_group.ssh', 'high', 'SSH open', 'open') RETURNING id`,
+		orgID, workspaceID).Scan(&findingID); err != nil {
+		t.Fatal(err)
+	}
+	step("SecurityService/AcceptRisk", func() {
+		owner.must("SecurityService/AcceptRisk", map[string]any{"org": "a", "id": findingID, "reason": "a bastion",
+			"expiresAt": time.Now().Add(24 * time.Hour).Format(time.RFC3339)})
+	})
+	step("SecurityService/SetPolicySet", func() {
+		owner.must("SecurityService/SetPolicySet", map[string]any{"org": "a", "name": "naming", "rego": "package user.acme.ACME0001\n"})
+	})
+	step("SecurityService/DeletePolicySet", func() {
+		owner.must("SecurityService/DeletePolicySet", map[string]any{"org": "a", "name": "naming"})
+	})
+	step("SecurityService/SetSkippedChecks", func() {
+		owner.must("SecurityService/SetSkippedChecks", map[string]any{"org": "a", "skippedChecks": []string{"AWS-0089"}})
 	})
 	second := w.client()
 	step("AuthService/SignIn", func() {
