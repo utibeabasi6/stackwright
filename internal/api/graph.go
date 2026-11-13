@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -14,6 +16,7 @@ import (
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/graph"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/topology"
 )
 
 const (
@@ -156,4 +159,75 @@ func (Graph) SaveGraphLayout(ctx context.Context, req *connect.Request[v1.SaveGr
 	}
 	s.Target(fmt.Sprintf("graph layout %s/%s replace=%t", m.Project, m.Workspace, m.Replace))
 	return connect.NewResponse(&v1.SaveGraphLayoutResponse{}), nil
+}
+
+func (h Graph) GetTopology(ctx context.Context, _ *connect.Request[v1.GetTopologyRequest]) (*connect.Response[v1.GetTopologyResponse], error) {
+	tx := authz.ScopeFrom(ctx).Tx
+	rows, err := tx.Query(ctx, `SELECT DISTINCT ON (w.id) p.slug, w.name, r.number, j.id
+		FROM runs r JOIN jobs j ON j.id = r.plan_job_id JOIN workspaces w ON w.id = r.workspace_id JOIN projects p ON p.id = w.project_id
+		WHERE w.archived_at IS NULL AND p.archived_at IS NULL AND r.trigger IN ('ui', 'push', 'schedule') AND j.status = 'succeeded'
+		ORDER BY w.id, r.number DESC`)
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
+	type latest struct {
+		project, workspace, job string
+		number                  int32
+	}
+	all, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (latest, error) {
+		var l latest
+		return l, r.Scan(&l.project, &l.workspace, &l.number, &l.job)
+	})
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
+	slices.SortFunc(all, func(a, b latest) int { return strings.Compare(a.project+"/"+a.workspace, b.project+"/"+b.workspace) })
+	out := &v1.GetTopologyResponse{}
+	var plans []topology.Plan
+	for _, l := range all {
+		b, err := h.Jobs.ReadArtifact(ctx, tx, l.job, "plan.json")
+		if errors.Is(err, jobs.ErrNoArtifact) {
+			continue
+		}
+		if err != nil {
+			return nil, authz.Internal(err)
+		}
+		plans = append(plans, topology.Plan{Project: l.project, Workspace: l.workspace, JSON: b})
+		out.Sources = append(out.Sources, fmt.Sprintf("%s/%s #%d", l.project, l.workspace, l.number))
+	}
+	if out.Topology, err = topology.Build(plans); err != nil {
+		return nil, authz.Internal(err)
+	}
+
+	rows, err = tx.Query(ctx, `SELECT p.slug, w.name, f.resource, f.severity FROM findings f JOIN workspaces w ON w.id = f.workspace_id
+		JOIN projects p ON p.id = w.project_id WHERE f.fixed_at IS NULL`)
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
+	type found struct {
+		key, severity string
+	}
+	open, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (found, error) {
+		var project, workspace, resource string
+		var f found
+		err := r.Scan(&project, &workspace, &resource, &f.severity)
+		f.key = project + "/" + workspace + "/" + resource
+		return f, err
+	})
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
+	counts, worst := map[string]int32{}, map[string]v1.Severity{}
+	for _, f := range open {
+		counts[f.key]++
+		worst[f.key] = max(worst[f.key], severities[f.severity])
+	}
+	for _, n := range out.Topology.Nodes {
+		k := n.Id
+		if counts[k] == 0 {
+			k = n.Project + "/" + n.Workspace + "/" + graph.StripKeys(n.Address)
+		}
+		n.Findings, n.Worst = counts[k], worst[k]
+	}
+	return connect.NewResponse(out), nil
 }

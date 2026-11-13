@@ -49,6 +49,7 @@ Each decision has a record in [adr/](adr/).
 | Project labels | Labels on projects; groups and nested groups are views that group by label keys | [0035](adr/0035-project-labels.md) |
 | Importer | Runs use the code's own backend, so the repo still works alone; committed state is plan-only; no state copy, no migration PR | [0036](adr/0036-importer-and-the-codes-backend.md) |
 | Security review | Trivy scans each plan in the sandbox, offline; Rego policy sets are Trivy custom checks; findings by workspace, check and resource; High on what the plan changes blocks; the security role or an admin accepts a risk for up to 90 days; a nightly plan | [0037](adr/0037-security-review-with-trivy.md) |
+| Topology | Each workspace's latest own-code plan, joined across the org by AWS id, or by configuration reference inside a workspace; zones as columns, laid out by the web app | [0038](adr/0038-topology-from-plans.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**
@@ -630,8 +631,9 @@ can block an apply.
 
 ### Phase 17: Topology
 
-**Goal.** The Topology tab draws the AWS network from state, with planned
-changes and findings on top.
+**Goal.** The Topology tab draws the AWS network from each workspace's
+latest plan, joined across the org, with planned changes and findings on
+top.
 
 **Build.**
 - A mapping from AWS resource types to roles: VPC, zone, subnet, gateway,
@@ -640,8 +642,8 @@ changes and findings on top.
 - The side panel for subnets and security groups.
 
 **Done when.**
-- [ ] A two-zone VPC fixture draws with the right subnets, NAT and routes
-- [ ] A planned NAT shows dashed in the create colour
+- [x] A two-zone VPC fixture draws with the right subnets, NAT and routes
+- [x] A planned NAT shows dashed in the create colour
 
 **Depends on:** 9, 16.
 

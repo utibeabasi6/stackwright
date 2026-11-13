@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package stackwright.v1;
 
+import "stackwright/v1/security.proto";
+
 service GraphService {
   // GetPlanGraph returns the graph of a run's plan, with the workspace's
   // stored layout.
@@ -15,6 +17,11 @@ service GraphService {
   // SaveGraphLayout stores node positions for the workspace. With replace,
   // the stored positions are dropped first.
   rpc SaveGraphLayout(SaveGraphLayoutRequest) returns (SaveGraphLayoutResponse);
+  // GetTopology returns the org's AWS network, joined from each
+  // workspace's latest plan of its own code (adr/0038).
+  rpc GetTopology(GetTopologyRequest) returns (GetTopologyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 enum PlanAction {
@@ -163,3 +170,113 @@ message SaveGraphLayoutRequest {
 }
 
 message SaveGraphLayoutResponse {}
+
+enum TopologyRole {
+  TOPOLOGY_ROLE_UNSPECIFIED = 0;
+  TOPOLOGY_ROLE_VPC = 1;
+  TOPOLOGY_ROLE_SUBNET = 2;
+  TOPOLOGY_ROLE_INTERNET_GATEWAY = 3;
+  TOPOLOGY_ROLE_NAT_GATEWAY = 4;
+  TOPOLOGY_ROLE_ROUTE_TABLE = 5;
+  TOPOLOGY_ROLE_SECURITY_GROUP = 6;
+  TOPOLOGY_ROLE_LOAD_BALANCER = 7;
+  TOPOLOGY_ROLE_INSTANCE_GROUP = 8;
+  TOPOLOGY_ROLE_INSTANCE = 9;
+  TOPOLOGY_ROLE_DATABASE = 10;
+  TOPOLOGY_ROLE_CLUSTER = 11;
+  TOPOLOGY_ROLE_PEERING = 12;
+  // An id that no workspace's plan has, such as a transit gateway that
+  // another tool manages.
+  TOPOLOGY_ROLE_EXTERNAL = 13;
+  // 0.0.0.0/0 or ::/0 as a security group rule's source.
+  TOPOLOGY_ROLE_INTERNET = 14;
+}
+
+message TopologyRoute {
+  string destination = 1;
+  // The target's node id.
+  string target = 2;
+}
+
+message TopologyRule {
+  bool ingress = 1;
+  // "-1" is every protocol.
+  string protocol = 2;
+  int32 from_port = 3;
+  int32 to_port = 4;
+  repeated string cidrs = 5;
+  // The other security group's node id.
+  string security_group = 6;
+  bool self = 7;
+  string description = 8;
+}
+
+message TopologyNode {
+  // "project/workspace/address" with instance keys, the AWS id of an
+  // external stub, or "internet".
+  string id = 1;
+  TopologyRole role = 2;
+  string project = 3;
+  string workspace = 4;
+  string address = 5;
+  string type = 6;
+  // The Name tag, else the resource's name attribute, else its address.
+  string name = 7;
+  // Empty while a planned resource has no id.
+  string aws_id = 8;
+  PlanAction action = 9;
+  // The VPC's node id.
+  string vpc = 10;
+  // The availability zone of a subnet, or of a node in one zone only.
+  string zone = 11;
+  // The subnets' node ids that the node sits in.
+  repeated string subnets = 12;
+  // A subnet whose route table sends 0.0.0.0/0 to an internet gateway.
+  bool public = 13;
+  string cidr = 14;
+  repeated string security_groups = 15;
+  // A subnet's routes, from its route table or the VPC's main one.
+  repeated TopologyRoute routes = 16;
+  // A security group's rules.
+  repeated TopologyRule rules = 17;
+  // Open findings on the resource, and the worst one's severity.
+  int32 findings = 18;
+  Severity worst = 19;
+}
+
+enum TopologyEdgeKind {
+  TOPOLOGY_EDGE_KIND_UNSPECIFIED = 0;
+  // From a subnet to its route's target.
+  TOPOLOGY_EDGE_KIND_ROUTE = 1;
+  // From a rule's source to the security group.
+  TOPOLOGY_EDGE_KIND_SECURITY_GROUP_RULE = 2;
+  // From a VPC to its peering connection, and on to the peer.
+  TOPOLOGY_EDGE_KIND_PEERING = 3;
+}
+
+message TopologyEdge {
+  string from = 1;
+  string to = 2;
+  TopologyEdgeKind kind = 3;
+  // Such as "0.0.0.0/0" or "tcp 443".
+  string label = 4;
+  PlanAction action = 5;
+}
+
+message Topology {
+  repeated TopologyNode nodes = 1;
+  repeated TopologyEdge edges = 2;
+  // Each AWS id that two workspaces manage, as "id: a/x, b/y".
+  repeated string clashes = 3;
+}
+
+message GetTopologyRequest {
+  string org = 1;
+}
+
+message GetTopologyResponse {
+  Topology topology = 1;
+  // The workspaces whose plans were read, as "project/workspace #run".
+  repeated string sources = 2;
+}
+

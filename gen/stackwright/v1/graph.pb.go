@@ -87,6 +87,149 @@ func (PlanAction) EnumDescriptor() ([]byte, []int) {
 	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{0}
 }
 
+type TopologyRole int32
+
+const (
+	TopologyRole_TOPOLOGY_ROLE_UNSPECIFIED      TopologyRole = 0
+	TopologyRole_TOPOLOGY_ROLE_VPC              TopologyRole = 1
+	TopologyRole_TOPOLOGY_ROLE_SUBNET           TopologyRole = 2
+	TopologyRole_TOPOLOGY_ROLE_INTERNET_GATEWAY TopologyRole = 3
+	TopologyRole_TOPOLOGY_ROLE_NAT_GATEWAY      TopologyRole = 4
+	TopologyRole_TOPOLOGY_ROLE_ROUTE_TABLE      TopologyRole = 5
+	TopologyRole_TOPOLOGY_ROLE_SECURITY_GROUP   TopologyRole = 6
+	TopologyRole_TOPOLOGY_ROLE_LOAD_BALANCER    TopologyRole = 7
+	TopologyRole_TOPOLOGY_ROLE_INSTANCE_GROUP   TopologyRole = 8
+	TopologyRole_TOPOLOGY_ROLE_INSTANCE         TopologyRole = 9
+	TopologyRole_TOPOLOGY_ROLE_DATABASE         TopologyRole = 10
+	TopologyRole_TOPOLOGY_ROLE_CLUSTER          TopologyRole = 11
+	TopologyRole_TOPOLOGY_ROLE_PEERING          TopologyRole = 12
+	// An id that no workspace's plan has, such as a transit gateway that
+	// another tool manages.
+	TopologyRole_TOPOLOGY_ROLE_EXTERNAL TopologyRole = 13
+	// 0.0.0.0/0 or ::/0 as a security group rule's source.
+	TopologyRole_TOPOLOGY_ROLE_INTERNET TopologyRole = 14
+)
+
+// Enum value maps for TopologyRole.
+var (
+	TopologyRole_name = map[int32]string{
+		0:  "TOPOLOGY_ROLE_UNSPECIFIED",
+		1:  "TOPOLOGY_ROLE_VPC",
+		2:  "TOPOLOGY_ROLE_SUBNET",
+		3:  "TOPOLOGY_ROLE_INTERNET_GATEWAY",
+		4:  "TOPOLOGY_ROLE_NAT_GATEWAY",
+		5:  "TOPOLOGY_ROLE_ROUTE_TABLE",
+		6:  "TOPOLOGY_ROLE_SECURITY_GROUP",
+		7:  "TOPOLOGY_ROLE_LOAD_BALANCER",
+		8:  "TOPOLOGY_ROLE_INSTANCE_GROUP",
+		9:  "TOPOLOGY_ROLE_INSTANCE",
+		10: "TOPOLOGY_ROLE_DATABASE",
+		11: "TOPOLOGY_ROLE_CLUSTER",
+		12: "TOPOLOGY_ROLE_PEERING",
+		13: "TOPOLOGY_ROLE_EXTERNAL",
+		14: "TOPOLOGY_ROLE_INTERNET",
+	}
+	TopologyRole_value = map[string]int32{
+		"TOPOLOGY_ROLE_UNSPECIFIED":      0,
+		"TOPOLOGY_ROLE_VPC":              1,
+		"TOPOLOGY_ROLE_SUBNET":           2,
+		"TOPOLOGY_ROLE_INTERNET_GATEWAY": 3,
+		"TOPOLOGY_ROLE_NAT_GATEWAY":      4,
+		"TOPOLOGY_ROLE_ROUTE_TABLE":      5,
+		"TOPOLOGY_ROLE_SECURITY_GROUP":   6,
+		"TOPOLOGY_ROLE_LOAD_BALANCER":    7,
+		"TOPOLOGY_ROLE_INSTANCE_GROUP":   8,
+		"TOPOLOGY_ROLE_INSTANCE":         9,
+		"TOPOLOGY_ROLE_DATABASE":         10,
+		"TOPOLOGY_ROLE_CLUSTER":          11,
+		"TOPOLOGY_ROLE_PEERING":          12,
+		"TOPOLOGY_ROLE_EXTERNAL":         13,
+		"TOPOLOGY_ROLE_INTERNET":         14,
+	}
+)
+
+func (x TopologyRole) Enum() *TopologyRole {
+	p := new(TopologyRole)
+	*p = x
+	return p
+}
+
+func (x TopologyRole) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TopologyRole) Descriptor() protoreflect.EnumDescriptor {
+	return file_stackwright_v1_graph_proto_enumTypes[1].Descriptor()
+}
+
+func (TopologyRole) Type() protoreflect.EnumType {
+	return &file_stackwright_v1_graph_proto_enumTypes[1]
+}
+
+func (x TopologyRole) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TopologyRole.Descriptor instead.
+func (TopologyRole) EnumDescriptor() ([]byte, []int) {
+	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{1}
+}
+
+type TopologyEdgeKind int32
+
+const (
+	TopologyEdgeKind_TOPOLOGY_EDGE_KIND_UNSPECIFIED TopologyEdgeKind = 0
+	// From a subnet to its route's target.
+	TopologyEdgeKind_TOPOLOGY_EDGE_KIND_ROUTE TopologyEdgeKind = 1
+	// From a rule's source to the security group.
+	TopologyEdgeKind_TOPOLOGY_EDGE_KIND_SECURITY_GROUP_RULE TopologyEdgeKind = 2
+	// From a VPC to its peering connection, and on to the peer.
+	TopologyEdgeKind_TOPOLOGY_EDGE_KIND_PEERING TopologyEdgeKind = 3
+)
+
+// Enum value maps for TopologyEdgeKind.
+var (
+	TopologyEdgeKind_name = map[int32]string{
+		0: "TOPOLOGY_EDGE_KIND_UNSPECIFIED",
+		1: "TOPOLOGY_EDGE_KIND_ROUTE",
+		2: "TOPOLOGY_EDGE_KIND_SECURITY_GROUP_RULE",
+		3: "TOPOLOGY_EDGE_KIND_PEERING",
+	}
+	TopologyEdgeKind_value = map[string]int32{
+		"TOPOLOGY_EDGE_KIND_UNSPECIFIED":         0,
+		"TOPOLOGY_EDGE_KIND_ROUTE":               1,
+		"TOPOLOGY_EDGE_KIND_SECURITY_GROUP_RULE": 2,
+		"TOPOLOGY_EDGE_KIND_PEERING":             3,
+	}
+)
+
+func (x TopologyEdgeKind) Enum() *TopologyEdgeKind {
+	p := new(TopologyEdgeKind)
+	*p = x
+	return p
+}
+
+func (x TopologyEdgeKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TopologyEdgeKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_stackwright_v1_graph_proto_enumTypes[2].Descriptor()
+}
+
+func (TopologyEdgeKind) Type() protoreflect.EnumType {
+	return &file_stackwright_v1_graph_proto_enumTypes[2]
+}
+
+func (x TopologyEdgeKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TopologyEdgeKind.Descriptor instead.
+func (TopologyEdgeKind) EnumDescriptor() ([]byte, []int) {
+	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{2}
+}
+
 type SourceLocation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Relative to the repository root, with forward slashes.
@@ -1198,11 +1341,600 @@ func (*SaveGraphLayoutResponse) Descriptor() ([]byte, []int) {
 	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{15}
 }
 
+type TopologyRoute struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Destination string                 `protobuf:"bytes,1,opt,name=destination,proto3" json:"destination,omitempty"`
+	// The target's node id.
+	Target        string `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TopologyRoute) Reset() {
+	*x = TopologyRoute{}
+	mi := &file_stackwright_v1_graph_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TopologyRoute) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TopologyRoute) ProtoMessage() {}
+
+func (x *TopologyRoute) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_graph_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TopologyRoute.ProtoReflect.Descriptor instead.
+func (*TopologyRoute) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *TopologyRoute) GetDestination() string {
+	if x != nil {
+		return x.Destination
+	}
+	return ""
+}
+
+func (x *TopologyRoute) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+type TopologyRule struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Ingress bool                   `protobuf:"varint,1,opt,name=ingress,proto3" json:"ingress,omitempty"`
+	// "-1" is every protocol.
+	Protocol string   `protobuf:"bytes,2,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	FromPort int32    `protobuf:"varint,3,opt,name=from_port,json=fromPort,proto3" json:"from_port,omitempty"`
+	ToPort   int32    `protobuf:"varint,4,opt,name=to_port,json=toPort,proto3" json:"to_port,omitempty"`
+	Cidrs    []string `protobuf:"bytes,5,rep,name=cidrs,proto3" json:"cidrs,omitempty"`
+	// The other security group's node id.
+	SecurityGroup string `protobuf:"bytes,6,opt,name=security_group,json=securityGroup,proto3" json:"security_group,omitempty"`
+	Self          bool   `protobuf:"varint,7,opt,name=self,proto3" json:"self,omitempty"`
+	Description   string `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TopologyRule) Reset() {
+	*x = TopologyRule{}
+	mi := &file_stackwright_v1_graph_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TopologyRule) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TopologyRule) ProtoMessage() {}
+
+func (x *TopologyRule) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_graph_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TopologyRule.ProtoReflect.Descriptor instead.
+func (*TopologyRule) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *TopologyRule) GetIngress() bool {
+	if x != nil {
+		return x.Ingress
+	}
+	return false
+}
+
+func (x *TopologyRule) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+func (x *TopologyRule) GetFromPort() int32 {
+	if x != nil {
+		return x.FromPort
+	}
+	return 0
+}
+
+func (x *TopologyRule) GetToPort() int32 {
+	if x != nil {
+		return x.ToPort
+	}
+	return 0
+}
+
+func (x *TopologyRule) GetCidrs() []string {
+	if x != nil {
+		return x.Cidrs
+	}
+	return nil
+}
+
+func (x *TopologyRule) GetSecurityGroup() string {
+	if x != nil {
+		return x.SecurityGroup
+	}
+	return ""
+}
+
+func (x *TopologyRule) GetSelf() bool {
+	if x != nil {
+		return x.Self
+	}
+	return false
+}
+
+func (x *TopologyRule) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type TopologyNode struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "project/workspace/address" with instance keys, the AWS id of an
+	// external stub, or "internet".
+	Id        string       `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Role      TopologyRole `protobuf:"varint,2,opt,name=role,proto3,enum=stackwright.v1.TopologyRole" json:"role,omitempty"`
+	Project   string       `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
+	Workspace string       `protobuf:"bytes,4,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	Address   string       `protobuf:"bytes,5,opt,name=address,proto3" json:"address,omitempty"`
+	Type      string       `protobuf:"bytes,6,opt,name=type,proto3" json:"type,omitempty"`
+	// The Name tag, else the resource's name attribute, else its address.
+	Name string `protobuf:"bytes,7,opt,name=name,proto3" json:"name,omitempty"`
+	// Empty while a planned resource has no id.
+	AwsId  string     `protobuf:"bytes,8,opt,name=aws_id,json=awsId,proto3" json:"aws_id,omitempty"`
+	Action PlanAction `protobuf:"varint,9,opt,name=action,proto3,enum=stackwright.v1.PlanAction" json:"action,omitempty"`
+	// The VPC's node id.
+	Vpc string `protobuf:"bytes,10,opt,name=vpc,proto3" json:"vpc,omitempty"`
+	// The availability zone of a subnet, or of a node in one zone only.
+	Zone string `protobuf:"bytes,11,opt,name=zone,proto3" json:"zone,omitempty"`
+	// The subnets' node ids that the node sits in.
+	Subnets []string `protobuf:"bytes,12,rep,name=subnets,proto3" json:"subnets,omitempty"`
+	// A subnet whose route table sends 0.0.0.0/0 to an internet gateway.
+	Public         bool     `protobuf:"varint,13,opt,name=public,proto3" json:"public,omitempty"`
+	Cidr           string   `protobuf:"bytes,14,opt,name=cidr,proto3" json:"cidr,omitempty"`
+	SecurityGroups []string `protobuf:"bytes,15,rep,name=security_groups,json=securityGroups,proto3" json:"security_groups,omitempty"`
+	// A subnet's routes, from its route table or the VPC's main one.
+	Routes []*TopologyRoute `protobuf:"bytes,16,rep,name=routes,proto3" json:"routes,omitempty"`
+	// A security group's rules.
+	Rules []*TopologyRule `protobuf:"bytes,17,rep,name=rules,proto3" json:"rules,omitempty"`
+	// Open findings on the resource, and the worst one's severity.
+	Findings      int32    `protobuf:"varint,18,opt,name=findings,proto3" json:"findings,omitempty"`
+	Worst         Severity `protobuf:"varint,19,opt,name=worst,proto3,enum=stackwright.v1.Severity" json:"worst,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TopologyNode) Reset() {
+	*x = TopologyNode{}
+	mi := &file_stackwright_v1_graph_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TopologyNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TopologyNode) ProtoMessage() {}
+
+func (x *TopologyNode) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_graph_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TopologyNode.ProtoReflect.Descriptor instead.
+func (*TopologyNode) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *TopologyNode) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetRole() TopologyRole {
+	if x != nil {
+		return x.Role
+	}
+	return TopologyRole_TOPOLOGY_ROLE_UNSPECIFIED
+}
+
+func (x *TopologyNode) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetWorkspace() string {
+	if x != nil {
+		return x.Workspace
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetAwsId() string {
+	if x != nil {
+		return x.AwsId
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetAction() PlanAction {
+	if x != nil {
+		return x.Action
+	}
+	return PlanAction_PLAN_ACTION_UNSPECIFIED
+}
+
+func (x *TopologyNode) GetVpc() string {
+	if x != nil {
+		return x.Vpc
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetZone() string {
+	if x != nil {
+		return x.Zone
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetSubnets() []string {
+	if x != nil {
+		return x.Subnets
+	}
+	return nil
+}
+
+func (x *TopologyNode) GetPublic() bool {
+	if x != nil {
+		return x.Public
+	}
+	return false
+}
+
+func (x *TopologyNode) GetCidr() string {
+	if x != nil {
+		return x.Cidr
+	}
+	return ""
+}
+
+func (x *TopologyNode) GetSecurityGroups() []string {
+	if x != nil {
+		return x.SecurityGroups
+	}
+	return nil
+}
+
+func (x *TopologyNode) GetRoutes() []*TopologyRoute {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
+func (x *TopologyNode) GetRules() []*TopologyRule {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+func (x *TopologyNode) GetFindings() int32 {
+	if x != nil {
+		return x.Findings
+	}
+	return 0
+}
+
+func (x *TopologyNode) GetWorst() Severity {
+	if x != nil {
+		return x.Worst
+	}
+	return Severity_SEVERITY_UNSPECIFIED
+}
+
+type TopologyEdge struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	From  string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	To    string                 `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	Kind  TopologyEdgeKind       `protobuf:"varint,3,opt,name=kind,proto3,enum=stackwright.v1.TopologyEdgeKind" json:"kind,omitempty"`
+	// Such as "0.0.0.0/0" or "tcp 443".
+	Label         string     `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
+	Action        PlanAction `protobuf:"varint,5,opt,name=action,proto3,enum=stackwright.v1.PlanAction" json:"action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TopologyEdge) Reset() {
+	*x = TopologyEdge{}
+	mi := &file_stackwright_v1_graph_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TopologyEdge) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TopologyEdge) ProtoMessage() {}
+
+func (x *TopologyEdge) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_graph_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TopologyEdge.ProtoReflect.Descriptor instead.
+func (*TopologyEdge) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *TopologyEdge) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *TopologyEdge) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *TopologyEdge) GetKind() TopologyEdgeKind {
+	if x != nil {
+		return x.Kind
+	}
+	return TopologyEdgeKind_TOPOLOGY_EDGE_KIND_UNSPECIFIED
+}
+
+func (x *TopologyEdge) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *TopologyEdge) GetAction() PlanAction {
+	if x != nil {
+		return x.Action
+	}
+	return PlanAction_PLAN_ACTION_UNSPECIFIED
+}
+
+type Topology struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Nodes []*TopologyNode        `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Edges []*TopologyEdge        `protobuf:"bytes,2,rep,name=edges,proto3" json:"edges,omitempty"`
+	// Each AWS id that two workspaces manage, as "id: a/x, b/y".
+	Clashes       []string `protobuf:"bytes,3,rep,name=clashes,proto3" json:"clashes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Topology) Reset() {
+	*x = Topology{}
+	mi := &file_stackwright_v1_graph_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Topology) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Topology) ProtoMessage() {}
+
+func (x *Topology) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_graph_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Topology.ProtoReflect.Descriptor instead.
+func (*Topology) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *Topology) GetNodes() []*TopologyNode {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+func (x *Topology) GetEdges() []*TopologyEdge {
+	if x != nil {
+		return x.Edges
+	}
+	return nil
+}
+
+func (x *Topology) GetClashes() []string {
+	if x != nil {
+		return x.Clashes
+	}
+	return nil
+}
+
+type GetTopologyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTopologyRequest) Reset() {
+	*x = GetTopologyRequest{}
+	mi := &file_stackwright_v1_graph_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTopologyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTopologyRequest) ProtoMessage() {}
+
+func (x *GetTopologyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_graph_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTopologyRequest.ProtoReflect.Descriptor instead.
+func (*GetTopologyRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetTopologyRequest) GetOrg() string {
+	if x != nil {
+		return x.Org
+	}
+	return ""
+}
+
+type GetTopologyResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Topology *Topology              `protobuf:"bytes,1,opt,name=topology,proto3" json:"topology,omitempty"`
+	// The workspaces whose plans were read, as "project/workspace #run".
+	Sources       []string `protobuf:"bytes,2,rep,name=sources,proto3" json:"sources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTopologyResponse) Reset() {
+	*x = GetTopologyResponse{}
+	mi := &file_stackwright_v1_graph_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTopologyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTopologyResponse) ProtoMessage() {}
+
+func (x *GetTopologyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_graph_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTopologyResponse.ProtoReflect.Descriptor instead.
+func (*GetTopologyResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_graph_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetTopologyResponse) GetTopology() *Topology {
+	if x != nil {
+		return x.Topology
+	}
+	return nil
+}
+
+func (x *GetTopologyResponse) GetSources() []string {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
 var File_stackwright_v1_graph_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_graph_proto_rawDesc = "" +
 	"\n" +
-	"\x1astackwright/v1/graph.proto\x12\x0estackwright.v1\"P\n" +
+	"\x1astackwright/v1/graph.proto\x12\x0estackwright.v1\x1a\x1dstackwright/v1/security.proto\"P\n" +
 	"\x0eSourceLocation\x12\x12\n" +
 	"\x04file\x18\x01 \x01(\tR\x04file\x12\x12\n" +
 	"\x04line\x18\x02 \x01(\x05R\x04line\x12\x16\n" +
@@ -1282,7 +2014,55 @@ const file_stackwright_v1_graph_proto_rawDesc = "" +
 	"\tworkspace\x18\x03 \x01(\tR\tworkspace\x12:\n" +
 	"\tpositions\x18\x04 \x03(\v2\x1c.stackwright.v1.NodePositionR\tpositions\x12\x18\n" +
 	"\areplace\x18\x05 \x01(\bR\areplace\"\x19\n" +
-	"\x17SaveGraphLayoutResponse*\xdd\x01\n" +
+	"\x17SaveGraphLayoutResponse\"I\n" +
+	"\rTopologyRoute\x12 \n" +
+	"\vdestination\x18\x01 \x01(\tR\vdestination\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\"\xed\x01\n" +
+	"\fTopologyRule\x12\x18\n" +
+	"\aingress\x18\x01 \x01(\bR\aingress\x12\x1a\n" +
+	"\bprotocol\x18\x02 \x01(\tR\bprotocol\x12\x1b\n" +
+	"\tfrom_port\x18\x03 \x01(\x05R\bfromPort\x12\x17\n" +
+	"\ato_port\x18\x04 \x01(\x05R\x06toPort\x12\x14\n" +
+	"\x05cidrs\x18\x05 \x03(\tR\x05cidrs\x12%\n" +
+	"\x0esecurity_group\x18\x06 \x01(\tR\rsecurityGroup\x12\x12\n" +
+	"\x04self\x18\a \x01(\bR\x04self\x12 \n" +
+	"\vdescription\x18\b \x01(\tR\vdescription\"\xe1\x04\n" +
+	"\fTopologyNode\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x120\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x1c.stackwright.v1.TopologyRoleR\x04role\x12\x18\n" +
+	"\aproject\x18\x03 \x01(\tR\aproject\x12\x1c\n" +
+	"\tworkspace\x18\x04 \x01(\tR\tworkspace\x12\x18\n" +
+	"\aaddress\x18\x05 \x01(\tR\aaddress\x12\x12\n" +
+	"\x04type\x18\x06 \x01(\tR\x04type\x12\x12\n" +
+	"\x04name\x18\a \x01(\tR\x04name\x12\x15\n" +
+	"\x06aws_id\x18\b \x01(\tR\x05awsId\x122\n" +
+	"\x06action\x18\t \x01(\x0e2\x1a.stackwright.v1.PlanActionR\x06action\x12\x10\n" +
+	"\x03vpc\x18\n" +
+	" \x01(\tR\x03vpc\x12\x12\n" +
+	"\x04zone\x18\v \x01(\tR\x04zone\x12\x18\n" +
+	"\asubnets\x18\f \x03(\tR\asubnets\x12\x16\n" +
+	"\x06public\x18\r \x01(\bR\x06public\x12\x12\n" +
+	"\x04cidr\x18\x0e \x01(\tR\x04cidr\x12'\n" +
+	"\x0fsecurity_groups\x18\x0f \x03(\tR\x0esecurityGroups\x125\n" +
+	"\x06routes\x18\x10 \x03(\v2\x1d.stackwright.v1.TopologyRouteR\x06routes\x122\n" +
+	"\x05rules\x18\x11 \x03(\v2\x1c.stackwright.v1.TopologyRuleR\x05rules\x12\x1a\n" +
+	"\bfindings\x18\x12 \x01(\x05R\bfindings\x12.\n" +
+	"\x05worst\x18\x13 \x01(\x0e2\x18.stackwright.v1.SeverityR\x05worst\"\xb2\x01\n" +
+	"\fTopologyEdge\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
+	"\x02to\x18\x02 \x01(\tR\x02to\x124\n" +
+	"\x04kind\x18\x03 \x01(\x0e2 .stackwright.v1.TopologyEdgeKindR\x04kind\x12\x14\n" +
+	"\x05label\x18\x04 \x01(\tR\x05label\x122\n" +
+	"\x06action\x18\x05 \x01(\x0e2\x1a.stackwright.v1.PlanActionR\x06action\"\x8c\x01\n" +
+	"\bTopology\x122\n" +
+	"\x05nodes\x18\x01 \x03(\v2\x1c.stackwright.v1.TopologyNodeR\x05nodes\x122\n" +
+	"\x05edges\x18\x02 \x03(\v2\x1c.stackwright.v1.TopologyEdgeR\x05edges\x12\x18\n" +
+	"\aclashes\x18\x03 \x03(\tR\aclashes\"&\n" +
+	"\x12GetTopologyRequest\x12\x10\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\"e\n" +
+	"\x13GetTopologyResponse\x124\n" +
+	"\btopology\x18\x01 \x01(\v2\x18.stackwright.v1.TopologyR\btopology\x12\x18\n" +
+	"\asources\x18\x02 \x03(\tR\asources*\xdd\x01\n" +
 	"\n" +
 	"PlanAction\x12\x1b\n" +
 	"\x17PLAN_ACTION_UNSPECIFIED\x10\x00\x12\x15\n" +
@@ -1292,11 +2072,34 @@ const file_stackwright_v1_graph_proto_rawDesc = "" +
 	"\x12PLAN_ACTION_UPDATE\x10\x04\x12\x17\n" +
 	"\x13PLAN_ACTION_REPLACE\x10\x05\x12$\n" +
 	" PLAN_ACTION_REPLACE_CREATE_FIRST\x10\x06\x12\x16\n" +
-	"\x12PLAN_ACTION_DELETE\x10\a2\xaf\x02\n" +
+	"\x12PLAN_ACTION_DELETE\x10\a*\xcb\x03\n" +
+	"\fTopologyRole\x12\x1d\n" +
+	"\x19TOPOLOGY_ROLE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11TOPOLOGY_ROLE_VPC\x10\x01\x12\x18\n" +
+	"\x14TOPOLOGY_ROLE_SUBNET\x10\x02\x12\"\n" +
+	"\x1eTOPOLOGY_ROLE_INTERNET_GATEWAY\x10\x03\x12\x1d\n" +
+	"\x19TOPOLOGY_ROLE_NAT_GATEWAY\x10\x04\x12\x1d\n" +
+	"\x19TOPOLOGY_ROLE_ROUTE_TABLE\x10\x05\x12 \n" +
+	"\x1cTOPOLOGY_ROLE_SECURITY_GROUP\x10\x06\x12\x1f\n" +
+	"\x1bTOPOLOGY_ROLE_LOAD_BALANCER\x10\a\x12 \n" +
+	"\x1cTOPOLOGY_ROLE_INSTANCE_GROUP\x10\b\x12\x1a\n" +
+	"\x16TOPOLOGY_ROLE_INSTANCE\x10\t\x12\x1a\n" +
+	"\x16TOPOLOGY_ROLE_DATABASE\x10\n" +
+	"\x12\x19\n" +
+	"\x15TOPOLOGY_ROLE_CLUSTER\x10\v\x12\x19\n" +
+	"\x15TOPOLOGY_ROLE_PEERING\x10\f\x12\x1a\n" +
+	"\x16TOPOLOGY_ROLE_EXTERNAL\x10\r\x12\x1a\n" +
+	"\x16TOPOLOGY_ROLE_INTERNET\x10\x0e*\xa0\x01\n" +
+	"\x10TopologyEdgeKind\x12\"\n" +
+	"\x1eTOPOLOGY_EDGE_KIND_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18TOPOLOGY_EDGE_KIND_ROUTE\x10\x01\x12*\n" +
+	"&TOPOLOGY_EDGE_KIND_SECURITY_GROUP_RULE\x10\x02\x12\x1e\n" +
+	"\x1aTOPOLOGY_EDGE_KIND_PEERING\x10\x032\x8c\x03\n" +
 	"\fGraphService\x12^\n" +
 	"\fGetPlanGraph\x12#.stackwright.v1.GetPlanGraphRequest\x1a$.stackwright.v1.GetPlanGraphResponse\"\x03\x90\x02\x01\x12[\n" +
 	"\vGetPlanNode\x12\".stackwright.v1.GetPlanNodeRequest\x1a#.stackwright.v1.GetPlanNodeResponse\"\x03\x90\x02\x01\x12b\n" +
-	"\x0fSaveGraphLayout\x12&.stackwright.v1.SaveGraphLayoutRequest\x1a'.stackwright.v1.SaveGraphLayoutResponseB\xbe\x01\n" +
+	"\x0fSaveGraphLayout\x12&.stackwright.v1.SaveGraphLayoutRequest\x1a'.stackwright.v1.SaveGraphLayoutResponse\x12[\n" +
+	"\vGetTopology\x12\".stackwright.v1.GetTopologyRequest\x1a#.stackwright.v1.GetTopologyResponse\"\x03\x90\x02\x01B\xbe\x01\n" +
 	"\x12com.stackwright.v1B\n" +
 	"GraphProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
@@ -1312,56 +2115,78 @@ func file_stackwright_v1_graph_proto_rawDescGZIP() []byte {
 	return file_stackwright_v1_graph_proto_rawDescData
 }
 
-var file_stackwright_v1_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_stackwright_v1_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_stackwright_v1_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_stackwright_v1_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_stackwright_v1_graph_proto_goTypes = []any{
 	(PlanAction)(0),                 // 0: stackwright.v1.PlanAction
-	(*SourceLocation)(nil),          // 1: stackwright.v1.SourceLocation
-	(*ActionCount)(nil),             // 2: stackwright.v1.ActionCount
-	(*PlanNode)(nil),                // 3: stackwright.v1.PlanNode
-	(*PlanEdge)(nil),                // 4: stackwright.v1.PlanEdge
-	(*PlanGroup)(nil),               // 5: stackwright.v1.PlanGroup
-	(*PlanSummary)(nil),             // 6: stackwright.v1.PlanSummary
-	(*NodePosition)(nil),            // 7: stackwright.v1.NodePosition
-	(*PlanGraph)(nil),               // 8: stackwright.v1.PlanGraph
-	(*GetPlanGraphRequest)(nil),     // 9: stackwright.v1.GetPlanGraphRequest
-	(*GetPlanGraphResponse)(nil),    // 10: stackwright.v1.GetPlanGraphResponse
-	(*AttributeChange)(nil),         // 11: stackwright.v1.AttributeChange
-	(*PlanInstance)(nil),            // 12: stackwright.v1.PlanInstance
-	(*GetPlanNodeRequest)(nil),      // 13: stackwright.v1.GetPlanNodeRequest
-	(*GetPlanNodeResponse)(nil),     // 14: stackwright.v1.GetPlanNodeResponse
-	(*SaveGraphLayoutRequest)(nil),  // 15: stackwright.v1.SaveGraphLayoutRequest
-	(*SaveGraphLayoutResponse)(nil), // 16: stackwright.v1.SaveGraphLayoutResponse
+	(TopologyRole)(0),               // 1: stackwright.v1.TopologyRole
+	(TopologyEdgeKind)(0),           // 2: stackwright.v1.TopologyEdgeKind
+	(*SourceLocation)(nil),          // 3: stackwright.v1.SourceLocation
+	(*ActionCount)(nil),             // 4: stackwright.v1.ActionCount
+	(*PlanNode)(nil),                // 5: stackwright.v1.PlanNode
+	(*PlanEdge)(nil),                // 6: stackwright.v1.PlanEdge
+	(*PlanGroup)(nil),               // 7: stackwright.v1.PlanGroup
+	(*PlanSummary)(nil),             // 8: stackwright.v1.PlanSummary
+	(*NodePosition)(nil),            // 9: stackwright.v1.NodePosition
+	(*PlanGraph)(nil),               // 10: stackwright.v1.PlanGraph
+	(*GetPlanGraphRequest)(nil),     // 11: stackwright.v1.GetPlanGraphRequest
+	(*GetPlanGraphResponse)(nil),    // 12: stackwright.v1.GetPlanGraphResponse
+	(*AttributeChange)(nil),         // 13: stackwright.v1.AttributeChange
+	(*PlanInstance)(nil),            // 14: stackwright.v1.PlanInstance
+	(*GetPlanNodeRequest)(nil),      // 15: stackwright.v1.GetPlanNodeRequest
+	(*GetPlanNodeResponse)(nil),     // 16: stackwright.v1.GetPlanNodeResponse
+	(*SaveGraphLayoutRequest)(nil),  // 17: stackwright.v1.SaveGraphLayoutRequest
+	(*SaveGraphLayoutResponse)(nil), // 18: stackwright.v1.SaveGraphLayoutResponse
+	(*TopologyRoute)(nil),           // 19: stackwright.v1.TopologyRoute
+	(*TopologyRule)(nil),            // 20: stackwright.v1.TopologyRule
+	(*TopologyNode)(nil),            // 21: stackwright.v1.TopologyNode
+	(*TopologyEdge)(nil),            // 22: stackwright.v1.TopologyEdge
+	(*Topology)(nil),                // 23: stackwright.v1.Topology
+	(*GetTopologyRequest)(nil),      // 24: stackwright.v1.GetTopologyRequest
+	(*GetTopologyResponse)(nil),     // 25: stackwright.v1.GetTopologyResponse
+	(Severity)(0),                   // 26: stackwright.v1.Severity
 }
 var file_stackwright_v1_graph_proto_depIdxs = []int32{
 	0,  // 0: stackwright.v1.ActionCount.action:type_name -> stackwright.v1.PlanAction
 	0,  // 1: stackwright.v1.PlanNode.action:type_name -> stackwright.v1.PlanAction
-	2,  // 2: stackwright.v1.PlanNode.counts:type_name -> stackwright.v1.ActionCount
-	1,  // 3: stackwright.v1.PlanNode.source:type_name -> stackwright.v1.SourceLocation
-	1,  // 4: stackwright.v1.PlanGroup.source:type_name -> stackwright.v1.SourceLocation
-	3,  // 5: stackwright.v1.PlanGraph.nodes:type_name -> stackwright.v1.PlanNode
-	4,  // 6: stackwright.v1.PlanGraph.edges:type_name -> stackwright.v1.PlanEdge
-	5,  // 7: stackwright.v1.PlanGraph.groups:type_name -> stackwright.v1.PlanGroup
-	6,  // 8: stackwright.v1.PlanGraph.summary:type_name -> stackwright.v1.PlanSummary
+	4,  // 2: stackwright.v1.PlanNode.counts:type_name -> stackwright.v1.ActionCount
+	3,  // 3: stackwright.v1.PlanNode.source:type_name -> stackwright.v1.SourceLocation
+	3,  // 4: stackwright.v1.PlanGroup.source:type_name -> stackwright.v1.SourceLocation
+	5,  // 5: stackwright.v1.PlanGraph.nodes:type_name -> stackwright.v1.PlanNode
+	6,  // 6: stackwright.v1.PlanGraph.edges:type_name -> stackwright.v1.PlanEdge
+	7,  // 7: stackwright.v1.PlanGraph.groups:type_name -> stackwright.v1.PlanGroup
+	8,  // 8: stackwright.v1.PlanGraph.summary:type_name -> stackwright.v1.PlanSummary
 	0,  // 9: stackwright.v1.GetPlanGraphRequest.actions:type_name -> stackwright.v1.PlanAction
-	8,  // 10: stackwright.v1.GetPlanGraphResponse.graph:type_name -> stackwright.v1.PlanGraph
-	7,  // 11: stackwright.v1.GetPlanGraphResponse.layout:type_name -> stackwright.v1.NodePosition
+	10, // 10: stackwright.v1.GetPlanGraphResponse.graph:type_name -> stackwright.v1.PlanGraph
+	9,  // 11: stackwright.v1.GetPlanGraphResponse.layout:type_name -> stackwright.v1.NodePosition
 	0,  // 12: stackwright.v1.PlanInstance.action:type_name -> stackwright.v1.PlanAction
-	11, // 13: stackwright.v1.PlanInstance.changes:type_name -> stackwright.v1.AttributeChange
-	3,  // 14: stackwright.v1.GetPlanNodeResponse.node:type_name -> stackwright.v1.PlanNode
-	12, // 15: stackwright.v1.GetPlanNodeResponse.instances:type_name -> stackwright.v1.PlanInstance
-	7,  // 16: stackwright.v1.SaveGraphLayoutRequest.positions:type_name -> stackwright.v1.NodePosition
-	9,  // 17: stackwright.v1.GraphService.GetPlanGraph:input_type -> stackwright.v1.GetPlanGraphRequest
-	13, // 18: stackwright.v1.GraphService.GetPlanNode:input_type -> stackwright.v1.GetPlanNodeRequest
-	15, // 19: stackwright.v1.GraphService.SaveGraphLayout:input_type -> stackwright.v1.SaveGraphLayoutRequest
-	10, // 20: stackwright.v1.GraphService.GetPlanGraph:output_type -> stackwright.v1.GetPlanGraphResponse
-	14, // 21: stackwright.v1.GraphService.GetPlanNode:output_type -> stackwright.v1.GetPlanNodeResponse
-	16, // 22: stackwright.v1.GraphService.SaveGraphLayout:output_type -> stackwright.v1.SaveGraphLayoutResponse
-	20, // [20:23] is the sub-list for method output_type
-	17, // [17:20] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	13, // 13: stackwright.v1.PlanInstance.changes:type_name -> stackwright.v1.AttributeChange
+	5,  // 14: stackwright.v1.GetPlanNodeResponse.node:type_name -> stackwright.v1.PlanNode
+	14, // 15: stackwright.v1.GetPlanNodeResponse.instances:type_name -> stackwright.v1.PlanInstance
+	9,  // 16: stackwright.v1.SaveGraphLayoutRequest.positions:type_name -> stackwright.v1.NodePosition
+	1,  // 17: stackwright.v1.TopologyNode.role:type_name -> stackwright.v1.TopologyRole
+	0,  // 18: stackwright.v1.TopologyNode.action:type_name -> stackwright.v1.PlanAction
+	19, // 19: stackwright.v1.TopologyNode.routes:type_name -> stackwright.v1.TopologyRoute
+	20, // 20: stackwright.v1.TopologyNode.rules:type_name -> stackwright.v1.TopologyRule
+	26, // 21: stackwright.v1.TopologyNode.worst:type_name -> stackwright.v1.Severity
+	2,  // 22: stackwright.v1.TopologyEdge.kind:type_name -> stackwright.v1.TopologyEdgeKind
+	0,  // 23: stackwright.v1.TopologyEdge.action:type_name -> stackwright.v1.PlanAction
+	21, // 24: stackwright.v1.Topology.nodes:type_name -> stackwright.v1.TopologyNode
+	22, // 25: stackwright.v1.Topology.edges:type_name -> stackwright.v1.TopologyEdge
+	23, // 26: stackwright.v1.GetTopologyResponse.topology:type_name -> stackwright.v1.Topology
+	11, // 27: stackwright.v1.GraphService.GetPlanGraph:input_type -> stackwright.v1.GetPlanGraphRequest
+	15, // 28: stackwright.v1.GraphService.GetPlanNode:input_type -> stackwright.v1.GetPlanNodeRequest
+	17, // 29: stackwright.v1.GraphService.SaveGraphLayout:input_type -> stackwright.v1.SaveGraphLayoutRequest
+	24, // 30: stackwright.v1.GraphService.GetTopology:input_type -> stackwright.v1.GetTopologyRequest
+	12, // 31: stackwright.v1.GraphService.GetPlanGraph:output_type -> stackwright.v1.GetPlanGraphResponse
+	16, // 32: stackwright.v1.GraphService.GetPlanNode:output_type -> stackwright.v1.GetPlanNodeResponse
+	18, // 33: stackwright.v1.GraphService.SaveGraphLayout:output_type -> stackwright.v1.SaveGraphLayoutResponse
+	25, // 34: stackwright.v1.GraphService.GetTopology:output_type -> stackwright.v1.GetTopologyResponse
+	31, // [31:35] is the sub-list for method output_type
+	27, // [27:31] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_stackwright_v1_graph_proto_init() }
@@ -1369,13 +2194,14 @@ func file_stackwright_v1_graph_proto_init() {
 	if File_stackwright_v1_graph_proto != nil {
 		return
 	}
+	file_stackwright_v1_security_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stackwright_v1_graph_proto_rawDesc), len(file_stackwright_v1_graph_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   16,
+			NumEnums:      3,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

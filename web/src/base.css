@@ -1664,3 +1664,163 @@ button.action {
   cursor: pointer;
   font: var(--type-label);
 }
+
+.page:has(> .topology-page) {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  padding: 0;
+}
+
+.topology-page {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.topology-page .inspector {
+  width: var(--inspector-width);
+  flex: none;
+  overflow: auto;
+  padding: var(--space-4);
+  background: var(--inspector);
+  border-left: 1px solid var(--hairline);
+}
+
+.topology-page .topo-canvas {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background-color: var(--canvas);
+  background-image: radial-gradient(var(--hairline) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.topo-empty {
+  margin: var(--space-6);
+}
+
+.topo-stage {
+  position: relative;
+}
+
+.topo-edges {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.topo-edge {
+  fill: none;
+  stroke: var(--ink-muted);
+  stroke-width: 1.5;
+}
+
+.topo-edge.create {
+  stroke: var(--create);
+  stroke-dasharray: 5 4;
+}
+
+.topo-edge.update {
+  stroke: var(--update);
+}
+
+.topo-edge.destroy {
+  stroke: var(--destroy);
+}
+
+.topo-node {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--window);
+  color: var(--ink);
+  font: var(--type-code);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.topo-node.role-vpc,
+.topo-node.role-subnet {
+  z-index: 1;
+  align-items: flex-start;
+  padding-top: var(--space-2);
+}
+
+.topo-node.role-vpc {
+  z-index: 0;
+  border-color: var(--ink-muted);
+  border-radius: var(--radius-card);
+  background: transparent;
+}
+
+.topo-node.role-subnet.public {
+  border-top: 3px solid var(--accent);
+}
+
+.topo-node.role-internet,
+.topo-node.role-external {
+  border-style: dotted;
+  color: var(--ink-muted);
+}
+
+.topo-node.create {
+  border-style: dashed;
+  border-color: var(--create);
+  background: var(--create-wash);
+}
+
+.topo-node.update {
+  border-color: var(--update);
+  background: var(--update-wash);
+}
+
+.topo-node.replace {
+  border-color: var(--replace);
+}
+
+.topo-node.destroy {
+  border-color: var(--destroy);
+}
+
+.topo-node.selected {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+
+.topo-node:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+
+.topo-role {
+  font: var(--type-label);
+  color: var(--ink-muted);
+}
+
+.topo-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topo-cidr,
+.topo-findings {
+  flex: none;
+}
+
+.topo-zone {
+  position: absolute;
+  z-index: 1;
+  padding-left: var(--space-1);
+}

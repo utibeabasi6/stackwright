@@ -1150,8 +1150,59 @@ Trivy on the host was refused, so it ran only inside Docker images.
   dispatcher updates a run twice in one transaction, so Postgres checks
   `runs.repo_id` again and takes a lock on the repository row. The unlink
   holds that row and waits for the run. This dates from phase 7, and
-  phase 15's import made the audit test hit it: it failed once in two
-  full runs on 2026-11-13, with Unlink returning an internal error. It is
-  not fixed.
+  phase 15's import made the audit test hit it. It showed in all three
+  full runs on 2026-11-13, and Unlink returned an internal error in two
+  of them, which failed the test. It is not fixed.
 - The nightly run skips a night on which no server runs.
+
+## Phase 17: Topology
+
+Decision: [0038](adr/0038-topology-from-plans.md). The user chose the
+latest plan as the source, one topology joined across the org, and zones
+as columns. The Topology page is at the org level, beside Waiting on you.
+
+**Verified on 2026-11-13:**
+- The fixture is real OpenTofu 1.10.7 output, made in Docker with fake
+  AWS keys. A `network` workspace has a hand-written state of a VPC, an
+  internet gateway, four subnets in two zones and two route tables; its
+  plan with `-refresh=false` adds an Elastic IP and a NAT, and routes the
+  private table to it. An `app` workspace plans security groups, a load
+  balancer, an instance group and a database in the network's subnets,
+  named by their ids.
+- Go tests on that fixture:
+  - The four subnets have the right zones and CIDRs. The public ones
+    route `0.0.0.0/0` to the internet gateway; the private ones route to
+    the planned NAT, which has no id yet and is joined by its reference.
+    The route to the NAT is a create.
+  - The app's load balancer, instance group and database sit in the
+    network workspace's subnets, joined by AWS id across workspaces. The
+    instance group gets its security group through its launch template.
+  - Security group rules give edges from the internet to `web` (tcp
+    443), `web` to `app` (tcp 8080) and `app` to `db` (tcp 5432).
+  - Two workspaces with the same ids keep the first and list the clash.
+  - Sensitive values are replaced before any is read.
+- A Go test with real sandboxes plans a security group with SSH open: the
+  topology shows it with one High finding and an edge from the internet.
+  A plan of the fixed code replaces it: no finding, no edge, and the rule
+  shows `10.0.0.0/8`.
+- Web: a layout test on the Go golden file puts the zones in columns,
+  public subnets above private ones, the NAT inside its subnet, the
+  internet gateway on the VPC's top edge, and the load balancer, instance
+  group and database across both zones. A Playwright test, in both
+  themes, checks that the planned NAT's border is dashed and has the
+  create colour, opens a private subnet's route to the NAT, and the web
+  group's rule from `0.0.0.0/0`.
+- Screenshots of the page in both themes were checked by eye.
+
+**Not verified:**
+- The page on the development stack: the tunnel is down.
+- A real AWS account, peering, transit gateways, EKS and modules in the
+  fixture.
+- Speed with many workspaces: each request reads and decrypts every
+  workspace's latest plan.
+
+**Known gaps:**
+- A security group whose VPC is the default one, with no `vpc_id`, shows
+  below the VPCs.
+- Edges can cross nodes; the layout does not route around them.
 

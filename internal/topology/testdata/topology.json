@@ -1,0 +1,324 @@
+{
+  "edges": [
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "from": "app/prod/aws_security_group.app",
+      "kind": "TOPOLOGY_EDGE_KIND_SECURITY_GROUP_RULE",
+      "label": "tcp 5432",
+      "to": "app/prod/aws_security_group.db"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "from": "app/prod/aws_security_group.web",
+      "kind": "TOPOLOGY_EDGE_KIND_SECURITY_GROUP_RULE",
+      "label": "tcp 8080",
+      "to": "app/prod/aws_security_group.app"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "from": "internet",
+      "kind": "TOPOLOGY_EDGE_KIND_SECURITY_GROUP_RULE",
+      "label": "tcp 443",
+      "to": "app/prod/aws_security_group.web"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "from": "network/prod/aws_subnet.private[0]",
+      "kind": "TOPOLOGY_EDGE_KIND_ROUTE",
+      "label": "0.0.0.0/0",
+      "to": "network/prod/aws_nat_gateway.main"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "from": "network/prod/aws_subnet.private[1]",
+      "kind": "TOPOLOGY_EDGE_KIND_ROUTE",
+      "label": "0.0.0.0/0",
+      "to": "network/prod/aws_nat_gateway.main"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "from": "network/prod/aws_subnet.public[0]",
+      "kind": "TOPOLOGY_EDGE_KIND_ROUTE",
+      "label": "0.0.0.0/0",
+      "to": "network/prod/aws_internet_gateway.main"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "from": "network/prod/aws_subnet.public[1]",
+      "kind": "TOPOLOGY_EDGE_KIND_ROUTE",
+      "label": "0.0.0.0/0",
+      "to": "network/prod/aws_internet_gateway.main"
+    }
+  ],
+  "nodes": [
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "address": "aws_autoscaling_group.app",
+      "id": "app/prod/aws_autoscaling_group.app",
+      "name": "app",
+      "project": "app",
+      "role": "TOPOLOGY_ROLE_INSTANCE_GROUP",
+      "securityGroups": [
+        "app/prod/aws_security_group.app"
+      ],
+      "subnets": [
+        "network/prod/aws_subnet.private[0]",
+        "network/prod/aws_subnet.private[1]"
+      ],
+      "type": "aws_autoscaling_group",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "address": "aws_db_instance.main",
+      "id": "app/prod/aws_db_instance.main",
+      "name": "main",
+      "project": "app",
+      "role": "TOPOLOGY_ROLE_DATABASE",
+      "securityGroups": [
+        "app/prod/aws_security_group.db"
+      ],
+      "subnets": [
+        "network/prod/aws_subnet.private[0]",
+        "network/prod/aws_subnet.private[1]"
+      ],
+      "type": "aws_db_instance",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "address": "aws_lb.web",
+      "id": "app/prod/aws_lb.web",
+      "name": "web",
+      "project": "app",
+      "role": "TOPOLOGY_ROLE_LOAD_BALANCER",
+      "securityGroups": [
+        "app/prod/aws_security_group.web"
+      ],
+      "subnets": [
+        "network/prod/aws_subnet.public[0]",
+        "network/prod/aws_subnet.public[1]"
+      ],
+      "type": "aws_lb",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "address": "aws_security_group.app",
+      "id": "app/prod/aws_security_group.app",
+      "name": "app",
+      "project": "app",
+      "role": "TOPOLOGY_ROLE_SECURITY_GROUP",
+      "rules": [
+        {
+          "description": "From the load balancer",
+          "fromPort": 8080,
+          "ingress": true,
+          "protocol": "tcp",
+          "securityGroup": "app/prod/aws_security_group.web",
+          "toPort": 8080
+        }
+      ],
+      "type": "aws_security_group",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "address": "aws_security_group.db",
+      "id": "app/prod/aws_security_group.db",
+      "name": "db",
+      "project": "app",
+      "role": "TOPOLOGY_ROLE_SECURITY_GROUP",
+      "rules": [
+        {
+          "fromPort": 5432,
+          "ingress": true,
+          "protocol": "tcp",
+          "securityGroup": "app/prod/aws_security_group.app",
+          "toPort": 5432
+        }
+      ],
+      "type": "aws_security_group",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "address": "aws_security_group.web",
+      "id": "app/prod/aws_security_group.web",
+      "name": "web",
+      "project": "app",
+      "role": "TOPOLOGY_ROLE_SECURITY_GROUP",
+      "rules": [
+        {
+          "cidrs": [
+            "0.0.0.0/0"
+          ],
+          "description": "HTTPS",
+          "fromPort": 443,
+          "ingress": true,
+          "protocol": "tcp",
+          "toPort": 443
+        }
+      ],
+      "type": "aws_security_group",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "id": "internet",
+      "name": "Internet",
+      "role": "TOPOLOGY_ROLE_INTERNET"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "address": "aws_internet_gateway.main",
+      "awsId": "igw-0f1e2d3c",
+      "id": "network/prod/aws_internet_gateway.main",
+      "name": "aws_internet_gateway.main",
+      "project": "network",
+      "role": "TOPOLOGY_ROLE_INTERNET_GATEWAY",
+      "type": "aws_internet_gateway",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod"
+    },
+    {
+      "action": "PLAN_ACTION_CREATE",
+      "address": "aws_nat_gateway.main",
+      "id": "network/prod/aws_nat_gateway.main",
+      "name": "aws_nat_gateway.main",
+      "project": "network",
+      "role": "TOPOLOGY_ROLE_NAT_GATEWAY",
+      "subnets": [
+        "network/prod/aws_subnet.public[0]"
+      ],
+      "type": "aws_nat_gateway",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod",
+      "zone": "eu-west-1a"
+    },
+    {
+      "action": "PLAN_ACTION_UPDATE",
+      "address": "aws_route_table.private",
+      "awsId": "rtb-0priv",
+      "id": "network/prod/aws_route_table.private",
+      "name": "aws_route_table.private",
+      "project": "network",
+      "role": "TOPOLOGY_ROLE_ROUTE_TABLE",
+      "type": "aws_route_table",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "address": "aws_route_table.public",
+      "awsId": "rtb-0pub",
+      "id": "network/prod/aws_route_table.public",
+      "name": "aws_route_table.public",
+      "project": "network",
+      "role": "TOPOLOGY_ROLE_ROUTE_TABLE",
+      "type": "aws_route_table",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "address": "aws_subnet.private[0]",
+      "awsId": "subnet-0pri0",
+      "cidr": "10.0.10.0/24",
+      "id": "network/prod/aws_subnet.private[0]",
+      "name": "private-eu-west-1a",
+      "project": "network",
+      "role": "TOPOLOGY_ROLE_SUBNET",
+      "routes": [
+        {
+          "destination": "0.0.0.0/0",
+          "target": "network/prod/aws_nat_gateway.main"
+        }
+      ],
+      "type": "aws_subnet",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod",
+      "zone": "eu-west-1a"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "address": "aws_subnet.private[1]",
+      "awsId": "subnet-0pri1",
+      "cidr": "10.0.11.0/24",
+      "id": "network/prod/aws_subnet.private[1]",
+      "name": "private-eu-west-1b",
+      "project": "network",
+      "role": "TOPOLOGY_ROLE_SUBNET",
+      "routes": [
+        {
+          "destination": "0.0.0.0/0",
+          "target": "network/prod/aws_nat_gateway.main"
+        }
+      ],
+      "type": "aws_subnet",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod",
+      "zone": "eu-west-1b"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "address": "aws_subnet.public[0]",
+      "awsId": "subnet-0pub0",
+      "cidr": "10.0.0.0/24",
+      "id": "network/prod/aws_subnet.public[0]",
+      "name": "public-eu-west-1a",
+      "project": "network",
+      "public": true,
+      "role": "TOPOLOGY_ROLE_SUBNET",
+      "routes": [
+        {
+          "destination": "0.0.0.0/0",
+          "target": "network/prod/aws_internet_gateway.main"
+        }
+      ],
+      "type": "aws_subnet",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod",
+      "zone": "eu-west-1a"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "address": "aws_subnet.public[1]",
+      "awsId": "subnet-0pub1",
+      "cidr": "10.0.1.0/24",
+      "id": "network/prod/aws_subnet.public[1]",
+      "name": "public-eu-west-1b",
+      "project": "network",
+      "public": true,
+      "role": "TOPOLOGY_ROLE_SUBNET",
+      "routes": [
+        {
+          "destination": "0.0.0.0/0",
+          "target": "network/prod/aws_internet_gateway.main"
+        }
+      ],
+      "type": "aws_subnet",
+      "vpc": "network/prod/aws_vpc.main",
+      "workspace": "prod",
+      "zone": "eu-west-1b"
+    },
+    {
+      "action": "PLAN_ACTION_NO_OP",
+      "address": "aws_vpc.main",
+      "awsId": "vpc-0a1b2c3d",
+      "cidr": "10.0.0.0/16",
+      "id": "network/prod/aws_vpc.main",
+      "name": "main",
+      "project": "network",
+      "role": "TOPOLOGY_ROLE_VPC",
+      "type": "aws_vpc",
+      "workspace": "prod"
+    }
+  ]
+}

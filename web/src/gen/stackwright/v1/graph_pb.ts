@@ -4,13 +4,15 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Severity } from "./security_pb";
+import { file_stackwright_v1_security } from "./security_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file stackwright/v1/graph.proto.
  */
 export const file_stackwright_v1_graph: GenFile = /*@__PURE__*/
-  fileDesc("ChpzdGFja3dyaWdodC92MS9ncmFwaC5wcm90bxIOc3RhY2t3cmlnaHQudjEiPAoOU291cmNlTG9jYXRpb24SDAoEZmlsZRgBIAEoCRIMCgRsaW5lGAIgASgFEg4KBnJlbW90ZRgDIAEoCCJICgtBY3Rpb25Db3VudBIqCgZhY3Rpb24YASABKA4yGi5zdGFja3dyaWdodC52MS5QbGFuQWN0aW9uEg0KBWNvdW50GAIgASgFIuwBCghQbGFuTm9kZRIKCgJpZBgBIAEoCRIOCgZtb2R1bGUYAiABKAkSDAoEdHlwZRgDIAEoCRIMCgRuYW1lGAQgASgJEgwKBGRhdGEYBSABKAgSKgoGYWN0aW9uGAYgASgOMhouc3RhY2t3cmlnaHQudjEuUGxhbkFjdGlvbhIrCgZjb3VudHMYByADKAsyGy5zdGFja3dyaWdodC52MS5BY3Rpb25Db3VudBIRCglpbnN0YW5jZXMYCCABKAUSLgoGc291cmNlGAkgASgLMh4uc3RhY2t3cmlnaHQudjEuU291cmNlTG9jYXRpb24iNgoIUGxhbkVkZ2USDAoEZnJvbRgBIAEoCRIKCgJ0bxgCIAEoCRIQCghleHBsaWNpdBgDIAEoCCJlCglQbGFuR3JvdXASCgoCaWQYASABKAkSDgoGcGFyZW50GAIgASgJEgwKBG5hbWUYAyABKAkSLgoGc291cmNlGAQgASgLMh4uc3RhY2t3cmlnaHQudjEuU291cmNlTG9jYXRpb24idAoLUGxhblN1bW1hcnkSDwoHY3JlYXRlcxgBIAEoBRIPCgd1cGRhdGVzGAIgASgFEhAKCHJlcGxhY2VzGAMgASgFEg8KB2RlbGV0ZXMYBCABKAUSDQoFcmVhZHMYBSABKAUSEQoJdW5jaGFuZ2VkGAYgASgFIjAKDE5vZGVQb3NpdGlvbhIKCgJpZBgBIAEoCRIJCgF4GAIgASgBEgkKAXkYAyABKAEitgEKCVBsYW5HcmFwaBInCgVub2RlcxgBIAMoCzIYLnN0YWNrd3JpZ2h0LnYxLlBsYW5Ob2RlEicKBWVkZ2VzGAIgAygLMhguc3RhY2t3cmlnaHQudjEuUGxhbkVkZ2USKQoGZ3JvdXBzGAMgAygLMhkuc3RhY2t3cmlnaHQudjEuUGxhbkdyb3VwEiwKB3N1bW1hcnkYBCABKAsyGy5zdGFja3dyaWdodC52MS5QbGFuU3VtbWFyeSKTAQoTR2V0UGxhbkdyYXBoUmVxdWVzdBILCgNvcmcYASABKAkSDwoHcHJvamVjdBgCIAEoCRIRCgl3b3Jrc3BhY2UYAyABKAkSDgoGbnVtYmVyGAQgASgFEisKB2FjdGlvbnMYBSADKA4yGi5zdGFja3dyaWdodC52MS5QbGFuQWN0aW9uEg4KBm1vZHVsZRgGIAEoCSKXAQoUR2V0UGxhbkdyYXBoUmVzcG9uc2USKAoFZ3JhcGgYASABKAsyGS5zdGFja3dyaWdodC52MS5QbGFuR3JhcGgSDgoGbnVtYmVyGAIgASgFEiwKBmxheW91dBgDIAMoCzIcLnN0YWNrd3JpZ2h0LnYxLk5vZGVQb3NpdGlvbhIXCg9zb3VyY2VfYmFzZV91cmwYBCABKAkiWgoPQXR0cmlidXRlQ2hhbmdlEgwKBHBhdGgYASABKAkSDgoGYmVmb3JlGAIgASgJEg0KBWFmdGVyGAMgASgJEhoKEmZvcmNlc19yZXBsYWNlbWVudBgEIAEoCCKQAQoMUGxhbkluc3RhbmNlEg8KB2FkZHJlc3MYASABKAkSKgoGYWN0aW9uGAIgASgOMhouc3RhY2t3cmlnaHQudjEuUGxhbkFjdGlvbhIwCgdjaGFuZ2VzGAMgAygLMh8uc3RhY2t3cmlnaHQudjEuQXR0cmlidXRlQ2hhbmdlEhEKCXRydW5jYXRlZBgEIAEoCCJhChJHZXRQbGFuTm9kZVJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJEg4KBm51bWJlchgEIAEoBRIKCgJpZBgFIAEoCSJuChNHZXRQbGFuTm9kZVJlc3BvbnNlEiYKBG5vZGUYASABKAsyGC5zdGFja3dyaWdodC52MS5QbGFuTm9kZRIvCglpbnN0YW5jZXMYAiADKAsyHC5zdGFja3dyaWdodC52MS5QbGFuSW5zdGFuY2UiiwEKFlNhdmVHcmFwaExheW91dFJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJEi8KCXBvc2l0aW9ucxgEIAMoCzIcLnN0YWNrd3JpZ2h0LnYxLk5vZGVQb3NpdGlvbhIPCgdyZXBsYWNlGAUgASgIIhkKF1NhdmVHcmFwaExheW91dFJlc3BvbnNlKt0BCgpQbGFuQWN0aW9uEhsKF1BMQU5fQUNUSU9OX1VOU1BFQ0lGSUVEEAASFQoRUExBTl9BQ1RJT05fTk9fT1AQARIUChBQTEFOX0FDVElPTl9SRUFEEAISFgoSUExBTl9BQ1RJT05fQ1JFQVRFEAMSFgoSUExBTl9BQ1RJT05fVVBEQVRFEAQSFwoTUExBTl9BQ1RJT05fUkVQTEFDRRAFEiQKIFBMQU5fQUNUSU9OX1JFUExBQ0VfQ1JFQVRFX0ZJUlNUEAYSFgoSUExBTl9BQ1RJT05fREVMRVRFEAcyrwIKDEdyYXBoU2VydmljZRJeCgxHZXRQbGFuR3JhcGgSIy5zdGFja3dyaWdodC52MS5HZXRQbGFuR3JhcGhSZXF1ZXN0GiQuc3RhY2t3cmlnaHQudjEuR2V0UGxhbkdyYXBoUmVzcG9uc2UiA5ACARJbCgtHZXRQbGFuTm9kZRIiLnN0YWNrd3JpZ2h0LnYxLkdldFBsYW5Ob2RlUmVxdWVzdBojLnN0YWNrd3JpZ2h0LnYxLkdldFBsYW5Ob2RlUmVzcG9uc2UiA5ACARJiCg9TYXZlR3JhcGhMYXlvdXQSJi5zdGFja3dyaWdodC52MS5TYXZlR3JhcGhMYXlvdXRSZXF1ZXN0Gicuc3RhY2t3cmlnaHQudjEuU2F2ZUdyYXBoTGF5b3V0UmVzcG9uc2VCvgEKEmNvbS5zdGFja3dyaWdodC52MUIKR3JhcGhQcm90b1ABWkNnaXRodWIuY29tL3N0YWNrd3JpZ2h0L3N0YWNrd3JpZ2h0L2dlbi9zdGFja3dyaWdodC92MTtzdGFja3dyaWdodHYxogIDU1hYqgIOU3RhY2t3cmlnaHQuVjHKAg5TdGFja3dyaWdodFxWMeICGlN0YWNrd3JpZ2h0XFYxXEdQQk1ldGFkYXRh6gIPU3RhY2t3cmlnaHQ6OlYxYgZwcm90bzM");
+  fileDesc("ChpzdGFja3dyaWdodC92MS9ncmFwaC5wcm90bxIOc3RhY2t3cmlnaHQudjEiPAoOU291cmNlTG9jYXRpb24SDAoEZmlsZRgBIAEoCRIMCgRsaW5lGAIgASgFEg4KBnJlbW90ZRgDIAEoCCJICgtBY3Rpb25Db3VudBIqCgZhY3Rpb24YASABKA4yGi5zdGFja3dyaWdodC52MS5QbGFuQWN0aW9uEg0KBWNvdW50GAIgASgFIuwBCghQbGFuTm9kZRIKCgJpZBgBIAEoCRIOCgZtb2R1bGUYAiABKAkSDAoEdHlwZRgDIAEoCRIMCgRuYW1lGAQgASgJEgwKBGRhdGEYBSABKAgSKgoGYWN0aW9uGAYgASgOMhouc3RhY2t3cmlnaHQudjEuUGxhbkFjdGlvbhIrCgZjb3VudHMYByADKAsyGy5zdGFja3dyaWdodC52MS5BY3Rpb25Db3VudBIRCglpbnN0YW5jZXMYCCABKAUSLgoGc291cmNlGAkgASgLMh4uc3RhY2t3cmlnaHQudjEuU291cmNlTG9jYXRpb24iNgoIUGxhbkVkZ2USDAoEZnJvbRgBIAEoCRIKCgJ0bxgCIAEoCRIQCghleHBsaWNpdBgDIAEoCCJlCglQbGFuR3JvdXASCgoCaWQYASABKAkSDgoGcGFyZW50GAIgASgJEgwKBG5hbWUYAyABKAkSLgoGc291cmNlGAQgASgLMh4uc3RhY2t3cmlnaHQudjEuU291cmNlTG9jYXRpb24idAoLUGxhblN1bW1hcnkSDwoHY3JlYXRlcxgBIAEoBRIPCgd1cGRhdGVzGAIgASgFEhAKCHJlcGxhY2VzGAMgASgFEg8KB2RlbGV0ZXMYBCABKAUSDQoFcmVhZHMYBSABKAUSEQoJdW5jaGFuZ2VkGAYgASgFIjAKDE5vZGVQb3NpdGlvbhIKCgJpZBgBIAEoCRIJCgF4GAIgASgBEgkKAXkYAyABKAEitgEKCVBsYW5HcmFwaBInCgVub2RlcxgBIAMoCzIYLnN0YWNrd3JpZ2h0LnYxLlBsYW5Ob2RlEicKBWVkZ2VzGAIgAygLMhguc3RhY2t3cmlnaHQudjEuUGxhbkVkZ2USKQoGZ3JvdXBzGAMgAygLMhkuc3RhY2t3cmlnaHQudjEuUGxhbkdyb3VwEiwKB3N1bW1hcnkYBCABKAsyGy5zdGFja3dyaWdodC52MS5QbGFuU3VtbWFyeSKTAQoTR2V0UGxhbkdyYXBoUmVxdWVzdBILCgNvcmcYASABKAkSDwoHcHJvamVjdBgCIAEoCRIRCgl3b3Jrc3BhY2UYAyABKAkSDgoGbnVtYmVyGAQgASgFEisKB2FjdGlvbnMYBSADKA4yGi5zdGFja3dyaWdodC52MS5QbGFuQWN0aW9uEg4KBm1vZHVsZRgGIAEoCSKXAQoUR2V0UGxhbkdyYXBoUmVzcG9uc2USKAoFZ3JhcGgYASABKAsyGS5zdGFja3dyaWdodC52MS5QbGFuR3JhcGgSDgoGbnVtYmVyGAIgASgFEiwKBmxheW91dBgDIAMoCzIcLnN0YWNrd3JpZ2h0LnYxLk5vZGVQb3NpdGlvbhIXCg9zb3VyY2VfYmFzZV91cmwYBCABKAkiWgoPQXR0cmlidXRlQ2hhbmdlEgwKBHBhdGgYASABKAkSDgoGYmVmb3JlGAIgASgJEg0KBWFmdGVyGAMgASgJEhoKEmZvcmNlc19yZXBsYWNlbWVudBgEIAEoCCKQAQoMUGxhbkluc3RhbmNlEg8KB2FkZHJlc3MYASABKAkSKgoGYWN0aW9uGAIgASgOMhouc3RhY2t3cmlnaHQudjEuUGxhbkFjdGlvbhIwCgdjaGFuZ2VzGAMgAygLMh8uc3RhY2t3cmlnaHQudjEuQXR0cmlidXRlQ2hhbmdlEhEKCXRydW5jYXRlZBgEIAEoCCJhChJHZXRQbGFuTm9kZVJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJEg4KBm51bWJlchgEIAEoBRIKCgJpZBgFIAEoCSJuChNHZXRQbGFuTm9kZVJlc3BvbnNlEiYKBG5vZGUYASABKAsyGC5zdGFja3dyaWdodC52MS5QbGFuTm9kZRIvCglpbnN0YW5jZXMYAiADKAsyHC5zdGFja3dyaWdodC52MS5QbGFuSW5zdGFuY2UiiwEKFlNhdmVHcmFwaExheW91dFJlcXVlc3QSCwoDb3JnGAEgASgJEg8KB3Byb2plY3QYAiABKAkSEQoJd29ya3NwYWNlGAMgASgJEi8KCXBvc2l0aW9ucxgEIAMoCzIcLnN0YWNrd3JpZ2h0LnYxLk5vZGVQb3NpdGlvbhIPCgdyZXBsYWNlGAUgASgIIhkKF1NhdmVHcmFwaExheW91dFJlc3BvbnNlIjQKDVRvcG9sb2d5Um91dGUSEwoLZGVzdGluYXRpb24YASABKAkSDgoGdGFyZ2V0GAIgASgJIp8BCgxUb3BvbG9neVJ1bGUSDwoHaW5ncmVzcxgBIAEoCBIQCghwcm90b2NvbBgCIAEoCRIRCglmcm9tX3BvcnQYAyABKAUSDwoHdG9fcG9ydBgEIAEoBRINCgVjaWRycxgFIAMoCRIWCg5zZWN1cml0eV9ncm91cBgGIAEoCRIMCgRzZWxmGAcgASgIEhMKC2Rlc2NyaXB0aW9uGAggASgJIs0DCgxUb3BvbG9neU5vZGUSCgoCaWQYASABKAkSKgoEcm9sZRgCIAEoDjIcLnN0YWNrd3JpZ2h0LnYxLlRvcG9sb2d5Um9sZRIPCgdwcm9qZWN0GAMgASgJEhEKCXdvcmtzcGFjZRgEIAEoCRIPCgdhZGRyZXNzGAUgASgJEgwKBHR5cGUYBiABKAkSDAoEbmFtZRgHIAEoCRIOCgZhd3NfaWQYCCABKAkSKgoGYWN0aW9uGAkgASgOMhouc3RhY2t3cmlnaHQudjEuUGxhbkFjdGlvbhILCgN2cGMYCiABKAkSDAoEem9uZRgLIAEoCRIPCgdzdWJuZXRzGAwgAygJEg4KBnB1YmxpYxgNIAEoCBIMCgRjaWRyGA4gASgJEhcKD3NlY3VyaXR5X2dyb3VwcxgPIAMoCRItCgZyb3V0ZXMYECADKAsyHS5zdGFja3dyaWdodC52MS5Ub3BvbG9neVJvdXRlEisKBXJ1bGVzGBEgAygLMhwuc3RhY2t3cmlnaHQudjEuVG9wb2xvZ3lSdWxlEhAKCGZpbmRpbmdzGBIgASgFEicKBXdvcnN0GBMgASgOMhguc3RhY2t3cmlnaHQudjEuU2V2ZXJpdHkikwEKDFRvcG9sb2d5RWRnZRIMCgRmcm9tGAEgASgJEgoKAnRvGAIgASgJEi4KBGtpbmQYAyABKA4yIC5zdGFja3dyaWdodC52MS5Ub3BvbG9neUVkZ2VLaW5kEg0KBWxhYmVsGAQgASgJEioKBmFjdGlvbhgFIAEoDjIaLnN0YWNrd3JpZ2h0LnYxLlBsYW5BY3Rpb24idQoIVG9wb2xvZ3kSKwoFbm9kZXMYASADKAsyHC5zdGFja3dyaWdodC52MS5Ub3BvbG9neU5vZGUSKwoFZWRnZXMYAiADKAsyHC5zdGFja3dyaWdodC52MS5Ub3BvbG9neUVkZ2USDwoHY2xhc2hlcxgDIAMoCSIhChJHZXRUb3BvbG9neVJlcXVlc3QSCwoDb3JnGAEgASgJIlIKE0dldFRvcG9sb2d5UmVzcG9uc2USKgoIdG9wb2xvZ3kYASABKAsyGC5zdGFja3dyaWdodC52MS5Ub3BvbG9neRIPCgdzb3VyY2VzGAIgAygJKt0BCgpQbGFuQWN0aW9uEhsKF1BMQU5fQUNUSU9OX1VOU1BFQ0lGSUVEEAASFQoRUExBTl9BQ1RJT05fTk9fT1AQARIUChBQTEFOX0FDVElPTl9SRUFEEAISFgoSUExBTl9BQ1RJT05fQ1JFQVRFEAMSFgoSUExBTl9BQ1RJT05fVVBEQVRFEAQSFwoTUExBTl9BQ1RJT05fUkVQTEFDRRAFEiQKIFBMQU5fQUNUSU9OX1JFUExBQ0VfQ1JFQVRFX0ZJUlNUEAYSFgoSUExBTl9BQ1RJT05fREVMRVRFEAcqywMKDFRvcG9sb2d5Um9sZRIdChlUT1BPTE9HWV9ST0xFX1VOU1BFQ0lGSUVEEAASFQoRVE9QT0xPR1lfUk9MRV9WUEMQARIYChRUT1BPTE9HWV9ST0xFX1NVQk5FVBACEiIKHlRPUE9MT0dZX1JPTEVfSU5URVJORVRfR0FURVdBWRADEh0KGVRPUE9MT0dZX1JPTEVfTkFUX0dBVEVXQVkQBBIdChlUT1BPTE9HWV9ST0xFX1JPVVRFX1RBQkxFEAUSIAocVE9QT0xPR1lfUk9MRV9TRUNVUklUWV9HUk9VUBAGEh8KG1RPUE9MT0dZX1JPTEVfTE9BRF9CQUxBTkNFUhAHEiAKHFRPUE9MT0dZX1JPTEVfSU5TVEFOQ0VfR1JPVVAQCBIaChZUT1BPTE9HWV9ST0xFX0lOU1RBTkNFEAkSGgoWVE9QT0xPR1lfUk9MRV9EQVRBQkFTRRAKEhkKFVRPUE9MT0dZX1JPTEVfQ0xVU1RFUhALEhkKFVRPUE9MT0dZX1JPTEVfUEVFUklORxAMEhoKFlRPUE9MT0dZX1JPTEVfRVhURVJOQUwQDRIaChZUT1BPTE9HWV9ST0xFX0lOVEVSTkVUEA4qoAEKEFRvcG9sb2d5RWRnZUtpbmQSIgoeVE9QT0xPR1lfRURHRV9LSU5EX1VOU1BFQ0lGSUVEEAASHAoYVE9QT0xPR1lfRURHRV9LSU5EX1JPVVRFEAESKgomVE9QT0xPR1lfRURHRV9LSU5EX1NFQ1VSSVRZX0dST1VQX1JVTEUQAhIeChpUT1BPTE9HWV9FREdFX0tJTkRfUEVFUklORxADMowDCgxHcmFwaFNlcnZpY2USXgoMR2V0UGxhbkdyYXBoEiMuc3RhY2t3cmlnaHQudjEuR2V0UGxhbkdyYXBoUmVxdWVzdBokLnN0YWNrd3JpZ2h0LnYxLkdldFBsYW5HcmFwaFJlc3BvbnNlIgOQAgESWwoLR2V0UGxhbk5vZGUSIi5zdGFja3dyaWdodC52MS5HZXRQbGFuTm9kZVJlcXVlc3QaIy5zdGFja3dyaWdodC52MS5HZXRQbGFuTm9kZVJlc3BvbnNlIgOQAgESYgoPU2F2ZUdyYXBoTGF5b3V0EiYuc3RhY2t3cmlnaHQudjEuU2F2ZUdyYXBoTGF5b3V0UmVxdWVzdBonLnN0YWNrd3JpZ2h0LnYxLlNhdmVHcmFwaExheW91dFJlc3BvbnNlElsKC0dldFRvcG9sb2d5EiIuc3RhY2t3cmlnaHQudjEuR2V0VG9wb2xvZ3lSZXF1ZXN0GiMuc3RhY2t3cmlnaHQudjEuR2V0VG9wb2xvZ3lSZXNwb25zZSIDkAIBQr4BChJjb20uc3RhY2t3cmlnaHQudjFCCkdyYXBoUHJvdG9QAVpDZ2l0aHViLmNvbS9zdGFja3dyaWdodC9zdGFja3dyaWdodC9nZW4vc3RhY2t3cmlnaHQvdjE7c3RhY2t3cmlnaHR2MaICA1NYWKoCDlN0YWNrd3JpZ2h0LlYxygIOU3RhY2t3cmlnaHRcVjHiAhpTdGFja3dyaWdodFxWMVxHUEJNZXRhZGF0YeoCD1N0YWNrd3JpZ2h0OjpWMWIGcHJvdG8z", [file_stackwright_v1_security]);
 
 /**
  * @generated from message stackwright.v1.SourceLocation
@@ -567,6 +569,323 @@ export const SaveGraphLayoutResponseSchema: GenMessage<SaveGraphLayoutResponse> 
   messageDesc(file_stackwright_v1_graph, 15);
 
 /**
+ * @generated from message stackwright.v1.TopologyRoute
+ */
+export type TopologyRoute = Message<"stackwright.v1.TopologyRoute"> & {
+  /**
+   * @generated from field: string destination = 1;
+   */
+  destination: string;
+
+  /**
+   * The target's node id.
+   *
+   * @generated from field: string target = 2;
+   */
+  target: string;
+};
+
+/**
+ * Describes the message stackwright.v1.TopologyRoute.
+ * Use `create(TopologyRouteSchema)` to create a new message.
+ */
+export const TopologyRouteSchema: GenMessage<TopologyRoute> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_graph, 16);
+
+/**
+ * @generated from message stackwright.v1.TopologyRule
+ */
+export type TopologyRule = Message<"stackwright.v1.TopologyRule"> & {
+  /**
+   * @generated from field: bool ingress = 1;
+   */
+  ingress: boolean;
+
+  /**
+   * "-1" is every protocol.
+   *
+   * @generated from field: string protocol = 2;
+   */
+  protocol: string;
+
+  /**
+   * @generated from field: int32 from_port = 3;
+   */
+  fromPort: number;
+
+  /**
+   * @generated from field: int32 to_port = 4;
+   */
+  toPort: number;
+
+  /**
+   * @generated from field: repeated string cidrs = 5;
+   */
+  cidrs: string[];
+
+  /**
+   * The other security group's node id.
+   *
+   * @generated from field: string security_group = 6;
+   */
+  securityGroup: string;
+
+  /**
+   * @generated from field: bool self = 7;
+   */
+  self: boolean;
+
+  /**
+   * @generated from field: string description = 8;
+   */
+  description: string;
+};
+
+/**
+ * Describes the message stackwright.v1.TopologyRule.
+ * Use `create(TopologyRuleSchema)` to create a new message.
+ */
+export const TopologyRuleSchema: GenMessage<TopologyRule> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_graph, 17);
+
+/**
+ * @generated from message stackwright.v1.TopologyNode
+ */
+export type TopologyNode = Message<"stackwright.v1.TopologyNode"> & {
+  /**
+   * "project/workspace/address" with instance keys, the AWS id of an
+   * external stub, or "internet".
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: stackwright.v1.TopologyRole role = 2;
+   */
+  role: TopologyRole;
+
+  /**
+   * @generated from field: string project = 3;
+   */
+  project: string;
+
+  /**
+   * @generated from field: string workspace = 4;
+   */
+  workspace: string;
+
+  /**
+   * @generated from field: string address = 5;
+   */
+  address: string;
+
+  /**
+   * @generated from field: string type = 6;
+   */
+  type: string;
+
+  /**
+   * The Name tag, else the resource's name attribute, else its address.
+   *
+   * @generated from field: string name = 7;
+   */
+  name: string;
+
+  /**
+   * Empty while a planned resource has no id.
+   *
+   * @generated from field: string aws_id = 8;
+   */
+  awsId: string;
+
+  /**
+   * @generated from field: stackwright.v1.PlanAction action = 9;
+   */
+  action: PlanAction;
+
+  /**
+   * The VPC's node id.
+   *
+   * @generated from field: string vpc = 10;
+   */
+  vpc: string;
+
+  /**
+   * The availability zone of a subnet, or of a node in one zone only.
+   *
+   * @generated from field: string zone = 11;
+   */
+  zone: string;
+
+  /**
+   * The subnets' node ids that the node sits in.
+   *
+   * @generated from field: repeated string subnets = 12;
+   */
+  subnets: string[];
+
+  /**
+   * A subnet whose route table sends 0.0.0.0/0 to an internet gateway.
+   *
+   * @generated from field: bool public = 13;
+   */
+  public: boolean;
+
+  /**
+   * @generated from field: string cidr = 14;
+   */
+  cidr: string;
+
+  /**
+   * @generated from field: repeated string security_groups = 15;
+   */
+  securityGroups: string[];
+
+  /**
+   * A subnet's routes, from its route table or the VPC's main one.
+   *
+   * @generated from field: repeated stackwright.v1.TopologyRoute routes = 16;
+   */
+  routes: TopologyRoute[];
+
+  /**
+   * A security group's rules.
+   *
+   * @generated from field: repeated stackwright.v1.TopologyRule rules = 17;
+   */
+  rules: TopologyRule[];
+
+  /**
+   * Open findings on the resource, and the worst one's severity.
+   *
+   * @generated from field: int32 findings = 18;
+   */
+  findings: number;
+
+  /**
+   * @generated from field: stackwright.v1.Severity worst = 19;
+   */
+  worst: Severity;
+};
+
+/**
+ * Describes the message stackwright.v1.TopologyNode.
+ * Use `create(TopologyNodeSchema)` to create a new message.
+ */
+export const TopologyNodeSchema: GenMessage<TopologyNode> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_graph, 18);
+
+/**
+ * @generated from message stackwright.v1.TopologyEdge
+ */
+export type TopologyEdge = Message<"stackwright.v1.TopologyEdge"> & {
+  /**
+   * @generated from field: string from = 1;
+   */
+  from: string;
+
+  /**
+   * @generated from field: string to = 2;
+   */
+  to: string;
+
+  /**
+   * @generated from field: stackwright.v1.TopologyEdgeKind kind = 3;
+   */
+  kind: TopologyEdgeKind;
+
+  /**
+   * Such as "0.0.0.0/0" or "tcp 443".
+   *
+   * @generated from field: string label = 4;
+   */
+  label: string;
+
+  /**
+   * @generated from field: stackwright.v1.PlanAction action = 5;
+   */
+  action: PlanAction;
+};
+
+/**
+ * Describes the message stackwright.v1.TopologyEdge.
+ * Use `create(TopologyEdgeSchema)` to create a new message.
+ */
+export const TopologyEdgeSchema: GenMessage<TopologyEdge> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_graph, 19);
+
+/**
+ * @generated from message stackwright.v1.Topology
+ */
+export type Topology = Message<"stackwright.v1.Topology"> & {
+  /**
+   * @generated from field: repeated stackwright.v1.TopologyNode nodes = 1;
+   */
+  nodes: TopologyNode[];
+
+  /**
+   * @generated from field: repeated stackwright.v1.TopologyEdge edges = 2;
+   */
+  edges: TopologyEdge[];
+
+  /**
+   * Each AWS id that two workspaces manage, as "id: a/x, b/y".
+   *
+   * @generated from field: repeated string clashes = 3;
+   */
+  clashes: string[];
+};
+
+/**
+ * Describes the message stackwright.v1.Topology.
+ * Use `create(TopologySchema)` to create a new message.
+ */
+export const TopologySchema: GenMessage<Topology> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_graph, 20);
+
+/**
+ * @generated from message stackwright.v1.GetTopologyRequest
+ */
+export type GetTopologyRequest = Message<"stackwright.v1.GetTopologyRequest"> & {
+  /**
+   * @generated from field: string org = 1;
+   */
+  org: string;
+};
+
+/**
+ * Describes the message stackwright.v1.GetTopologyRequest.
+ * Use `create(GetTopologyRequestSchema)` to create a new message.
+ */
+export const GetTopologyRequestSchema: GenMessage<GetTopologyRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_graph, 21);
+
+/**
+ * @generated from message stackwright.v1.GetTopologyResponse
+ */
+export type GetTopologyResponse = Message<"stackwright.v1.GetTopologyResponse"> & {
+  /**
+   * @generated from field: stackwright.v1.Topology topology = 1;
+   */
+  topology?: Topology | undefined;
+
+  /**
+   * The workspaces whose plans were read, as "project/workspace #run".
+   *
+   * @generated from field: repeated string sources = 2;
+   */
+  sources: string[];
+};
+
+/**
+ * Describes the message stackwright.v1.GetTopologyResponse.
+ * Use `create(GetTopologyResponseSchema)` to create a new message.
+ */
+export const GetTopologyResponseSchema: GenMessage<GetTopologyResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_graph, 22);
+
+/**
  * @generated from enum stackwright.v1.PlanAction
  */
 export enum PlanAction {
@@ -622,6 +941,134 @@ export const PlanActionSchema: GenEnum<PlanAction> = /*@__PURE__*/
   enumDesc(file_stackwright_v1_graph, 0);
 
 /**
+ * @generated from enum stackwright.v1.TopologyRole
+ */
+export enum TopologyRole {
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_VPC = 1;
+   */
+  VPC = 1,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_SUBNET = 2;
+   */
+  SUBNET = 2,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_INTERNET_GATEWAY = 3;
+   */
+  INTERNET_GATEWAY = 3,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_NAT_GATEWAY = 4;
+   */
+  NAT_GATEWAY = 4,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_ROUTE_TABLE = 5;
+   */
+  ROUTE_TABLE = 5,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_SECURITY_GROUP = 6;
+   */
+  SECURITY_GROUP = 6,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_LOAD_BALANCER = 7;
+   */
+  LOAD_BALANCER = 7,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_INSTANCE_GROUP = 8;
+   */
+  INSTANCE_GROUP = 8,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_INSTANCE = 9;
+   */
+  INSTANCE = 9,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_DATABASE = 10;
+   */
+  DATABASE = 10,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_CLUSTER = 11;
+   */
+  CLUSTER = 11,
+
+  /**
+   * @generated from enum value: TOPOLOGY_ROLE_PEERING = 12;
+   */
+  PEERING = 12,
+
+  /**
+   * An id that no workspace's plan has, such as a transit gateway that
+   * another tool manages.
+   *
+   * @generated from enum value: TOPOLOGY_ROLE_EXTERNAL = 13;
+   */
+  EXTERNAL = 13,
+
+  /**
+   * 0.0.0.0/0 or ::/0 as a security group rule's source.
+   *
+   * @generated from enum value: TOPOLOGY_ROLE_INTERNET = 14;
+   */
+  INTERNET = 14,
+}
+
+/**
+ * Describes the enum stackwright.v1.TopologyRole.
+ */
+export const TopologyRoleSchema: GenEnum<TopologyRole> = /*@__PURE__*/
+  enumDesc(file_stackwright_v1_graph, 1);
+
+/**
+ * @generated from enum stackwright.v1.TopologyEdgeKind
+ */
+export enum TopologyEdgeKind {
+  /**
+   * @generated from enum value: TOPOLOGY_EDGE_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * From a subnet to its route's target.
+   *
+   * @generated from enum value: TOPOLOGY_EDGE_KIND_ROUTE = 1;
+   */
+  ROUTE = 1,
+
+  /**
+   * From a rule's source to the security group.
+   *
+   * @generated from enum value: TOPOLOGY_EDGE_KIND_SECURITY_GROUP_RULE = 2;
+   */
+  SECURITY_GROUP_RULE = 2,
+
+  /**
+   * From a VPC to its peering connection, and on to the peer.
+   *
+   * @generated from enum value: TOPOLOGY_EDGE_KIND_PEERING = 3;
+   */
+  PEERING = 3,
+}
+
+/**
+ * Describes the enum stackwright.v1.TopologyEdgeKind.
+ */
+export const TopologyEdgeKindSchema: GenEnum<TopologyEdgeKind> = /*@__PURE__*/
+  enumDesc(file_stackwright_v1_graph, 2);
+
+/**
  * @generated from service stackwright.v1.GraphService
  */
 export const GraphService: GenService<{
@@ -656,6 +1103,17 @@ export const GraphService: GenService<{
     methodKind: "unary";
     input: typeof SaveGraphLayoutRequestSchema;
     output: typeof SaveGraphLayoutResponseSchema;
+  },
+  /**
+   * GetTopology returns the org's AWS network, joined from each
+   * workspace's latest plan of its own code (adr/0038).
+   *
+   * @generated from rpc stackwright.v1.GraphService.GetTopology
+   */
+  getTopology: {
+    methodKind: "unary";
+    input: typeof GetTopologyRequestSchema;
+    output: typeof GetTopologyResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_stackwright_v1_graph, 0);

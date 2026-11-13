@@ -107,6 +107,7 @@ var Policy = map[string]Rule{
 
 	stackwrightv1connect.GraphServiceGetPlanGraphProcedure:    org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.GraphServiceGetPlanNodeProcedure:     org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.GraphServiceGetTopologyProcedure:     org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.GraphServiceSaveGraphLayoutProcedure: org(v1.Role_ROLE_WRITER),
 
 	stackwrightv1connect.StateServiceGetStateProcedure:          org(v1.Role_ROLE_VIEWER),

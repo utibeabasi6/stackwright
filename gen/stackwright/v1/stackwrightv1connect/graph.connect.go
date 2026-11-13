@@ -42,6 +42,9 @@ const (
 	// GraphServiceSaveGraphLayoutProcedure is the fully-qualified name of the GraphService's
 	// SaveGraphLayout RPC.
 	GraphServiceSaveGraphLayoutProcedure = "/stackwright.v1.GraphService/SaveGraphLayout"
+	// GraphServiceGetTopologyProcedure is the fully-qualified name of the GraphService's GetTopology
+	// RPC.
+	GraphServiceGetTopologyProcedure = "/stackwright.v1.GraphService/GetTopology"
 )
 
 // GraphServiceClient is a client for the stackwright.v1.GraphService service.
@@ -54,6 +57,9 @@ type GraphServiceClient interface {
 	// SaveGraphLayout stores node positions for the workspace. With replace,
 	// the stored positions are dropped first.
 	SaveGraphLayout(context.Context, *connect.Request[v1.SaveGraphLayoutRequest]) (*connect.Response[v1.SaveGraphLayoutResponse], error)
+	// GetTopology returns the org's AWS network, joined from each
+	// workspace's latest plan of its own code (adr/0038).
+	GetTopology(context.Context, *connect.Request[v1.GetTopologyRequest]) (*connect.Response[v1.GetTopologyResponse], error)
 }
 
 // NewGraphServiceClient constructs a client for the stackwright.v1.GraphService service. By
@@ -87,6 +93,13 @@ func NewGraphServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(graphServiceMethods.ByName("SaveGraphLayout")),
 			connect.WithClientOptions(opts...),
 		),
+		getTopology: connect.NewClient[v1.GetTopologyRequest, v1.GetTopologyResponse](
+			httpClient,
+			baseURL+GraphServiceGetTopologyProcedure,
+			connect.WithSchema(graphServiceMethods.ByName("GetTopology")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -95,6 +108,7 @@ type graphServiceClient struct {
 	getPlanGraph    *connect.Client[v1.GetPlanGraphRequest, v1.GetPlanGraphResponse]
 	getPlanNode     *connect.Client[v1.GetPlanNodeRequest, v1.GetPlanNodeResponse]
 	saveGraphLayout *connect.Client[v1.SaveGraphLayoutRequest, v1.SaveGraphLayoutResponse]
+	getTopology     *connect.Client[v1.GetTopologyRequest, v1.GetTopologyResponse]
 }
 
 // GetPlanGraph calls stackwright.v1.GraphService.GetPlanGraph.
@@ -112,6 +126,11 @@ func (c *graphServiceClient) SaveGraphLayout(ctx context.Context, req *connect.R
 	return c.saveGraphLayout.CallUnary(ctx, req)
 }
 
+// GetTopology calls stackwright.v1.GraphService.GetTopology.
+func (c *graphServiceClient) GetTopology(ctx context.Context, req *connect.Request[v1.GetTopologyRequest]) (*connect.Response[v1.GetTopologyResponse], error) {
+	return c.getTopology.CallUnary(ctx, req)
+}
+
 // GraphServiceHandler is an implementation of the stackwright.v1.GraphService service.
 type GraphServiceHandler interface {
 	// GetPlanGraph returns the graph of a run's plan, with the workspace's
@@ -122,6 +141,9 @@ type GraphServiceHandler interface {
 	// SaveGraphLayout stores node positions for the workspace. With replace,
 	// the stored positions are dropped first.
 	SaveGraphLayout(context.Context, *connect.Request[v1.SaveGraphLayoutRequest]) (*connect.Response[v1.SaveGraphLayoutResponse], error)
+	// GetTopology returns the org's AWS network, joined from each
+	// workspace's latest plan of its own code (adr/0038).
+	GetTopology(context.Context, *connect.Request[v1.GetTopologyRequest]) (*connect.Response[v1.GetTopologyResponse], error)
 }
 
 // NewGraphServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -151,6 +173,13 @@ func NewGraphServiceHandler(svc GraphServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(graphServiceMethods.ByName("SaveGraphLayout")),
 		connect.WithHandlerOptions(opts...),
 	)
+	graphServiceGetTopologyHandler := connect.NewUnaryHandler(
+		GraphServiceGetTopologyProcedure,
+		svc.GetTopology,
+		connect.WithSchema(graphServiceMethods.ByName("GetTopology")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/stackwright.v1.GraphService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case GraphServiceGetPlanGraphProcedure:
@@ -159,6 +188,8 @@ func NewGraphServiceHandler(svc GraphServiceHandler, opts ...connect.HandlerOpti
 			graphServiceGetPlanNodeHandler.ServeHTTP(w, r)
 		case GraphServiceSaveGraphLayoutProcedure:
 			graphServiceSaveGraphLayoutHandler.ServeHTTP(w, r)
+		case GraphServiceGetTopologyProcedure:
+			graphServiceGetTopologyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -178,4 +209,8 @@ func (UnimplementedGraphServiceHandler) GetPlanNode(context.Context, *connect.Re
 
 func (UnimplementedGraphServiceHandler) SaveGraphLayout(context.Context, *connect.Request[v1.SaveGraphLayoutRequest]) (*connect.Response[v1.SaveGraphLayoutResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.GraphService.SaveGraphLayout is not implemented"))
+}
+
+func (UnimplementedGraphServiceHandler) GetTopology(context.Context, *connect.Request[v1.GetTopologyRequest]) (*connect.Response[v1.GetTopologyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.GraphService.GetTopology is not implemented"))
 }

@@ -137,6 +137,7 @@ export function Shell() {
     const list: Command[] = [
       { id: "projects", label: "Projects", group: "Page", run: go("/$org") },
       { id: "inbox", label: "Waiting on you", group: "Page", run: go("/$org/inbox") },
+      { id: "topology", label: "Topology", group: "Page", run: go("/$org/topology") },
       { id: "servers", label: "Build servers", group: "Page", run: go("/$org/build-servers") },
       { id: "settings", label: "Settings: General", group: "Page", run: go("/$org/settings") },
       { id: "members", label: "Settings: Members", group: "Page", run: go("/$org/settings/members") },
@@ -145,6 +146,7 @@ export function Shell() {
       { id: "cloud", label: "Settings: Cloud accounts", group: "Page", run: go("/$org/settings/cloud") },
       { id: "github", label: "Settings: GitHub", group: "Page", run: go("/$org/settings/github") },
       { id: "agent", label: "Settings: Agent", group: "Page", run: go("/$org/settings/agent") },
+      { id: "security", label: "Settings: Security", group: "Page", run: go("/$org/settings/security") },
     ];
     if (role >= Role.ADMIN) {
       list.push(
@@ -255,6 +257,9 @@ export function Shell() {
                     {waiting.data}
                   </span>
                 )}
+              </Link>
+              <Link to="/$org/topology" params={{ org }}>
+                Topology
               </Link>
               {!ws && (
                 <>
