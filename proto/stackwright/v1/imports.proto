@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stackwright/v1/projects.proto";
+import "stackwright/v1/runs.proto";
+
+// ImportService imports a linked repository's root modules as projects,
+// which run on the repository's own backend (adr/0036).
+service ImportService {
+  // ScanRepository reads the repository at its default branch's newest
+  // commit and lists what it finds. It runs no code.
+  rpc ScanRepository(ScanRepositoryRequest) returns (ScanRepositoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // StartImport creates the chosen projects and workspaces, or finds them
+  // from an earlier import, and plans every workspace that it creates.
+  rpc StartImport(StartImportRequest) returns (StartImportResponse);
+  rpc GetImport(GetImportRequest) returns (GetImportResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message ScanRepositoryRequest {
+  string org = 1;
+  // "owner/name".
+  string repo = 2;
+}
+
+message ScanRepositoryResponse {
+  string commit = 1;
+  repeated FoundRoot roots = 2;
+  // Folders that root modules call as local modules.
+  repeated string modules = 3;
+  // Folders with a terragrunt.hcl; they import with phase 18.
+  repeated string terragrunt_units = 4;
+}
+
+message FoundRoot {
+  // The folder, "" for the repository's root.
+  string path = 1;
+  // "default", then any CLI workspaces.
+  repeated string workspaces = 2;
+  StateBackend state_backend = 3;
+  // The backend block's type, such as "s3", or "local".
+  string backend = 4;
+  Engine engine = 5;
+  // The labels and the slug that the importer proposes.
+  map<string, string> labels = 6;
+  string slug = 7;
+  // The project that an earlier import made for this folder, if any.
+  string existing_project = 8;
+  // A state file for it is in the repository.
+  bool committed_state = 9;
+}
+
+message StartImportRequest {
+  string org = 1;
+  string repo = 2;
+  string commit = 3;
+  repeated ImportRoot roots = 4;
+}
+
+message ImportRoot {
+  string path = 1;
+  string slug = 2;
+  Engine engine = 3;
+  string engine_version = 4;
+  map<string, string> labels = 5;
+  // A cloud account for the new workspaces, or empty.
+  string cloud_account = 6;
+}
+
+message StartImportResponse {
+  Import import = 1;
+}
+
+message GetImportRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message GetImportResponse {
+  Import import = 1;
+}
+
+message Import {
+  string id = 1;
+  string repo = 2;
+  string commit = 3;
+  string created_by = 4;
+  google.protobuf.Timestamp created_at = 5;
+  repeated ImportedWorkspace workspaces = 6;
+}
+
+message ImportedWorkspace {
+  string project = 1;
+  string workspace = 2;
+  // False when an earlier import made it.
+  bool created = 3;
+  // The first plan, which this import started; 0 when it made none.
+  int32 run_number = 4;
+  RunStatus run_status = 5;
+  bool has_changes = 6;
+  string run_error = 7;
+}

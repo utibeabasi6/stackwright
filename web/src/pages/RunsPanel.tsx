@@ -18,9 +18,12 @@ type Props = {
   runBranch: string;
   autoApply: boolean;
   requiredLabels: Record<string, string>;
+  // gitState is true when the project's state is committed to Git, so its
+  // runs only plan (adr/0036).
+  gitState: boolean;
 };
 
-export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBranch, autoApply, requiredLabels }: Props) {
+export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBranch, autoApply, requiredLabels, gitState }: Props) {
   const { me, reloadWaiting } = useShell();
   const navigate = useNavigate();
   const runs = useLoad(`runs:${org}/${project}/${workspace}`, () => runApi.listRuns({ org, project, workspace }).then((r) => r.runs));
@@ -105,9 +108,13 @@ export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBran
                   <input name="source" type="file" accept=".tar.gz,.tgz,application/gzip" />
                 </label>
               )}
-              <label className="check">
-                <input name="planOnly" type="checkbox" /> Plan only, never apply
-              </label>
+              {gitState ? (
+                <p className="hint">This project's state is committed to Git, so its runs only plan.</p>
+              ) : (
+                <label className="check">
+                  <input name="planOnly" type="checkbox" /> Plan only, never apply
+                </label>
+              )}
               <p className="hint">
                 {autoApply ? "Auto-apply is on: a plan with changes applies with no approval." : "A plan with changes waits for a reviewer."}{" "}
                 {labels ? `Runs go only to build servers with ${labels}.` : "Runs go to any build server."}

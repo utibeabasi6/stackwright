@@ -125,15 +125,20 @@ func (h Handler) serve(w http.ResponseWriter, r *http.Request) error {
 		if write && (role == "viewer" || role == "security" || role == "reviewer") {
 			return fail(http.StatusForbidden, "writing state needs the writer role or above")
 		}
-		var workspaceID string
-		err = tx.QueryRow(r.Context(), `SELECT w.id FROM workspaces w JOIN projects p ON p.id = w.project_id
+		var workspaceID, backend string
+		err = tx.QueryRow(r.Context(), `SELECT w.id, p.state_backend FROM workspaces w JOIN projects p ON p.id = w.project_id
 			WHERE p.slug = $1 AND w.name = $2 AND p.archived_at IS NULL AND w.archived_at IS NULL`,
-			project, workspace).Scan(&workspaceID)
+			project, workspace).Scan(&workspaceID, &backend)
 		if errors.Is(err, pgx.ErrNoRows) || (err == nil && jobID != "" && workspaceID != jobWorkspace) {
 			return errNotFound
 		}
 		if err != nil {
 			return err
+		}
+		// A second copy of the state would drift from the one the code's
+		// backend holds (adr/0036).
+		if backend != "stackwright" {
+			return fail(http.StatusConflict, "this project's state lives in the backend its code names, not in Stackwright")
 		}
 		req := request{ctx: r.Context(), tx: tx, orgID: orgID, workspaceID: workspaceID, userID: userID, jobID: jobID,
 			target: "workspace:" + project + "/" + workspace, ip: auth.ClientIP(r)}

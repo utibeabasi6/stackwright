@@ -163,9 +163,16 @@ type NewRun struct {
 // Create queues a run. tx needs the org setting.
 func (o *Orchestrator) Create(ctx context.Context, tx pgx.Tx, orgID string, r NewRun) (string, int32, error) {
 	var number int32
-	if err := tx.QueryRow(ctx, `UPDATE workspaces SET runs_started = runs_started + 1 WHERE id = $1 RETURNING runs_started`,
-		r.WorkspaceID).Scan(&number); err != nil {
+	var gitState bool
+	if err := tx.QueryRow(ctx, `UPDATE workspaces w SET runs_started = runs_started + 1 FROM projects p
+		WHERE w.id = $1 AND p.id = w.project_id RETURNING w.runs_started, p.state_backend = 'git'`,
+		r.WorkspaceID).Scan(&number, &gitState); err != nil {
 		return "", 0, err
+	}
+	// State committed to Git is plan-only, whatever starts the run
+	// (adr/0036).
+	if gitState {
+		r.PlanOnly = true
 	}
 	runID := uuid.NewString()
 	if r.SourceKey == "" {

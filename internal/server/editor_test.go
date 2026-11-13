@@ -51,6 +51,22 @@ func TestEditorSessionNeedsNoModel(t *testing.T) {
 		"shortModel": "anthropic/claude-haiku-5.5", "monthlyCap": 50})
 	id := w.quietSession()
 	paths := w.editor("AgentService/ListFiles", map[string]any{"id": id})["paths"].([]any)
+	// Each editor write makes one audit row, as TestEveryWriteMakesOneAuditRow
+	// checks for the other writes.
+	for _, call := range []struct {
+		procedure string
+		req       map[string]any
+	}{
+		{"AgentService/SaveFile", map[string]any{"id": id, "path": "notes.md", "content": "# notes\n"}},
+		{"AgentService/OpenLanguageServer", map[string]any{"id": id}},
+		{"AgentService/PlanCheckout", map[string]any{"id": id}},
+	} {
+		before := w.auditRows()
+		w.editor(call.procedure, call.req)
+		if got := w.auditRows() - before; got != 1 {
+			t.Errorf("%s made %d audit rows, want 1", call.procedure, got)
+		}
+	}
 	if !slices.Contains(paths, any("main.tf")) || slices.Contains(paths, any("terraform.tfstate")) {
 		t.Errorf("paths: %v", paths)
 	}

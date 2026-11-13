@@ -3,6 +3,8 @@ import { Shell } from "./Shell";
 import { EditorPage } from "./editor/EditorPage";
 import { BuildServers } from "./pages/BuildServers";
 import { EnrolServer } from "./pages/EnrolServer";
+import { Import } from "./pages/Import";
+import { ImportProgress } from "./pages/ImportProgress";
 import { Inbox } from "./pages/Inbox";
 import { Run } from "./pages/Run";
 import { Runs } from "./pages/Runs";
@@ -43,6 +45,8 @@ export const routeTree = root.addChildren([
       createRoute({ getParentRoute: () => org, path: "build-servers", component: BuildServers }),
       createRoute({ getParentRoute: () => org, path: "build-servers/enrol", component: EnrolServer }),
       createRoute({ getParentRoute: () => org, path: "projects/new", component: NewProject }),
+      createRoute({ getParentRoute: () => org, path: "import", component: Import }),
+      createRoute({ getParentRoute: () => org, path: "imports/$id", component: ImportProgress }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace", component: () => <Workspace section="overview" /> }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/state", component: () => <Workspace section="state" /> }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/variables", component: () => <Workspace section="variables" /> }),

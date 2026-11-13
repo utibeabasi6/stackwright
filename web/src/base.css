@@ -1614,3 +1614,40 @@ button.action {
   margin-left: var(--space-2);
   font: var(--type-label);
 }
+
+.group-by {
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.group-by [aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--selection);
+}
+
+.project-group > h2,
+.project-group > h3,
+.project-group > h4,
+.project-group > h5,
+.project-group > h6 {
+  margin: var(--space-4) 0 var(--space-2);
+  font: var(--type-heading);
+  color: var(--ink-muted);
+}
+
+.labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.labels li {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  font: var(--type-code);
+  color: var(--ink-muted);
+}

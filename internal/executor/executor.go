@@ -191,9 +191,12 @@ func (r *runner) run(ctx context.Context) (err error) {
 	}
 	// The addresses go in the environment, not here: a plan file keeps its
 	// backend block, and the apply may run where this host does not resolve.
-	override := "terraform {\n  backend \"http\" {\n    username = \"stackwright\"\n  }\n}\n"
+	// A project on the code's own backend gets no override (adr/0036).
 	plan, lock := filepath.Join(dir, "plan.bin"), filepath.Join(dir, ".terraform.lock.hcl")
-	files := map[string][]byte{filepath.Join(dir, "stackwright_override.tf"): []byte(override)}
+	files := map[string][]byte{}
+	if !job.GetCodeBackend() {
+		files[filepath.Join(dir, "stackwright_override.tf")] = []byte("terraform {\n  backend \"http\" {\n    username = \"stackwright\"\n  }\n}\n")
+	}
 	if b, ok := inputs["plan.bin"]; ok {
 		files[plan] = b
 	}
@@ -217,8 +220,14 @@ func (r *runner) run(ctx context.Context) (err error) {
 	address := r.serverURL + job.GetStatePath()
 	// Stackwright's own entries come last: with a key twice, the last one
 	// wins, so a variable cannot replace them.
-	env = append(env, "HOME="+home, "PATH=/usr/local/bin:/usr/bin:/bin", "TF_IN_AUTOMATION=1", "TF_INPUT=0", "TF_HTTP_PASSWORD="+job.GetToken(),
-		"TF_HTTP_ADDRESS="+address, "TF_HTTP_LOCK_ADDRESS="+address, "TF_HTTP_UNLOCK_ADDRESS="+address)
+	env = append(env, "HOME="+home, "PATH=/usr/local/bin:/usr/bin:/bin", "TF_IN_AUTOMATION=1", "TF_INPUT=0")
+	if job.GetCodeBackend() {
+		if job.GetWorkspace() != "" {
+			env = append(env, "TF_WORKSPACE="+job.GetWorkspace())
+		}
+	} else {
+		env = append(env, "TF_HTTP_PASSWORD="+job.GetToken(), "TF_HTTP_ADDRESS="+address, "TF_HTTP_LOCK_ADDRESS="+address, "TF_HTTP_UNLOCK_ADDRESS="+address)
+	}
 	if providers := filepath.Join(r.cache, "providers"); r.cache != "" && isDir(providers) {
 		config := filepath.Join(home, "cli.tfrc")
 		if err := os.WriteFile(config, fmt.Appendf(nil, "provider_installation {\n  filesystem_mirror {\n    path = %q\n  }\n  direct {}\n}\n", providers), 0o600); err != nil {

@@ -158,8 +158,12 @@ type Job struct {
 	Uploads  map[string]string      `protobuf:"bytes,11,rep,name=uploads,proto3" json:"uploads,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Deadline *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=deadline,proto3" json:"deadline,omitempty"`
 	// Workspace over project over org, one for each category and key.
-	Variables     []*JobVariable  `protobuf:"bytes,13,rep,name=variables,proto3" json:"variables,omitempty"`
-	Aws           *AwsCredentials `protobuf:"bytes,14,opt,name=aws,proto3" json:"aws,omitempty"`
+	Variables []*JobVariable  `protobuf:"bytes,13,rep,name=variables,proto3" json:"variables,omitempty"`
+	Aws       *AwsCredentials `protobuf:"bytes,14,opt,name=aws,proto3" json:"aws,omitempty"`
+	// code_backend runs with the code's own backend and no override
+	// (adr/0036); workspace then names the CLI workspace, if any.
+	CodeBackend   bool   `protobuf:"varint,15,opt,name=code_backend,json=codeBackend,proto3" json:"code_backend,omitempty"`
+	Workspace     string `protobuf:"bytes,16,opt,name=workspace,proto3" json:"workspace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -290,6 +294,20 @@ func (x *Job) GetAws() *AwsCredentials {
 		return x.Aws
 	}
 	return nil
+}
+
+func (x *Job) GetCodeBackend() bool {
+	if x != nil {
+		return x.CodeBackend
+	}
+	return false
+}
+
+func (x *Job) GetWorkspace() string {
+	if x != nil {
+		return x.Workspace
+	}
+	return ""
 }
 
 type JobVariable struct {
@@ -772,7 +790,7 @@ const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x16\n" +
 	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x15\n" +
-	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xb1\x05\n" +
+	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xf2\x05\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12:\n" +
@@ -789,7 +807,9 @@ const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"\auploads\x18\v \x03(\v2 .stackwright.v1.Job.UploadsEntryR\auploads\x126\n" +
 	"\bdeadline\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\bdeadline\x129\n" +
 	"\tvariables\x18\r \x03(\v2\x1b.stackwright.v1.JobVariableR\tvariables\x120\n" +
-	"\x03aws\x18\x0e \x01(\v2\x1e.stackwright.v1.AwsCredentialsR\x03aws\x1a:\n" +
+	"\x03aws\x18\x0e \x01(\v2\x1e.stackwright.v1.AwsCredentialsR\x03aws\x12!\n" +
+	"\fcode_backend\x18\x0f \x01(\bR\vcodeBackend\x12\x1c\n" +
+	"\tworkspace\x18\x10 \x01(\tR\tworkspace\x1a:\n" +
 	"\fUploadsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x91\x01\n" +

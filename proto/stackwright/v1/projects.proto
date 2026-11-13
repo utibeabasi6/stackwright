@@ -45,6 +45,17 @@ enum Layout {
   LAYOUT_CLI_WORKSPACES = 2;
 }
 
+// StateBackend says where a project's state lives (adr/0036).
+enum StateBackend {
+  STATE_BACKEND_UNSPECIFIED = 0;
+  // Stackwright's own state service, which runs reach through an override.
+  STATE_BACKEND_STACKWRIGHT = 1;
+  // The backend block in the code, such as S3; runs use it as written.
+  STATE_BACKEND_CODE = 2;
+  // A state file committed to Git. Runs plan from it and never apply.
+  STATE_BACKEND_GIT = 3;
+}
+
 message Project {
   string slug = 1;
   string path = 2;
@@ -61,6 +72,8 @@ message Project {
   // repository's default one.
   string linked_repo = 11;
   string run_branch = 12;
+  map<string, string> labels = 13;
+  StateBackend state_backend = 14;
 }
 
 message Workspace {
@@ -105,6 +118,9 @@ message CreateProjectRequest {
   string branch = 9;
   // A cloud account for every workspace the project starts with, or empty.
   string cloud_account = 10;
+  map<string, string> labels = 11;
+  // Unspecified means Stackwright's state.
+  StateBackend state_backend = 12;
 }
 
 message CreateProjectResponse {
@@ -126,6 +142,8 @@ message UpdateProjectRequest {
   string engine_version = 4;
   string repo_url = 5;
   string branch = 6;
+  // Unset keeps the labels.
+  Labels labels = 7;
 }
 
 message UpdateProjectResponse {

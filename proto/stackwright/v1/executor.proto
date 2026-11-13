@@ -48,6 +48,10 @@ message Job {
   // Workspace over project over org, one for each category and key.
   repeated JobVariable variables = 13;
   AwsCredentials aws = 14;
+  // code_backend runs with the code's own backend and no override
+  // (adr/0036); workspace then names the CLI workspace, if any.
+  bool code_backend = 15;
+  string workspace = 16;
 }
 
 message JobVariable {

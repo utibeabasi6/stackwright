@@ -209,6 +209,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		orgID, operation, eng, version, platform string
 		orgSlug, project, projectPath, workspace string
 		sourceSHA, projectID, workspaceID        string
+		stateBackend, layout                     string
 		runID                                    *string
 		remote                                   bool
 		planJobID                                *string
@@ -220,9 +221,9 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		WHERE j.id = $1 AND j.status = 'queued' AND w.id = j.workspace_id AND p.id = w.project_id AND o.id = j.org_id
 		RETURNING j.org_id, j.operation, j.plan_job_id, j.engine, j.engine_version, j.platform, j.artifact_key, j.deadline,
 			j.source_sha256, o.slug, p.slug, p.path, w.name, p.id, w.id, j.run_id,
-			EXISTS (SELECT FROM build_servers b WHERE b.id = j.build_server_id AND b.org_id IS NOT NULL)`, jobID).
+			EXISTS (SELECT FROM build_servers b WHERE b.id = j.build_server_id AND b.org_id IS NOT NULL), p.state_backend, p.layout`, jobID).
 		Scan(&orgID, &operation, &planJobID, &eng, &version, &platform, &sealedKey, &deadline,
-			&sourceSHA, &orgSlug, &project, &projectPath, &workspace, &projectID, &workspaceID, &runID, &remote)
+			&sourceSHA, &orgSlug, &project, &projectPath, &workspace, &projectID, &workspaceID, &runID, &remote, &stateBackend, &layout)
 	if err != nil {
 		return nil, fmt.Errorf("claim job %s: %w", jobID, err)
 	}
@@ -264,6 +265,13 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	}
 	if eng == "terraform" {
 		job.Engine = v1.Engine_ENGINE_TERRAFORM
+	}
+	// A project on the code's backend runs it as written (adr/0036).
+	if stateBackend != "stackwright" {
+		job.CodeBackend = true
+		if layout == "cli_workspaces" && workspace != "default" {
+			job.Workspace = workspace
+		}
 	}
 	sourceJob, inputs, outputs := jobID, []string{"source.tar.gz"}, []string{"plan.bin", "plan.json", "lock.hcl", "sources.json", "workdir.tar.gz", "log.jsonl"}
 	if operation == "apply" {

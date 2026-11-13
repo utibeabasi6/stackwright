@@ -46,6 +46,8 @@ Each decision has a record in [adr/](adr/).
 | Grounding and evals | Provider schemas and module sources read in the sandbox after init; STACKWRIGHT.md and facts from the code in the prompt; an eval that plans the commit the agent proposes | [0032](adr/0032-grounding-and-evals.md) |
 | Agent restarts | A restarted server adopts agent sandboxes and keeps their checkouts; one job id per sandbox start | [0033](adr/0033-agent-sandboxes-outlive-a-restart.md) |
 | Editor | Edits in a session's checkout; a save writes, never commits; three-way merge with the agent; `tofu-ls` in the sandbox over a WebSocket relayed through the toolbox stream | [0034](adr/0034-editor.md) |
+| Project labels | Labels on projects; groups and nested groups are views that group by label keys | [0035](adr/0035-project-labels.md) |
+| Importer | Runs use the code's own backend, so the repo still works alone; committed state is plan-only; no state copy, no migration PR | [0036](adr/0036-importer-and-the-codes-backend.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**
@@ -587,21 +589,23 @@ branch.
 
 ### Phase 15: Importer
 
-**Goal.** Importing a repo finds every project and workspace, copies state
-safely, and opens a PR that switches backends.
+**Goal.** Importing a repo finds every project and workspace, and runs
+them on the repo's own backend, so the repo keeps working without
+Stackwright (adr/0036).
 
 **Build.**
-- A scanner for root modules, shared modules, Terragrunt units and committed
-  state files.
-- State copy with serial, lineage and checksum checks. The source is never
-  changed.
-- The import wizard, with progress that survives a reload.
-- A migration PR that removes committed state and says to rotate secrets.
+- A scanner for root modules, shared modules, CLI workspaces, Terragrunt
+  units, committed state files and each root's backend.
+- Runs on the code's own backend, with the workspace's credentials; state
+  committed to Git is plan-only.
+- Labels on projects, and a project list that groups by them (adr/0035).
+- The import wizard, with progress that survives a reload: it creates the
+  projects and plans every workspace.
 
 **Done when.**
-- [ ] Each fixture layout is found correctly
-- [ ] After import, the first plan of every workspace shows no changes
-- [ ] Importing twice creates nothing new
+- [x] Each fixture layout is found correctly
+- [x] After import, the first plan of every workspace shows no changes
+- [x] Importing twice creates nothing new
 
 **Depends on:** 8, 12.
 

@@ -40,3 +40,5 @@ line to the old one that points to the new one.
 | [0032](0032-grounding-and-evals.md) | Grounding from the sandbox: provider schemas, module sources and repository facts; an eval that plans the proposed commit |
 | [0033](0033-agent-sandboxes-outlive-a-restart.md) | A restarted server adopts agent sandboxes; each sandbox start has its own job id |
 | [0034](0034-editor.md) | The editor edits a session's checkout; saves merge with the agent and never commit; tofu-ls behind a relayed WebSocket |
+| [0035](0035-project-labels.md) | Labels on projects; groups are views |
+| [0036](0036-importer-and-the-codes-backend.md) | The importer runs projects on the code's own backend; committed state is plan-only |

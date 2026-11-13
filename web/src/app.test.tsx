@@ -203,6 +203,7 @@ const network = {
   repoUrl: "",
   branch: "",
   sample: false,
+  labels: {},
   workspaces: [{ name: "dev" }, { name: "staging" }, { name: "prod" }],
 };
 

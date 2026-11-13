@@ -1035,3 +1035,63 @@ screenshots of the editor's Save button busy and done, in dark.
 
 **Not verified:** each page's buttons one by one in a browser; the tests
 cover the shared button and the pages' existing flows.
+
+## Phase 15: Importer
+
+Decisions: [0035](adr/0035-project-labels.md) and
+[0036](adr/0036-importer-and-the-codes-backend.md). The user changed the
+plan in BUILD.md: the repository must keep working without Stackwright,
+so there is no state copy and no migration pull request. Runs use the
+code's own backend; state committed to Git is plan-only. Project groups
+became labels, with groups and nested groups as views.
+
+**Verified on 2026-11-12:**
+- The scanner finds each of seven fixture layouts exactly (Go unit
+  tests): one root on S3 with a `.terraform` folder ignored; environment
+  folders that share a module; CLI workspaces with committed state; a
+  committed state file in a subfolder; Terragrunt units with a parent
+  config; OpenTofu and Terraform signals side by side; nested local
+  modules.
+- A Go test with real sandboxes imports a repository with three roots:
+  committed state, two CLI workspaces with committed state, and an S3
+  backend in the test object store. All four first plans finish with no
+  changes, reading the state where the code keeps it: the committed
+  files, `TF_WORKSPACE` for the CLI workspaces, and S3 with no override.
+  Stackwright stores no state version, the S3 object is unchanged byte for
+  byte, every run is plan-only, and the database refuses to make the
+  committed-state project's run apply. A second import creates no
+  project, workspace or run, and a new scan names each project an earlier
+  import made.
+- Stackwright's own state address refuses a project on the code's
+  backend with 409; an earlier run of the test showed the engine hit that
+  refusal when the executor image was stale.
+- E2e tests: the wizard scans, shows where each root's state lives, leaves
+  an imported folder unchecked, sends the edited labels, and the import's
+  page shows "2 of 2 first plans show no changes" across a reload; the
+  project list groups by `env` then `app`, puts a project with no `env`
+  under "No env", keeps the choice across a reload, and splits `path`
+  into folders.
+
+The full server package (with `-race`, 3 tests at a time) failed in 4
+tests on the first run. Two were meta-tests that missed new calls: the
+import service's policy, and the audit rows of phase 14's editor calls,
+which phase 14 did not run. Both are fixed; the editor tests now check
+those audit rows, where a sandbox exists. `TestJobLostSandboxReleasesLock`
+passes alone. `TestPlanGraphGolden` failed because Docker ran out of
+network address pools: 19 networks that interrupted test runs left
+behind. After the user removed them it passes, and a finished run leaves
+none.
+
+**Not verified:**
+- An import of a real repository on GitHub.com, and a real S3 backend in
+  AWS with a workspace's cloud credentials; the test's S3 backend has its
+  keys in the code.
+- An apply on the code's backend; only plans ran.
+- A Terraform-engine project on the code's backend.
+
+**Known gaps:**
+- CLI workspaces on a remote backend are not found: they live in the
+  backend, not the repository. They can be added to the project by hand.
+- A local backend with no committed state imports as plan-only, and its
+  first plan shows everything as new; the wizard says so.
+- Terragrunt units are listed and wait for phase 18.

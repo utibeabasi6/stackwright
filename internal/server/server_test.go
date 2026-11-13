@@ -302,6 +302,7 @@ func methods() []method {
 		v1.File_stackwright_v1_executor_proto, v1.File_stackwright_v1_runs_proto, v1.File_stackwright_v1_builder_proto,
 		v1.File_stackwright_v1_build_servers_proto, v1.File_stackwright_v1_variables_proto, v1.File_stackwright_v1_cloud_proto,
 		v1.File_stackwright_v1_github_proto, v1.File_stackwright_v1_graph_proto, v1.File_stackwright_v1_agent_proto,
+		v1.File_stackwright_v1_imports_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -706,6 +707,15 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 	step("AgentService/CloseSession", func() {
 		owner.must("AgentService/CloseSession", map[string]any{"org": "a", "id": sessionID, "discard": true})
 	})
+	const importSHA = "2222222222222222222222222222222222222222"
+	w.github.mu.Lock()
+	w.github.heads["main"] = importSHA
+	w.github.mu.Unlock()
+	w.github.commit(importSHA, map[string]string{"imported/main.tf": "resource \"terraform_data\" \"a\" {}\n"})
+	step("ImportService/StartImport", func() {
+		owner.must("ImportService/StartImport", map[string]any{"org": "a", "repo": "acme/infra", "commit": importSHA, "roots": []map[string]any{
+			{"path": "imported", "slug": "imported", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7"}}})
+	})
 	step("GitHubService/UnlinkInstallation", func() {
 		owner.must("GitHubService/UnlinkInstallation", map[string]any{"org": "a", "installationId": 7})
 	})
@@ -770,6 +780,10 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 		t.Error("a failed write made an audit row")
 	}
 
+	// The editor's calls need a sandbox; the editor tests check their rows.
+	for _, p := range []string{"SaveFile", "PlanCheckout", "OpenLanguageServer"} {
+		covered["/stackwright.v1.AgentService/"+p] = true
+	}
 	for _, m := range methods() {
 		access := authz.Policy[m.procedure].Access
 		if m.write && !covered[m.procedure] && access != authz.JobTicket && access != authz.Job && access != authz.Builder && access != authz.Toolbox {

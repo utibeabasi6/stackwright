@@ -26,6 +26,10 @@ const sampleEngineVersion = "1.10.7"
 var (
 	versionPattern   = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)$`)
 	workspacePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9_-]{0,38}[a-z0-9])?$`)
+	// A project label's value may hold '/', for repo=acme/infra and paths
+	// (adr/0035); build server labels may not.
+	projectLabelKey   = regexp.MustCompile(`^[a-z0-9][a-z0-9._/-]{0,62}$`)
+	projectLabelValue = regexp.MustCompile(`^[A-Za-z0-9._/-]{0,127}$`)
 )
 
 type Projects struct {
@@ -35,6 +39,21 @@ type Projects struct {
 
 var engines = map[v1.Engine]string{v1.Engine_ENGINE_OPENTOFU: "opentofu", v1.Engine_ENGINE_TERRAFORM: "terraform"}
 var layouts = map[v1.Layout]string{v1.Layout_LAYOUT_PLAIN: "plain", v1.Layout_LAYOUT_CLI_WORKSPACES: "cli_workspaces"}
+
+var stateBackends = map[v1.StateBackend]string{v1.StateBackend_STATE_BACKEND_STACKWRIGHT: "stackwright", v1.StateBackend_STATE_BACKEND_CODE: "code",
+	v1.StateBackend_STATE_BACKEND_GIT: "git"}
+
+func checkProjectLabels(labels map[string]string) error {
+	if len(labels) > 20 {
+		return invalid("a project has at most 20 labels")
+	}
+	for k, v := range labels {
+		if !projectLabelKey.MatchString(k) || !projectLabelValue.MatchString(v) {
+			return invalid(fmt.Sprintf("label %s=%s: a key is lower-case letters, digits, '.', '_', '/' and '-'; a value is letters, digits, '.', '_', '/' and '-'", k, v))
+		}
+	}
+	return nil
+}
 
 func key[K comparable](m map[K]string, v string) K {
 	for k, s := range m {
@@ -99,7 +118,7 @@ type projectRow struct {
 
 func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, error) {
 	rows, err := tx.Query(ctx, `SELECT p.id, p.slug, p.path, p.engine, p.engine_version, p.layout, p.repo_url, p.branch, p.sample, p.created_at,
-		coalesce(r.full_name, ''), coalesce(nullif(p.branch, ''), r.default_branch, '')
+		coalesce(r.full_name, ''), coalesce(nullif(p.branch, ''), r.default_branch, ''), p.labels, p.state_backend
 		FROM projects p LEFT JOIN repos r ON lower(r.full_name) = p.repo
 		WHERE p.org_id = app_org_id() AND p.archived_at IS NULL AND ($1 = '' OR p.slug = $1) ORDER BY p.slug`, slug)
 	if err != nil {
@@ -107,11 +126,12 @@ func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, er
 	}
 	projects, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (projectRow, error) {
 		p := &v1.Project{}
-		var id, engine, layout string
+		var id, engine, layout, backend string
 		var created time.Time
 		err := r.Scan(&id, &p.Slug, &p.Path, &engine, &p.EngineVersion, &layout, &p.RepoUrl, &p.Branch, &p.Sample, &created,
-			&p.LinkedRepo, &p.RunBranch)
+			&p.LinkedRepo, &p.RunBranch, &p.Labels, &backend)
 		p.Engine, p.Layout, p.CreatedAt = key(engines, engine), key(layouts, layout), timestamppb.New(created)
+		p.StateBackend = key(stateBackends, backend)
 		return projectRow{id, p}, err
 	})
 	if err != nil {
@@ -183,9 +203,17 @@ func (h Projects) GetWorkspace(ctx context.Context, req *connect.Request[v1.GetW
 
 func insertProject(ctx context.Context, s *authz.Scope, p *v1.Project, workspaces []string, sample bool) (*v1.Project, error) {
 	id := uuid.NewString()
-	_, err := s.Tx.Exec(ctx, `INSERT INTO projects (id, org_id, slug, path, engine, engine_version, layout, repo_url, branch, sample)
-		VALUES ($1, app_org_id(), $2, $3, $4, $5, $6, $7, $8, $9)`,
-		id, p.Slug, p.Path, engines[p.Engine], p.EngineVersion, layouts[p.Layout], p.RepoUrl, p.Branch, sample)
+	backend := stateBackends[p.StateBackend]
+	if backend == "" {
+		backend = "stackwright"
+	}
+	labels := p.Labels
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	_, err := s.Tx.Exec(ctx, `INSERT INTO projects (id, org_id, slug, path, engine, engine_version, layout, repo_url, branch, sample, labels, state_backend)
+		VALUES ($1, app_org_id(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		id, p.Slug, p.Path, engines[p.Engine], p.EngineVersion, layouts[p.Layout], p.RepoUrl, p.Branch, sample, labels, backend)
 	if uniqueViolation(err) {
 		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("a project named %s exists", p.Slug))
 	}
@@ -218,6 +246,9 @@ func (h Projects) CreateProject(ctx context.Context, req *connect.Request[v1.Cre
 	if len(m.RepoUrl) > 300 || len(m.Branch) > 200 {
 		return nil, invalid("the repository URL or branch is too long")
 	}
+	if err := checkProjectLabels(m.Labels); err != nil {
+		return nil, err
+	}
 	s := authz.ScopeFrom(ctx)
 	var account *v1.CloudAccount
 	if m.CloudAccount != "" {
@@ -249,6 +280,7 @@ func (h Projects) CreateProject(ctx context.Context, req *connect.Request[v1.Cre
 	p, err := insertProject(ctx, s, &v1.Project{
 		Slug: m.Slug, Path: path, Engine: m.Engine, EngineVersion: m.EngineVersion,
 		Layout: m.Layout, RepoUrl: strings.TrimSpace(m.RepoUrl), Branch: strings.TrimSpace(m.Branch),
+		Labels: m.Labels, StateBackend: m.StateBackend,
 	}, workspaces, false)
 	if err != nil {
 		return nil, err
@@ -320,6 +352,18 @@ func (h Projects) UpdateProject(ctx context.Context, req *connect.Request[v1.Upd
 	if _, err := s.Tx.Exec(ctx, `UPDATE projects SET path = $2, engine_version = $3, repo_url = $4, branch = $5 WHERE id = $1`,
 		pr.id, path, m.EngineVersion, strings.TrimSpace(m.RepoUrl), strings.TrimSpace(m.Branch)); err != nil {
 		return nil, authz.Internal(err)
+	}
+	if m.Labels != nil {
+		if err := checkProjectLabels(m.Labels.Values); err != nil {
+			return nil, err
+		}
+		labels := m.Labels.Values
+		if labels == nil {
+			labels = map[string]string{}
+		}
+		if _, err := s.Tx.Exec(ctx, `UPDATE projects SET labels = $2 WHERE id = $1`, pr.id, labels); err != nil {
+			return nil, authz.Internal(err)
+		}
 	}
 	s.Target("project:" + pr.p.Slug)
 	pr, err = project(ctx, s.Tx, m.Project)

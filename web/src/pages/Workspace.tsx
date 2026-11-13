@@ -5,7 +5,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { message, projectApi } from "../api";
 import { describe, engineName } from "../engines";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
-import { Layout } from "../gen/stackwright/v1/projects_pb";
+import { Layout, StateBackend } from "../gen/stackwright/v1/projects_pb";
 import { EngineVersion } from "../EngineVersion";
 import { useShell } from "../me";
 import { formatLabels, parseLabels } from "../labels";
@@ -76,6 +76,7 @@ export function Workspace({ section }: { section: Section }) {
         engineVersion: version || p.engineVersion,
         repoUrl: String(f.get("repoUrl")),
         branch: String(f.get("branch")),
+        labels: { values: parseLabels(String(f.get("labels") ?? "")) },
       }),
       ),
     );
@@ -115,10 +116,20 @@ export function Workspace({ section }: { section: Section }) {
             runBranch={p.runBranch}
             autoApply={ws.data?.workspace?.autoApply ?? false}
             requiredLabels={ws.data?.workspace?.requiredLabels ?? {}}
+            gitState={p.stateBackend === StateBackend.GIT}
           />
         )}
 
-        {section === "state" && <StatePanel org={org} project={project} workspace={workspace} engine={p.engine} admin={admin} />}
+        {section === "state" &&
+          (p.stateBackend === StateBackend.CODE || p.stateBackend === StateBackend.GIT ? (
+            <p className="notice">
+              {p.stateBackend === StateBackend.CODE
+                ? "This project's state lives in the backend its code names. Runs use that backend as written, so the code still works without Stackwright. Stackwright keeps no copy and no history of it."
+                : "This project's state is a file committed to Git. Runs plan from it and never apply, since Stackwright does not commit to the repository."}
+            </p>
+          ) : (
+            <StatePanel org={org} project={project} workspace={workspace} engine={p.engine} admin={admin} />
+          ))}
 
         {section === "variables" && <Variables org={org} project={project} workspace={workspace} admin={admin} />}
 
@@ -201,7 +212,7 @@ export function Workspace({ section }: { section: Section }) {
             {admin && (
               <section className="card stack" aria-labelledby="settings-h">
                 <h2 id="settings-h">Project settings</h2>
-                <form className="stack" style={{ maxWidth: 560 }} onSubmit={save} key={`${p.path}|${p.engineVersion}|${p.repoUrl}|${p.branch}`}>
+                <form className="stack" style={{ maxWidth: 560 }} onSubmit={save} key={`${p.path}|${p.engineVersion}|${p.repoUrl}|${p.branch}|${formatLabels(p.labels)}`}>
                   <div className="row">
                     <label className="field grow">
                       <span>Folder</span>
@@ -219,6 +230,11 @@ export function Workspace({ section }: { section: Section }) {
                       <input name="branch" defaultValue={p.branch} />
                     </label>
                   </div>
+                  <label className="field">
+                    <span>Labels</span>
+                    <input name="labels" className="mono" defaultValue={formatLabels(p.labels)} placeholder="env=prod, app=payments" />
+                    <span className="hint">The project list can group by them.</span>
+                  </label>
                   <div className="row">
                     <Submit action={savingProject} busy="Saving…" done="Saved">
                       Save
