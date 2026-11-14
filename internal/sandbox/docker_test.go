@@ -86,7 +86,7 @@ func TestDockerSandboxIsLockedDown(t *testing.T) {
 		"{{.HostConfig.SecurityOpt}}":    "[no-new-privileges]",
 		"{{.HostConfig.CapDrop}}":        "[ALL]",
 		"{{.HostConfig.PidsLimit}}":      "1024",
-		"{{.HostConfig.Memory}}":         "2147483648",
+		"{{.HostConfig.Memory}}":         "4294967296",
 		"{{.HostConfig.NetworkMode}}":    s.ID(),
 	} {
 		if got := inspect(t, format, s.ID()); got != want {

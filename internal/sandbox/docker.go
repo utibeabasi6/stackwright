@@ -26,9 +26,9 @@ const apiVersion = "v1.44"
 
 const (
 	cpus     = 2
-	memory   = 2 << 30
+	memory   = 4 << 30
 	pids     = 1024
-	workSize = "2g"
+	workSize = "3g"
 	tmpSize  = "256m"
 )
 

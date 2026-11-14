@@ -1272,6 +1272,7 @@ Each unit downloaded its own copy of the provider, 739 MB, into its
 sandbox's 2 GiB. The kernel log on the build server showed the kills.
 The units now share one provider cache. In Docker, two of the lab's
 units kept one 717 MB copy, and each unit only links to it (336 KB).
+Sandboxes also have 4 GiB of memory now, and a 3 GiB work folder.
 
 **Not verified:**
 - That app's apply used vpc's real output and not the mock.
