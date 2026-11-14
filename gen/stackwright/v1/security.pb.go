@@ -96,7 +96,10 @@ type Finding struct {
 	// The accepted risk in force, if any.
 	Acceptance *RiskAcceptance `protobuf:"bytes,12,opt,name=acceptance,proto3" json:"acceptance,omitempty"`
 	// In a run's list: this finding blocks the run.
-	Blocking      bool `protobuf:"varint,13,opt,name=blocking,proto3" json:"blocking,omitempty"`
+	Blocking bool `protobuf:"varint,13,opt,name=blocking,proto3" json:"blocking,omitempty"`
+	// The resource is not one of the plan's addresses, as Trivy names a
+	// resource in a module. It never blocks an apply (adr/0040).
+	Unmatched     bool `protobuf:"varint,14,opt,name=unmatched,proto3" json:"unmatched,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -218,6 +221,13 @@ func (x *Finding) GetAcceptance() *RiskAcceptance {
 func (x *Finding) GetBlocking() bool {
 	if x != nil {
 		return x.Blocking
+	}
+	return false
+}
+
+func (x *Finding) GetUnmatched() bool {
+	if x != nil {
+		return x.Unmatched
 	}
 	return false
 }
@@ -1074,7 +1084,7 @@ var File_stackwright_v1_security_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_security_proto_rawDesc = "" +
 	"\n" +
-	"\x1dstackwright/v1/security.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xde\x03\n" +
+	"\x1dstackwright/v1/security.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfc\x03\n" +
 	"\aFinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x12\x1c\n" +
@@ -1092,7 +1102,8 @@ const file_stackwright_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"acceptance\x18\f \x01(\v2\x1e.stackwright.v1.RiskAcceptanceR\n" +
 	"acceptance\x12\x1a\n" +
-	"\bblocking\x18\r \x01(\bR\bblocking\"\xc1\x01\n" +
+	"\bblocking\x18\r \x01(\bR\bblocking\x12\x1c\n" +
+	"\tunmatched\x18\x0e \x01(\bR\tunmatched\"\xc1\x01\n" +
 	"\x0eRiskAcceptance\x12\x1f\n" +
 	"\vaccepted_by\x18\x01 \x01(\tR\n" +
 	"acceptedBy\x12\x16\n" +

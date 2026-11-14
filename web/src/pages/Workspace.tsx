@@ -260,8 +260,8 @@ export function Workspace({ section }: { section: Section }) {
                   {p.workspaces.length > 1 && (
                     <Action
                       className="danger"
+                      confirm={{ message: `Archive the workspace ${workspace}? It leaves every list.`, action: "Archive", danger: true }}
                       run={() =>
-                        window.confirm(`Archive the workspace ${workspace}? It leaves every list.`) &&
                         act(() => projectApi.archiveWorkspace({ org, project, workspace }), () => navigate({ to: "/$org", params: { org } }))
                       }
                       busy="Archiving…"
@@ -272,10 +272,8 @@ export function Workspace({ section }: { section: Section }) {
                   )}
                   <Action
                     className="danger"
-                    run={() =>
-                      window.confirm(`Archive the project ${project} and all its workspaces?`) &&
-                      act(() => projectApi.archiveProject({ org, project }), () => navigate({ to: "/$org", params: { org } }))
-                    }
+                    confirm={{ message: `Archive the project ${project} and all its workspaces?`, action: "Archive", danger: true }}
+                    run={() => act(() => projectApi.archiveProject({ org, project }), () => navigate({ to: "/$org", params: { org } }))}
                     busy="Archiving…"
                     done="Archived"
                   >

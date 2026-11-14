@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { message } from "./api";
+import { useConfirm, type ConfirmOptions } from "./Confirm";
 
 const doneFor = 2000;
 
@@ -77,10 +78,20 @@ export function ActionButton({ action, busy, done, children, disabled, className
   );
 }
 
-// Action is a button that runs run when clicked.
-export function Action({ run, ...props }: Labels & { run: () => unknown } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onClick">) {
+// Action is a button that runs run when clicked. With confirm, it asks
+// first, and does nothing on no.
+export function Action({
+  run,
+  confirm,
+  ...props
+}: Labels & { run: () => unknown; confirm?: ConfirmOptions } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onClick">) {
   const action = useAction();
-  return <ActionButton type="button" {...props} action={action} onClick={() => void action.run(run)} />;
+  const ask = useConfirm();
+  const click = async () => {
+    if (confirm && !(await ask(confirm))) return;
+    await action.run(run);
+  };
+  return <ActionButton type="button" {...props} action={action} onClick={() => void click()} />;
 }
 
 // Submit is a form's submit button that shows the state of the action that

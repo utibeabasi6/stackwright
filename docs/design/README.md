@@ -65,7 +65,7 @@ The agent **proposes** commits. A person **commits and pushes**. A plan made fro
 
 A sidebar and one inspector hold the navigation ([0029](../adr/0029-sidebar-navigation.md)).
 
-**The sidebar** (`chrome`, `sidebar-width`, on the left): the app name, the org switcher, then Projects, "Waiting on you" with its count, Build servers and Settings. Inside a workspace it shows "‹ All projects", the project and workspace name, and the workspace's pages: Overview, Runs, State, Variables, Cloud credentials, Settings; "Waiting on you" stays. The theme switch ("Same as the system", Light, Dark), the signed-in user and Sign out sit at the bottom. A list near the bottom of the window opens upward. The app name also goes to Projects. It collapses with a button in the top bar or ⌘\, and each browser remembers the choice.
+**The sidebar** (`chrome`, `sidebar-width`, on the left): the app name, the org switcher, then Projects, "Waiting on you" with its count, and Settings. Build servers are a Settings tab. A project's Topology page opens from its card in the project list. Inside a workspace it shows "‹ All projects", the project and workspace name, and the workspace's pages: Overview, Runs, Editor, State, Variables, Cloud credentials, Security, Settings; "Waiting on you" stays. The theme switch ("Same as the system", Light, Dark), the signed-in user and Sign out sit at the bottom. A list near the bottom of the window opens upward. The app name also goes to Projects. It collapses with a button in the top bar or ⌘\, and each browser remembers the choice.
 
 **The top bar** (`chrome`, one row, over the content): the sidebar button, then breadcrumbs inside a workspace ("Projects › network › prod › Runs › Run #4"), and search (⌘K) on the right.
 

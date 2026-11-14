@@ -30,6 +30,7 @@ const api = vi.hoisted(() => ({
   setVariables: [] as unknown[],
   findings: [] as unknown[],
   accepted: [] as unknown[],
+  deleted: [] as unknown[],
 }));
 
 vi.mock("./api", () => ({
@@ -149,6 +150,10 @@ vi.mock("./api", () => ({
       api.setVariables.push(req);
       return {};
     },
+    deleteVariable: async (req: unknown) => {
+      api.deleted.push(req);
+      return {};
+    },
   },
   githubApi: {
     getGitHub: async () => ({
@@ -240,6 +245,7 @@ beforeEach(() => {
   api.setVariables = [];
   api.findings = [];
   api.accepted = [];
+  api.deleted = [];
   window.localStorage.clear();
 });
 
@@ -256,10 +262,12 @@ test("a signed-out visitor goes to sign-in", async () => {
 
 test("the toolbar marks the page you are on", async () => {
   signedInAs(Role.VIEWER);
-  at("/a/build-servers");
+  at("/a/settings/build-servers");
   expect(await screen.findByRole("heading", { name: "Build servers" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Build servers" })).toHaveAttribute("aria-current", "page");
-  expect(screen.getByRole("link", { name: "Projects" })).not.toHaveAttribute("aria-current");
+  const main = screen.getByRole("navigation", { name: "Main" });
+  expect(within(main).getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
+  expect(within(main).getByRole("link", { name: "Projects" })).not.toHaveAttribute("aria-current");
+  expect(within(main).queryByRole("link", { name: "Build servers" })).not.toBeInTheDocument();
 });
 
 test("an admin makes an invite link and sees it once", async () => {
@@ -305,12 +313,11 @@ test("every page is in the command palette", async () => {
   for (const page of [
     "Projects",
     "Waiting on you",
-    "Topology",
-    "Build servers",
     "Settings: General",
     "Settings: Members",
     "Settings: Variables",
     "Settings: Cloud accounts",
+    "Settings: Build servers",
     "Settings: GitHub",
     "Settings: Security",
     "Settings: Audit log",
@@ -318,6 +325,7 @@ test("every page is in the command palette", async () => {
     "New project",
     "New org",
     "network › prod",
+    "network › Topology",
   ]) {
     expect(labels.some((l) => l?.startsWith(page))).toBe(true);
   }
@@ -467,6 +475,27 @@ test("a blocked run shows the finding that blocks it, and the security role acce
   expect(days).toBeLessThanOrEqual(30);
 });
 
+test("the accept-risk form closes with Cancel and accepts nothing", async () => {
+  signedInAs(Role.SECURITY);
+  api.projects = [network];
+  api.findings = [{ ...sshOpen, blocking: false }];
+  at("/a/projects/network/prod/security");
+  await userEvent.click(await screen.findByRole("button", { name: "Accept risk" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByLabelText("Why is this risk acceptable?")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Accept risk" })).toBeInTheDocument();
+  expect(api.accepted).toHaveLength(0);
+});
+
+test("a finding that matches no plan address says so and never blocks", async () => {
+  signedInAs(Role.SECURITY);
+  api.projects = [network];
+  api.findings = [{ ...sshOpen, resource: "aws_security_group.this_1152bae522a1fee1abf5f80e9a064f1f", blocking: false, unmatched: true }];
+  at("/a/projects/network/prod/security");
+  expect(await screen.findByText(/Not matched to an address in the plan/)).toBeInTheDocument();
+  expect(screen.getByText("Open, never blocks")).toBeInTheDocument();
+});
+
 test("a writer sees findings but cannot accept a risk", async () => {
   signedInAs(Role.WRITER);
   api.projects = [network];
@@ -497,7 +526,7 @@ test("a writer starts a plan from the workspace", async () => {
 
 test("build servers show their status, labels and upgrade warning", async () => {
   signedInAs(Role.ADMIN);
-  at("/a/build-servers");
+  at("/a/settings/build-servers");
   expect(await screen.findByText("Same host as Stackwright")).toBeInTheDocument();
   expect(screen.getByText("2 servers · 2 of 6 sandbox slots in use")).toBeInTheDocument();
   expect(screen.getByText("~ Draining")).toBeInTheDocument();
@@ -509,7 +538,7 @@ test("build servers show their status, labels and upgrade warning", async () => 
 
 test("a viewer sees build servers but cannot change them", async () => {
   signedInAs(Role.VIEWER);
-  at("/a/build-servers");
+  at("/a/settings/build-servers");
   expect(await screen.findByText("build-lab")).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Enrol a server" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Drain" })).not.toBeInTheDocument();
@@ -517,7 +546,7 @@ test("a viewer sees build servers but cannot change them", async () => {
 
 test("a join command hides its token until revealed", async () => {
   signedInAs(Role.ADMIN);
-  at("/a/build-servers/enrol");
+  at("/a/settings/build-servers/enrol");
   await userEvent.click(await screen.findByRole("tab", { name: "Run a command on the server" }));
   await userEvent.type(screen.getByRole("textbox", { name: "Name" }), "lab");
   await userEvent.click(screen.getByRole("button", { name: "Make the command" }));
@@ -548,6 +577,24 @@ test("a workspace shows its variables, and never a sensitive value", async () =>
   expect(api.setVariables).toMatchObject([
     { org: "a", scope: { project: "network", workspace: "prod" }, key: "token", value: "abcdefgh", sensitive: true, keepValue: false },
   ]);
+});
+
+test("deleting a variable asks in our own dialog, and Cancel deletes nothing", async () => {
+  signedInAs(Role.ADMIN);
+  api.projects = [network];
+  api.variables = [{ category: 1, key: "greeting", value: "hello-project", scope: { project: "network", workspace: "prod" } }];
+  at("/a/projects/network/prod/variables");
+  const vars = await screen.findByRole("region", { name: "Variables" });
+  await userEvent.click(await within(vars).findByRole("button", { name: "Delete" }));
+  const dialog = await screen.findByRole("alertdialog");
+  expect(within(dialog).getByText("Delete greeting? Runs stop getting it.")).toBeInTheDocument();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  expect(api.deleted).toHaveLength(0);
+
+  await userEvent.click(within(vars).getByRole("button", { name: "Delete" }));
+  await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }));
+  await waitFor(() => expect(api.deleted).toMatchObject([{ org: "a", key: "greeting" }]));
 });
 
 test("an admin sets auto-apply and build server labels on the Settings page, not the Overview", async () => {

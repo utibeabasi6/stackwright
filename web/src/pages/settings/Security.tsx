@@ -45,7 +45,6 @@ export function SecuritySettings() {
     });
   };
   const remove = async (name: string) => {
-    if (!window.confirm(`Delete the policy set ${name}? Its findings close on each workspace's next plan.`)) return false;
     await securityApi.deletePolicySet({ org, name });
     policy.reload();
   };
@@ -99,7 +98,17 @@ export function SecuritySettings() {
                         <button type="button" onClick={() => setEditing({ name: p.name, rego: p.rego })}>
                           Edit
                         </button>{" "}
-                        <Action className="danger" run={() => remove(p.name)} busy="Deleting…" done="Deleted">
+                        <Action
+                          className="danger"
+                          confirm={{
+                            message: `Delete the policy set ${p.name}? Its findings close on each workspace's next plan.`,
+                            action: "Delete",
+                            danger: true,
+                          }}
+                          run={() => remove(p.name)}
+                          busy="Deleting…"
+                          done="Deleted"
+                        >
                           Delete
                         </Action>
                       </td>

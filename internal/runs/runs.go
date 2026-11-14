@@ -546,6 +546,14 @@ func (o *Orchestrator) review(ctx context.Context, tx pgx.Tx, orgID, jobID, work
 	if err != nil {
 		return false, err
 	}
+	plan, err := o.Jobs.ReadArtifact(ctx, tx, jobID, "plan.json")
+	if err != nil {
+		return false, err
+	}
+	results, changed, err := findings.Match(results, plan)
+	if err != nil {
+		return false, err
+	}
 	if trigger == "ui" || trigger == "push" || trigger == "schedule" {
 		if err := findings.Record(ctx, tx, orgID, workspaceID, results); err != nil {
 			return false, err
@@ -554,7 +562,7 @@ func (o *Orchestrator) review(ctx context.Context, tx pgx.Tx, orgID, jobID, work
 	if !applies {
 		return false, nil
 	}
-	ids, err := o.blocking(ctx, tx, jobID, workspaceID)
+	ids, err := findings.Blocking(ctx, tx, workspaceID, changed)
 	return len(ids) > 0, err
 }
 
@@ -564,7 +572,7 @@ func (o *Orchestrator) blocking(ctx context.Context, tx pgx.Tx, planJobID, works
 	if err != nil {
 		return nil, err
 	}
-	changed, err := findings.Changed(plan)
+	_, changed, err := findings.Match(nil, plan)
 	if err != nil {
 		return nil, err
 	}

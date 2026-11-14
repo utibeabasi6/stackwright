@@ -10,7 +10,7 @@ import { useLoad } from "../useLoad";
 export function Inbox() {
   const { org } = useParams({ strict: false }) as { org: string };
   const { waitingVersion } = useShell();
-  const waiting = useLoad(`waiting:${org}:${waitingVersion}`, () => runApi.listWaiting({ org }));
+  const waiting = useLoad(`waiting:${org}`, () => runApi.listWaiting({ org }), waitingVersion);
   const findings = waiting.data?.findings ?? [];
   const items = [
     ...(waiting.data?.approvals ?? []).map((run) => ({ kind: "Approval", run })),

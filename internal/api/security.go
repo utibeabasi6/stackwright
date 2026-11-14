@@ -49,7 +49,7 @@ func mayDecideRisk(role v1.Role) error {
 	return connect.NewError(connect.CodePermissionDenied, errors.New("accepting a risk and changing the security policy need the security role, an admin or an owner"))
 }
 
-const findingColumns = `f.id, p.slug, w.name, f.check_id, f.severity, f.title, f.message, f.resource, f.fixed_at IS NOT NULL,
+const findingColumns = `f.id, p.slug, w.name, f.check_id, f.severity, f.title, f.message, f.resource, f.fixed_at IS NOT NULL, f.unmatched,
 	f.first_seen_at, f.last_seen_at, a.reason, a.accepted_at, a.expires_at, coalesce(u.name, u.email)
 	FROM findings f JOIN workspaces w ON w.id = f.workspace_id JOIN projects p ON p.id = w.project_id
 	LEFT JOIN LATERAL (SELECT * FROM risk_acceptances x WHERE x.finding_id = f.id AND x.expires_at > now()
@@ -67,7 +67,7 @@ func queryFindings(ctx context.Context, tx pgx.Tx, where string, args ...any) ([
 		var first, last time.Time
 		var reason, by *string
 		var accepted, expires *time.Time
-		err := r.Scan(&f.Id, &f.Project, &f.Workspace, &f.CheckId, &severity, &f.Title, &f.Message, &f.Resource, &f.Fixed,
+		err := r.Scan(&f.Id, &f.Project, &f.Workspace, &f.CheckId, &severity, &f.Title, &f.Message, &f.Resource, &f.Fixed, &f.Unmatched,
 			&first, &last, &reason, &accepted, &expires, &by)
 		f.Severity, f.FirstSeenAt, f.LastSeenAt = severities[severity], timestamppb.New(first), timestamppb.New(last)
 		if reason != nil {
@@ -125,16 +125,16 @@ func (h Security) ListRunFindings(ctx context.Context, req *connect.Request[v1.L
 	if err != nil {
 		return nil, authz.Internal(err)
 	}
+	plan, err := h.Jobs.ReadArtifact(ctx, s.Tx, *planJob, "plan.json")
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
+	results, changed, err := findings.Match(results, plan)
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
 	var blocking []string
 	if status == "blocked" || status == "needs_approval" {
-		plan, err := h.Jobs.ReadArtifact(ctx, s.Tx, *planJob, "plan.json")
-		if err != nil {
-			return nil, authz.Internal(err)
-		}
-		changed, err := findings.Changed(plan)
-		if err != nil {
-			return nil, authz.Internal(err)
-		}
 		if blocking, err = findings.Blocking(ctx, s.Tx, workspaceID, changed); err != nil {
 			return nil, authz.Internal(err)
 		}
@@ -146,7 +146,7 @@ func (h Security) ListRunFindings(ctx context.Context, req *connect.Request[v1.L
 	out := make([]*v1.Finding, 0, len(results))
 	for _, r := range results {
 		f := &v1.Finding{Project: m.Project, Workspace: m.Workspace, CheckId: r.CheckID, Severity: severities[r.Severity], Title: r.Title,
-			Message: r.Message, Resource: r.Resource}
+			Message: r.Message, Resource: r.Resource, Unmatched: r.Unmatched}
 		if i := slices.IndexFunc(known, func(k *v1.Finding) bool { return k.CheckId == r.CheckID && k.Resource == r.Resource }); i >= 0 {
 			f.Id, f.Acceptance, f.FirstSeenAt = known[i].Id, known[i].Acceptance, known[i].FirstSeenAt
 			f.Blocking = slices.Contains(blocking, f.Id)

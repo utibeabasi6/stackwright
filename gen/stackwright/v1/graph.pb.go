@@ -1526,8 +1526,11 @@ type TopologyNode struct {
 	// A security group's rules.
 	Rules []*TopologyRule `protobuf:"bytes,17,rep,name=rules,proto3" json:"rules,omitempty"`
 	// Open findings on the resource, and the worst one's severity.
-	Findings      int32    `protobuf:"varint,18,opt,name=findings,proto3" json:"findings,omitempty"`
-	Worst         Severity `protobuf:"varint,19,opt,name=worst,proto3,enum=stackwright.v1.Severity" json:"worst,omitempty"`
+	Findings int32    `protobuf:"varint,18,opt,name=findings,proto3" json:"findings,omitempty"`
+	Worst    Severity `protobuf:"varint,19,opt,name=worst,proto3,enum=stackwright.v1.Severity" json:"worst,omitempty"`
+	// From another project's plan, shown because the project's own nodes
+	// use it.
+	Context       bool `protobuf:"varint,20,opt,name=context,proto3" json:"context,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1695,6 +1698,13 @@ func (x *TopologyNode) GetWorst() Severity {
 	return Severity_SEVERITY_UNSPECIFIED
 }
 
+func (x *TopologyNode) GetContext() bool {
+	if x != nil {
+		return x.Context
+	}
+	return false
+}
+
 type TopologyEdge struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	From  string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
@@ -1836,6 +1846,7 @@ func (x *Topology) GetClashes() []string {
 type GetTopologyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Project       string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1877,10 +1888,17 @@ func (x *GetTopologyRequest) GetOrg() string {
 	return ""
 }
 
+func (x *GetTopologyRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
 type GetTopologyResponse struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Topology *Topology              `protobuf:"bytes,1,opt,name=topology,proto3" json:"topology,omitempty"`
-	// The workspaces whose plans were read, as "project/workspace #run".
+	// The workspaces whose nodes are drawn, as "project/workspace #run".
 	Sources       []string `protobuf:"bytes,2,rep,name=sources,proto3" json:"sources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2026,7 +2044,7 @@ const file_stackwright_v1_graph_proto_rawDesc = "" +
 	"\x05cidrs\x18\x05 \x03(\tR\x05cidrs\x12%\n" +
 	"\x0esecurity_group\x18\x06 \x01(\tR\rsecurityGroup\x12\x12\n" +
 	"\x04self\x18\a \x01(\bR\x04self\x12 \n" +
-	"\vdescription\x18\b \x01(\tR\vdescription\"\xe1\x04\n" +
+	"\vdescription\x18\b \x01(\tR\vdescription\"\xfb\x04\n" +
 	"\fTopologyNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x120\n" +
 	"\x04role\x18\x02 \x01(\x0e2\x1c.stackwright.v1.TopologyRoleR\x04role\x12\x18\n" +
@@ -2047,7 +2065,8 @@ const file_stackwright_v1_graph_proto_rawDesc = "" +
 	"\x06routes\x18\x10 \x03(\v2\x1d.stackwright.v1.TopologyRouteR\x06routes\x122\n" +
 	"\x05rules\x18\x11 \x03(\v2\x1c.stackwright.v1.TopologyRuleR\x05rules\x12\x1a\n" +
 	"\bfindings\x18\x12 \x01(\x05R\bfindings\x12.\n" +
-	"\x05worst\x18\x13 \x01(\x0e2\x18.stackwright.v1.SeverityR\x05worst\"\xb2\x01\n" +
+	"\x05worst\x18\x13 \x01(\x0e2\x18.stackwright.v1.SeverityR\x05worst\x12\x18\n" +
+	"\acontext\x18\x14 \x01(\bR\acontext\"\xb2\x01\n" +
 	"\fTopologyEdge\x12\x12\n" +
 	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
 	"\x02to\x18\x02 \x01(\tR\x02to\x124\n" +
@@ -2057,9 +2076,10 @@ const file_stackwright_v1_graph_proto_rawDesc = "" +
 	"\bTopology\x122\n" +
 	"\x05nodes\x18\x01 \x03(\v2\x1c.stackwright.v1.TopologyNodeR\x05nodes\x122\n" +
 	"\x05edges\x18\x02 \x03(\v2\x1c.stackwright.v1.TopologyEdgeR\x05edges\x12\x18\n" +
-	"\aclashes\x18\x03 \x03(\tR\aclashes\"&\n" +
+	"\aclashes\x18\x03 \x03(\tR\aclashes\"@\n" +
 	"\x12GetTopologyRequest\x12\x10\n" +
-	"\x03org\x18\x01 \x01(\tR\x03org\"e\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\"e\n" +
 	"\x13GetTopologyResponse\x124\n" +
 	"\btopology\x18\x01 \x01(\v2\x18.stackwright.v1.TopologyR\btopology\x12\x18\n" +
 	"\asources\x18\x02 \x03(\tR\asources*\xdd\x01\n" +

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -37,23 +38,52 @@ func fixture(t *testing.T) *v1.Topology {
 }
 
 func TestGolden(t *testing.T) {
-	b, err := protojson.Marshal(fixture(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var v any
-	_ = json.Unmarshal(b, &v)
-	got, _ := json.MarshalIndent(v, "", "  ")
-	got = append(got, '\n')
-	path := filepath.Join("testdata", "topology.json")
-	if *update {
-		if err := os.WriteFile(path, got, 0o600); err != nil {
+	full := fixture(t)
+	for _, project := range []string{"app", "network"} {
+		b, err := protojson.Marshal(Scope(full, project))
+		if err != nil {
 			t.Fatal(err)
 		}
-		return
+		var v any
+		_ = json.Unmarshal(b, &v)
+		got, _ := json.MarshalIndent(v, "", "  ")
+		got = append(got, '\n')
+		path := filepath.Join("testdata", "topology-"+project+".json")
+		if *update {
+			if err := os.WriteFile(path, got, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		if want, _ := os.ReadFile(path); !bytes.Equal(got, want) {
+			t.Errorf("%s differs from %s:\n%s", project, path, got)
+		}
 	}
-	if want, _ := os.ReadFile(path); !bytes.Equal(got, want) {
-		t.Errorf("topology differs from topology.json:\n%s", got)
+}
+
+func TestScopeAddsWhatAProjectUsesAsContext(t *testing.T) {
+	full := fixture(t)
+	roles := func(topo *v1.Topology) (own, context []string) {
+		for _, n := range topo.Nodes {
+			if n.Context {
+				context = append(context, n.Id)
+			} else {
+				own = append(own, n.Id)
+			}
+		}
+		return own, context
+	}
+	own, context := roles(Scope(full, "app"))
+	wantOwn := []string{"app/prod/aws_autoscaling_group.app", "app/prod/aws_db_instance.main", "app/prod/aws_lb.web",
+		"app/prod/aws_security_group.app", "app/prod/aws_security_group.db", "app/prod/aws_security_group.web", "internet"}
+	wantContext := []string{"network/prod/aws_internet_gateway.main", "network/prod/aws_nat_gateway.main", "network/prod/aws_subnet.private[0]",
+		"network/prod/aws_subnet.private[1]", "network/prod/aws_subnet.public[0]", "network/prod/aws_subnet.public[1]", "network/prod/aws_vpc.main"}
+	if !slices.Equal(own, wantOwn) || !slices.Equal(context, wantContext) {
+		t.Errorf("app: own %v\ncontext %v", own, context)
+	}
+	own, context = roles(Scope(full, "network"))
+	if len(context) != 0 || slices.ContainsFunc(own, func(id string) bool { return !strings.HasPrefix(id, "network/") }) {
+		t.Errorf("network: own %v\ncontext %v", own, context)
 	}
 }
 

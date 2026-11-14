@@ -9,6 +9,7 @@ import { useShell } from "../me";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
 import type { CodeHandle, OpenFile } from "./Code";
+import { useConfirm } from "../Confirm";
 
 const Code = lazy(() => import("./Code"));
 
@@ -52,6 +53,7 @@ export function EditorPage() {
   const { org, project, workspace } = useParams({ strict: false }) as { org: string; project: string; workspace: string };
   const { me } = useShell();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
   const ws = useLoad(`${org}/${project}/${workspace}`, () => projectApi.getWorkspace({ org, project, workspace }));
   const sessions = useLoad(`agent-sessions:${org}/${project}/${workspace}`, () =>
@@ -256,9 +258,9 @@ export function EditorPage() {
     tablist.current?.querySelector<HTMLElement>(`[data-path="${CSS.escape(t.path)}"]`)?.focus();
   };
 
-  const closeTab = (path: string) => {
+  const closeTab = async (path: string) => {
     const t = tabs.find((x) => x.path === path);
-    if (t && t.text !== t.base && !window.confirm(`Close ${path} without saving?`)) return;
+    if (t && t.text !== t.base && !(await confirm({ message: `Close ${path} without saving?`, action: "Close without saving", danger: true }))) return;
     const rest = tabs.filter((x) => x.path !== path);
     setTabs(rest);
     if (active === path) setActive(rest.at(-1)?.path ?? "");

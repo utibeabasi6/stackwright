@@ -35,7 +35,7 @@ export function FindingsTable({ org, findings, reload, where }: TableProps) {
   const [accepting, setAccepting] = useState<string>();
   return (
     <div className="table-box">
-      <table className="table">
+      <table className="table findings">
         <thead>
           <tr>
             <th>Severity</th>
@@ -55,12 +55,19 @@ export function FindingsTable({ org, findings, reload, where }: TableProps) {
                   {f.project} / {f.workspace}
                 </td>
               )}
-              <td className="stack">
-                <span>
-                  <strong>{f.title}</strong> <span className="mono muted">{f.checkId}</span>
-                </span>
-                <span className="mono">{f.resource}</span>
-                <span className="muted">{f.message}</span>
+              <td>
+                <div className="finding">
+                  <span>
+                    <strong>{f.title}</strong> <span className="mono muted">{f.checkId}</span>
+                  </span>
+                  <span className="mono">{f.resource}</span>
+                  {f.unmatched && (
+                    <span className="hint">
+                      ~ Not matched to an address in the plan, so this finding never blocks an apply.
+                    </span>
+                  )}
+                  <span className="muted">{f.message}</span>
+                </div>
                 {accepting === f.id && (
                   <AcceptForm
                     org={org}
@@ -69,23 +76,26 @@ export function FindingsTable({ org, findings, reload, where }: TableProps) {
                       setAccepting(undefined);
                       reload();
                     }}
+                    cancel={() => setAccepting(undefined)}
                   />
                 )}
               </td>
-              <td className="stack">
+              <td className="finding-status">
                 <FindingStatus finding={f} />
-                {!f.fixed && !f.acceptance && f.id && decides && accepting !== f.id && (
-                  <button type="button" className="link" onClick={() => setAccepting(f.id)}>
-                    Accept risk
-                  </button>
-                )}
-                {!f.fixed && (
-                  <AskAgent
-                    org={org}
-                    project={f.project}
-                    prompt={`The security review found ${f.checkId} (${f.title}) on ${f.resource}: ${f.message}\nFix the code so the finding goes away.`}
-                  />
-                )}
+                <div className="finding-actions">
+                  {!f.fixed && !f.acceptance && f.id && decides && accepting !== f.id && (
+                    <button type="button" className="link" onClick={() => setAccepting(f.id)}>
+                      Accept risk
+                    </button>
+                  )}
+                  {!f.fixed && (
+                    <AskAgent
+                      org={org}
+                      project={f.project}
+                      prompt={`The security review found ${f.checkId} (${f.title}) on ${f.resource}: ${f.message}\nFix the code so the finding goes away.`}
+                    />
+                  )}
+                </div>
               </td>
             </tr>
           ))}
@@ -107,10 +117,10 @@ function FindingStatus({ finding: f }: { finding: Finding }) {
   }
   if (f.blocking) return <span className="error">! Blocks this apply</span>;
   if (!f.id) return <span className="muted">Not recorded: this plan is not of the workspace's own code</span>;
-  return <span>Open</span>;
+  return <span>{f.unmatched ? "Open, never blocks" : "Open"}</span>;
 }
 
-function AcceptForm({ org, finding, done }: { org: string; finding: Finding; done: () => void }) {
+function AcceptForm({ org, finding, done, cancel }: { org: string; finding: Finding; done: () => void; cancel: () => void }) {
   const [days, setDays] = useState("30");
   const action = useAction();
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -127,7 +137,7 @@ function AcceptForm({ org, finding, done }: { org: string; finding: Finding; don
     });
   };
   return (
-    <form className="stack card" onSubmit={submit}>
+    <form className="stack card accept-form" onSubmit={submit} onKeyDown={(e) => e.key === "Escape" && cancel()}>
       <label className="field">
         Why is this risk acceptable?
         <textarea name="reason" required maxLength={2000} rows={2} />
@@ -137,6 +147,9 @@ function AcceptForm({ org, finding, done }: { org: string; finding: Finding; don
         <Submit action={action} busy="Accepting…" done="Accepted">
           Accept risk
         </Submit>
+        <button type="button" onClick={cancel}>
+          Cancel
+        </button>
       </div>
       <span className="hint">The finding blocks applies again when the acceptance expires.</span>
     </form>

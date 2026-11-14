@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/mail"
 	"regexp"
 	"strings"
@@ -11,6 +12,13 @@ import (
 )
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$`)
+
+// The web app's routes /projects/new and /projects/<project>/topology take
+// these names.
+const (
+	reservedProject   = "new"
+	reservedWorkspace = "topology"
+)
 
 func invalid(msg string) error {
 	return connect.NewError(connect.CodeInvalidArgument, errors.New(msg))
@@ -22,6 +30,16 @@ func checkOrg(slug, name string) error {
 	}
 	if n := len(strings.TrimSpace(name)); n == 0 || n > 100 {
 		return invalid("the org's name needs 1 to 100 characters")
+	}
+	return nil
+}
+
+func checkProjectSlug(slug string) error {
+	if !slugPattern.MatchString(slug) {
+		return invalid(fmt.Sprintf("project %q: the short name needs 1 to 40 lowercase letters, digits or hyphens", slug))
+	}
+	if slug == reservedProject {
+		return invalid(fmt.Sprintf("project %q: the name is reserved; pick another", slug))
 	}
 	return nil
 }

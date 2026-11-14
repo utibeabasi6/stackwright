@@ -105,13 +105,17 @@ func (h Imports) StartImport(ctx context.Context, req *connect.Request[v1.StartI
 			return nil, invalid(fmt.Sprintf("%q is not a root module at %s", chosen.Path, commit[:min(7, len(commit))]))
 		}
 		root := res.Roots[i]
+		if slices.Contains(root.Workspaces, reservedWorkspace) {
+			return nil, invalid(fmt.Sprintf("workspace %q is reserved for the project's Topology page, and an import cannot rename a CLI workspace",
+				reservedWorkspace))
+		}
 		slug, err := existingProject(ctx, s.Tx, m.Repo, root.Path)
 		if err != nil {
 			return nil, authz.Internal(err)
 		}
 		if slug == "" {
-			if !slugPattern.MatchString(chosen.Slug) {
-				return nil, invalid(fmt.Sprintf("%s: the project's short name needs 1 to 40 lowercase letters, digits or hyphens", chosen.Slug))
+			if err := checkProjectSlug(chosen.Slug); err != nil {
+				return nil, err
 			}
 			if err := checkEngine(chosen.Engine, chosen.EngineVersion); err != nil {
 				return nil, err

@@ -57,8 +57,9 @@ type GraphServiceClient interface {
 	// SaveGraphLayout stores node positions for the workspace. With replace,
 	// the stored positions are dropped first.
 	SaveGraphLayout(context.Context, *connect.Request[v1.SaveGraphLayoutRequest]) (*connect.Response[v1.SaveGraphLayoutResponse], error)
-	// GetTopology returns the org's AWS network, joined from each
-	// workspace's latest plan of its own code (adr/0038).
+	// GetTopology returns a project's AWS network, from each workspace's
+	// latest plan of its own code, with what it uses from other projects as
+	// context (adr/0038, adr/0039).
 	GetTopology(context.Context, *connect.Request[v1.GetTopologyRequest]) (*connect.Response[v1.GetTopologyResponse], error)
 }
 
@@ -141,8 +142,9 @@ type GraphServiceHandler interface {
 	// SaveGraphLayout stores node positions for the workspace. With replace,
 	// the stored positions are dropped first.
 	SaveGraphLayout(context.Context, *connect.Request[v1.SaveGraphLayoutRequest]) (*connect.Response[v1.SaveGraphLayoutResponse], error)
-	// GetTopology returns the org's AWS network, joined from each
-	// workspace's latest plan of its own code (adr/0038).
+	// GetTopology returns a project's AWS network, from each workspace's
+	// latest plan of its own code, with what it uses from other projects as
+	// context (adr/0038, adr/0039).
 	GetTopology(context.Context, *connect.Request[v1.GetTopologyRequest]) (*connect.Response[v1.GetTopologyResponse], error)
 }
 

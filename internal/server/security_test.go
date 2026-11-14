@@ -172,3 +172,21 @@ func TestSecurityReview(t *testing.T) {
 		t.Errorf("the nightly run of fixed code: %v", open)
 	}
 }
+
+func TestModuleFindingsBlockByTheirAddress(t *testing.T) {
+	t.Parallel()
+	w := newRunWorld(t)
+	w.project(w.owner, "a", "mod", "prod")
+	prod := map[string]any{"org": "a", "project": "mod", "workspace": "prod"}
+	w.owner.must("RunService/CreateRun", merge(prod, map[string]any{"source": base64.StdEncoding.EncodeToString(source(t, "ssh-module")),
+		"sourceName": "ssh-module.tar.gz"}))
+	w.waitFor(prod, 1, "RUN_STATUS_BLOCKED")
+	stored := withCheck(findingsOf(w.viewer, prod, "SecurityService/ListFindings"), "AWS-0107")
+	if len(stored) != 1 || stored[0]["resource"] != "module.bastion.aws_security_group.ssh" || stored[0]["unmatched"] == true {
+		t.Fatalf("the module's finding: %v", stored)
+	}
+	inRun := withCheck(findingsOf(w.viewer, merge(prod, map[string]any{"number": 1}), "SecurityService/ListRunFindings"), "AWS-0107")
+	if len(inRun) != 1 || inRun[0]["blocking"] != true || inRun[0]["resource"] != "module.bastion.aws_security_group.ssh" {
+		t.Errorf("the run's finding: %v", inRun)
+	}
+}

@@ -47,7 +47,6 @@ export function CloudAccounts() {
     }
   };
   const remove = async (name: string) => {
-    if (!window.confirm(`Delete the cloud account ${name}? Its roles in AWS stay as they are.`)) return false;
     setError(undefined);
     try {
       await cloudApi.deleteCloudAccount({ org, name });
@@ -105,7 +104,13 @@ export function CloudAccounts() {
                       <Action run={() => showSetup(a.name)} busy="Loading…" done="Shown below">
                         AWS setup
                       </Action>{" "}
-                      <Action className="danger" run={() => remove(a.name)} busy="Deleting…" done="Deleted">
+                      <Action
+                        className="danger"
+                        confirm={{ message: `Delete the cloud account ${a.name}? Its roles in AWS stay as they are.`, action: "Delete", danger: true }}
+                        run={() => remove(a.name)}
+                        busy="Deleting…"
+                        done="Deleted"
+                      >
                         Delete
                       </Action>
                     </td>

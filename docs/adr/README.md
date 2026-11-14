@@ -44,3 +44,5 @@ line to the old one that points to the new one.
 | [0036](0036-importer-and-the-codes-backend.md) | The importer runs projects on the code's own backend; committed state is plan-only |
 | [0037](0037-security-review-with-trivy.md) | Trivy scans each plan in the sandbox; Rego sets are Trivy checks; High findings on changed resources block |
 | [0038](0038-topology-from-plans.md) | The topology joins each workspace's latest own-code plan across the org by AWS id; zones as columns |
+| [0039](0039-topology-per-project.md) | One topology for each project; other projects' VPCs and subnets as dimmed context |
+| [0040](0040-unmatched-findings.md) | Findings get plan addresses through Trivy's MD5 of the module address; one that fits none shows and never blocks |

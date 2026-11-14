@@ -1824,3 +1824,60 @@ button.action {
   z-index: 1;
   padding-left: var(--space-1);
 }
+
+.topo-node.context {
+  opacity: 0.55;
+  border-style: dotted;
+}
+
+dialog.confirm {
+  max-width: 420px;
+  padding: var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--window);
+  color: var(--ink);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+dialog.confirm::backdrop {
+  background: rgb(0 0 0 / 30%);
+}
+
+dialog.confirm p {
+  margin: 0 0 var(--space-4);
+}
+
+.confirm-actions {
+  justify-content: flex-end;
+}
+
+.table.findings td {
+  vertical-align: top;
+}
+
+.finding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.finding-status {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.finding-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.finding-actions button.ask-agent {
+  display: inline;
+  margin-top: 0;
+}
+
+.accept-form {
+  margin-top: var(--space-3);
+}

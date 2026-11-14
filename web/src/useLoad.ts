@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { message } from "./api";
 
 // useLoad returns nothing for a new key until that key loads, never the data
-// of the key before it. A reload of the same key keeps its data.
-export function useLoad<T>(key: string, load: () => Promise<T>) {
+// of the key before it. A reload of the same key keeps its data, and so
+// does a change of refresh, which reloads without a new key.
+export function useLoad<T>(key: string, load: () => Promise<T>, refresh = 0) {
   const [loaded, setLoaded] = useState<{ key: string; data?: T; error?: string }>({ key });
   const [version, setVersion] = useState(0);
   const loader = useRef(load);
@@ -21,7 +22,7 @@ export function useLoad<T>(key: string, load: () => Promise<T>) {
     return () => {
       live = false;
     };
-  }, [key, version]);
+  }, [key, version, refresh]);
   const current = loaded.key === key;
   return {
     data: current ? loaded.data : undefined,

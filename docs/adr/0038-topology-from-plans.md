@@ -1,6 +1,7 @@
 # 0038 — The topology joins each workspace's latest plan across the org
 
-**Status:** Accepted, 2026-11-13.
+**Status:** Accepted, 2026-11-13. The org-wide scope is superseded by
+[0039](0039-topology-per-project.md).
 
 ## Context
 

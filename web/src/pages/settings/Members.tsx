@@ -90,7 +90,12 @@ export function Members() {
                   <td style={{ textAlign: "right" }}>
                     <Action
                       className="danger"
-                      run={() => window.confirm(`Remove ${m.email} from this org?`) && act(() => orgApi.removeMember({ org, userId: m.userId }))}
+                      confirm={{
+                        message: m.userId === me.user?.id ? "Leave this org?" : `Remove ${m.email} from this org?`,
+                        action: m.userId === me.user?.id ? "Leave" : "Remove",
+                        danger: true,
+                      }}
+                      run={() => act(() => orgApi.removeMember({ org, userId: m.userId }))}
                       busy={m.userId === me.user?.id ? "Leaving…" : "Removing…"}
                       done={m.userId === me.user?.id ? "Left" : "Removed"}
                     >

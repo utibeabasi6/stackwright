@@ -104,8 +104,10 @@ export function Shell() {
   );
   const [waitingVersion, setWaitingVersion] = useState(0);
   const reloadWaiting = useCallback(() => setWaitingVersion((v) => v + 1), []);
-  const waiting = useLoad(`waiting:${org}:${waitingVersion}`, () =>
-    org ? runApi.listWaiting({ org }).then((r) => r.approvals.length + r.failures.length + r.findings.length) : Promise.resolve(0),
+  const waiting = useLoad(
+    `waiting:${org}`,
+    () => (org ? runApi.listWaiting({ org }).then((r) => r.approvals.length + r.failures.length + r.findings.length) : Promise.resolve(0)),
+    waitingVersion,
   );
   useEffect(() => {
     const id = window.setInterval(reloadWaiting, 15000);
@@ -137,13 +139,12 @@ export function Shell() {
     const list: Command[] = [
       { id: "projects", label: "Projects", group: "Page", run: go("/$org") },
       { id: "inbox", label: "Waiting on you", group: "Page", run: go("/$org/inbox") },
-      { id: "topology", label: "Topology", group: "Page", run: go("/$org/topology") },
-      { id: "servers", label: "Build servers", group: "Page", run: go("/$org/build-servers") },
       { id: "settings", label: "Settings: General", group: "Page", run: go("/$org/settings") },
       { id: "members", label: "Settings: Members", group: "Page", run: go("/$org/settings/members") },
       { id: "tokens", label: "Settings: API tokens", group: "Page", run: go("/$org/settings/tokens") },
       { id: "variables", label: "Settings: Variables", group: "Page", run: go("/$org/settings/variables") },
       { id: "cloud", label: "Settings: Cloud accounts", group: "Page", run: go("/$org/settings/cloud") },
+      { id: "servers", label: "Settings: Build servers", group: "Page", run: go("/$org/settings/build-servers") },
       { id: "github", label: "Settings: GitHub", group: "Page", run: go("/$org/settings/github") },
       { id: "agent", label: "Settings: Agent", group: "Page", run: go("/$org/settings/agent") },
       { id: "security", label: "Settings: Security", group: "Page", run: go("/$org/settings/security") },
@@ -161,6 +162,12 @@ export function Shell() {
       );
     }
     for (const p of projects.data ?? []) {
+      list.push({
+        id: `topology-${p.slug}`,
+        label: `${p.slug} › Topology`,
+        group: "Project",
+        run: go("/$org/projects/$project/topology", { project: p.slug }),
+      });
       for (const w of p.workspaces) {
         list.push({
           id: `ws-${p.slug}-${w.name}`,
@@ -258,14 +265,8 @@ export function Shell() {
                   </span>
                 )}
               </Link>
-              <Link to="/$org/topology" params={{ org }}>
-                Topology
-              </Link>
               {!ws && (
                 <>
-                  <Link to="/$org/build-servers" params={{ org }}>
-                    Build servers
-                  </Link>
                   <Link to="/$org/settings" params={{ org }}>
                     Settings
                   </Link>

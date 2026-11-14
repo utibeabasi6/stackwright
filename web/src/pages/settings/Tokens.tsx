@@ -30,8 +30,7 @@ export function Tokens() {
       return false;
     }
   };
-  const revoke = async (id: string, name: string) => {
-    if (!window.confirm(`Revoke ${name}? Anything that uses it stops working.`)) return false;
+  const revoke = async (id: string) => {
     try {
       await tokenApi.revokeApiToken({ org, id });
       tokens.reload();
@@ -68,7 +67,13 @@ export function Tokens() {
                   <td>{t.expiresAt ? timestampDate(t.expiresAt).toLocaleDateString() : ""}</td>
                   <td>{t.lastUsedAt ? timestampDate(t.lastUsedAt).toLocaleString() : "Never"}</td>
                   <td style={{ textAlign: "right" }}>
-                    <Action className="danger" run={() => revoke(t.id, t.name)} busy="Revoking…" done="Revoked">
+                    <Action
+                      className="danger"
+                      confirm={{ message: `Revoke ${t.name}? Anything that uses it stops working.`, action: "Revoke", danger: true }}
+                      run={() => revoke(t.id)}
+                      busy="Revoking…"
+                      done="Revoked"
+                    >
                       Revoke
                     </Action>
                   </td>

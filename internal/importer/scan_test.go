@@ -99,4 +99,7 @@ func TestScanGivesEachRootItsOwnSlug(t *testing.T) {
 	if len(got.Roots) != 2 || got.Roots[0].Slug != "a-b" || got.Roots[1].Slug != "a-b-2" {
 		t.Errorf("slugs: %+v", got.Roots)
 	}
+	if got := Scan("acme/infra", []string{"new/main.tf"}, map[string][]byte{"new/main.tf": nil}); got.Roots[0].Slug != "new-2" {
+		t.Errorf("a folder named new: %+v", got.Roots)
+	}
 }

@@ -37,8 +37,7 @@ export function SignInProviders() {
       return false;
     }
   };
-  const remove = async (id: string, name: string) => {
-    if (!window.confirm(`Remove ${name}? People who signed in only with it lose access until they get a password.`)) return false;
+  const remove = async (id: string) => {
     try {
       await instanceApi.deleteSignInProvider({ id });
       providers.reload();
@@ -59,7 +58,17 @@ export function SignInProviders() {
         <div key={p.id} className="card stack">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <strong>{p.name}</strong>
-            <Action className="danger" run={() => remove(p.id, p.name)} busy="Removing…" done="Removed">
+            <Action
+              className="danger"
+              confirm={{
+                message: `Remove ${p.name}? People who signed in only with it lose access until they get a password.`,
+                action: "Remove",
+                danger: true,
+              }}
+              run={() => remove(p.id)}
+              busy="Removing…"
+              done="Removed"
+            >
               Remove
             </Action>
           </div>

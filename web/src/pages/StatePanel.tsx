@@ -76,10 +76,12 @@ export function StatePanel(props: { org: string; project: string; workspace: str
         {lock && admin && (
           <Action
             className="danger"
-            run={() =>
-              window.confirm("Force-unlock this state? Only do it when the run that holds the lock has stopped.") &&
-              act(() => stateApi.forceUnlockState({ org, project, workspace }))
-            }
+            confirm={{
+              message: "Force-unlock this state? Only do it when the run that holds the lock has stopped.",
+              action: "Force unlock",
+              danger: true,
+            }}
+            run={() => act(() => stateApi.forceUnlockState({ org, project, workspace }))}
             busy="Unlocking…"
             done="Unlocked"
           >
@@ -151,11 +153,11 @@ export function StatePanel(props: { org: string; project: string; workspace: str
                       )}{" "}
                       {admin && i > 0 && (
                         <Action
-                          run={() =>
-                            window.confirm(
-                              `Make serial ${v.serial} the current state again? The next plan compares your code against it.`,
-                            ) && act(() => stateApi.rollbackState({ org, project, workspace, id: v.id }))
-                          }
+                          confirm={{
+                            message: `Make serial ${v.serial} the current state again? The next plan compares your code against it.`,
+                            action: "Roll back",
+                          }}
+                          run={() => act(() => stateApi.rollbackState({ org, project, workspace, id: v.id }))}
                           busy="Rolling back…"
                           done="Rolled back"
                         >

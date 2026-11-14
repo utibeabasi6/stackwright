@@ -1,4 +1,5 @@
 import { Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { ConfirmProvider } from "./Confirm";
 import { Shell } from "./Shell";
 import { EditorPage } from "./editor/EditorPage";
 import { BuildServers } from "./pages/BuildServers";
@@ -29,7 +30,13 @@ import { Settings } from "./pages/settings/Settings";
 import { SignInProviders } from "./pages/settings/SignInProviders";
 import { Tokens } from "./pages/settings/Tokens";
 
-const root = createRootRoute({ component: Outlet });
+const root = createRootRoute({
+  component: () => (
+    <ConfirmProvider>
+      <Outlet />
+    </ConfirmProvider>
+  ),
+});
 const app = createRoute({ getParentRoute: () => root, id: "app", component: Shell });
 const org = createRoute({ getParentRoute: () => app, path: "$org" });
 const settings = createRoute({ getParentRoute: () => org, path: "settings", component: Settings });
@@ -44,12 +51,10 @@ export const routeTree = root.addChildren([
     org.addChildren([
       createRoute({ getParentRoute: () => org, path: "/", component: Projects }),
       createRoute({ getParentRoute: () => org, path: "inbox", component: Inbox }),
-      createRoute({ getParentRoute: () => org, path: "topology", component: TopologyPage }),
-      createRoute({ getParentRoute: () => org, path: "build-servers", component: BuildServers }),
-      createRoute({ getParentRoute: () => org, path: "build-servers/enrol", component: EnrolServer }),
       createRoute({ getParentRoute: () => org, path: "projects/new", component: NewProject }),
       createRoute({ getParentRoute: () => org, path: "import", component: Import }),
       createRoute({ getParentRoute: () => org, path: "imports/$id", component: ImportProgress }),
+      createRoute({ getParentRoute: () => org, path: "projects/$project/topology", component: TopologyPage }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace", component: () => <Workspace section="overview" /> }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/state", component: () => <Workspace section="state" /> }),
       createRoute({ getParentRoute: () => org, path: "projects/$project/$workspace/variables", component: () => <Workspace section="variables" /> }),
@@ -66,6 +71,8 @@ export const routeTree = root.addChildren([
         createRoute({ getParentRoute: () => settings, path: "tokens", component: Tokens }),
         createRoute({ getParentRoute: () => settings, path: "variables", component: OrgVariables }),
         createRoute({ getParentRoute: () => settings, path: "cloud", component: CloudAccounts }),
+        createRoute({ getParentRoute: () => settings, path: "build-servers", component: BuildServers }),
+        createRoute({ getParentRoute: () => settings, path: "build-servers/enrol", component: EnrolServer }),
         createRoute({ getParentRoute: () => settings, path: "github", component: GitHub }),
         createRoute({ getParentRoute: () => settings, path: "agent", component: AgentSettings }),
         createRoute({ getParentRoute: () => settings, path: "security", component: SecuritySettings }),

@@ -20,7 +20,7 @@ export function EnrolServer() {
   return (
     <div className="stack">
       <div>
-        <h1>Enrol a build server</h1>
+        <h2>Enrol a build server</h2>
         <p className="muted">A Linux machine with Docker. Stackwright starts sandboxes there for this org's jobs.</p>
       </div>
       <div role="tablist" aria-label="Enrol method" className="tabs">
@@ -183,7 +183,7 @@ function OverSSH({ org }: { org: string }) {
             ))}
           </ol>
           {done && (
-            <Link to="/$org/build-servers" params={{ org }}>
+            <Link to="/$org/settings/build-servers" params={{ org }}>
               See it in Build servers
             </Link>
           )}
@@ -194,7 +194,7 @@ function OverSSH({ org }: { org: string }) {
           <Submit action={installing} className="primary" disabled={!scan || !confirmed} busy="Installing…" done="Installed">
             Connect and install
           </Submit>
-          <Link className="button" to="/$org/build-servers" params={{ org }}>
+          <Link className="button" to="/$org/settings/build-servers" params={{ org }}>
             Cancel
           </Link>
         </div>
@@ -252,7 +252,7 @@ function WithCommand({ org }: { org: string }) {
               </button>
             </div>
           </div>
-          <Link to="/$org/build-servers" params={{ org }}>
+          <Link to="/$org/settings/build-servers" params={{ org }}>
             Back to Build servers
           </Link>
         </section>
@@ -261,7 +261,7 @@ function WithCommand({ org }: { org: string }) {
           <Submit action={making} className="primary" busy="Making…" done="Made">
             Make the command
           </Submit>
-          <Link className="button" to="/$org/build-servers" params={{ org }}>
+          <Link className="button" to="/$org/settings/build-servers" params={{ org }}>
             Cancel
           </Link>
         </div>

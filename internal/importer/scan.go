@@ -121,7 +121,8 @@ func Scan(repo string, names []string, files map[string][]byte) Result {
 	}
 
 	var r Result
-	slugs := map[string]bool{}
+	// The web app's /projects/new takes "new".
+	slugs := map[string]bool{"new": true}
 	for dir, f := range folders {
 		switch {
 		case f.terragrunt:

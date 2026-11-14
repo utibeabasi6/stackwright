@@ -36,9 +36,7 @@ export function BuildServers() {
     }
   };
   const saving = useAction();
-  const remove = (s: BuildServer) =>
-    window.confirm(`Remove ${s.name}? Its certificate stops working at once. The builder stays installed on the machine.`) &&
-    act(() => buildServerApi.removeBuildServer({ org, id: s.id }));
+  const remove = (s: BuildServer) => act(() => buildServerApi.removeBuildServer({ org, id: s.id }));
   const save = (s: BuildServer) => (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -62,13 +60,13 @@ export function BuildServers() {
     <div className="stack">
       <div className="row">
         <div className="grow">
-          <h1>Build servers</h1>
+          <h2>Build servers</h2>
           <p className="muted">
             {list.length === 1 ? "1 server" : `${list.length} servers`} · {running} of {slots} sandbox slots in use
           </p>
         </div>
         {admin && (
-          <Link className="button primary" to="/$org/build-servers/enrol" params={{ org }}>
+          <Link className="button primary" to="/$org/settings/build-servers/enrol" params={{ org }}>
             Enrol a server
           </Link>
         )}
@@ -150,7 +148,17 @@ export function BuildServers() {
                           <button type="button" onClick={() => setEditing(s.id)}>
                             Edit
                           </button>{" "}
-                          <Action className="danger" run={() => remove(s)} busy="Removing…" done="Removed">
+                          <Action
+                            className="danger"
+                            confirm={{
+                              message: `Remove ${s.name}? Its certificate stops working at once. The builder stays installed on the machine.`,
+                              action: "Remove",
+                              danger: true,
+                            }}
+                            run={() => remove(s)}
+                            busy="Removing…"
+                            done="Removed"
+                          >
                             Remove
                           </Action>
                         </>

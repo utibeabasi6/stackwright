@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/graph"
 )
@@ -784,4 +786,78 @@ func joinModule(prefix, call string) string {
 		return call
 	}
 	return prefix + "." + call
+}
+
+// Scope keeps a project's own nodes, and as context what they use from
+// other projects: their VPC, subnets, security groups and route targets,
+// and each context subnet's VPC and route targets. An edge stays when one
+// end is the project's own (adr/0039).
+func Scope(t *v1.Topology, project string) *v1.Topology {
+	byID := map[string]*v1.TopologyNode{}
+	for _, n := range t.Nodes {
+		byID[n.Id] = n
+	}
+	own := map[string]bool{}
+	for _, n := range t.Nodes {
+		if n.Project == project {
+			own[n.Id] = true
+		}
+	}
+	context := map[string]bool{}
+	add := func(id string) {
+		if id != "" && !own[id] && byID[id] != nil {
+			context[id] = true
+		}
+	}
+	for id := range own {
+		n := byID[id]
+		add(n.Vpc)
+		for _, s := range n.Subnets {
+			add(s)
+		}
+		for _, g := range n.SecurityGroups {
+			add(g)
+		}
+		for _, r := range n.Routes {
+			add(r.Target)
+		}
+	}
+	var edges []*v1.TopologyEdge
+	for _, e := range t.Edges {
+		if own[e.From] || own[e.To] {
+			edges = append(edges, e)
+			add(e.From)
+			add(e.To)
+		}
+	}
+	var subnets []*v1.TopologyNode
+	for id := range context {
+		if byID[id].Role == v1.TopologyRole_TOPOLOGY_ROLE_SUBNET {
+			subnets = append(subnets, byID[id])
+		}
+	}
+	for _, s := range subnets {
+		add(s.Vpc)
+		for _, r := range s.Routes {
+			add(r.Target)
+		}
+	}
+	out := &v1.Topology{Edges: edges}
+	for _, n := range t.Nodes {
+		switch {
+		case own[n.Id]:
+			out.Nodes = append(out.Nodes, n)
+		case context[n.Id]:
+			c := proto.Clone(n).(*v1.TopologyNode)
+			c.Context = c.Project != ""
+			c.Findings, c.Worst = 0, v1.Severity_SEVERITY_UNSPECIFIED
+			out.Nodes = append(out.Nodes, c)
+		}
+	}
+	for _, c := range t.Clashes {
+		if strings.Contains(c, " "+project+"/") {
+			out.Clashes = append(out.Clashes, c)
+		}
+	}
+	return out
 }

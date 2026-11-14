@@ -16,7 +16,7 @@ func TestTopologyReadsTheLatestPlan(t *testing.T) {
 		w.waitFor(prod, number, "RUN_STATUS_PLANNED")
 	}
 	group := func() (map[string]any, []any) {
-		out := w.viewer.must("GraphService/GetTopology", map[string]any{"org": "a"})
+		out := w.viewer.must("GraphService/GetTopology", map[string]any{"org": "a", "project": "edge"})
 		topo, _ := out["topology"].(map[string]any)
 		for _, n := range asList(topo["nodes"]) {
 			if n := n.(map[string]any); n["id"] == "edge/prod/aws_security_group.ssh" {
@@ -27,6 +27,9 @@ func TestTopologyReadsTheLatestPlan(t *testing.T) {
 		return nil, nil
 	}
 
+	if _, code := w.viewer.call("GraphService/GetTopology", map[string]any{"org": "a", "project": "nowhere"}); code != "not_found" {
+		t.Errorf("a missing project: %q", code)
+	}
 	plan("ssh-open", 1)
 	n, edges := group()
 	if n["findings"] != float64(1) || n["worst"] != "SEVERITY_HIGH" || n["action"] != "PLAN_ACTION_CREATE" {

@@ -161,8 +161,16 @@ func (Graph) SaveGraphLayout(ctx context.Context, req *connect.Request[v1.SaveGr
 	return connect.NewResponse(&v1.SaveGraphLayoutResponse{}), nil
 }
 
-func (h Graph) GetTopology(ctx context.Context, _ *connect.Request[v1.GetTopologyRequest]) (*connect.Response[v1.GetTopologyResponse], error) {
+func (h Graph) GetTopology(ctx context.Context, req *connect.Request[v1.GetTopologyRequest]) (*connect.Response[v1.GetTopologyResponse], error) {
 	tx := authz.ScopeFrom(ctx).Tx
+	project := req.Msg.Project
+	var exists bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT FROM projects WHERE slug = $1 AND archived_at IS NULL)`, project).Scan(&exists); err != nil {
+		return nil, authz.Internal(err)
+	}
+	if !exists {
+		return nil, errNotFound
+	}
 	rows, err := tx.Query(ctx, `SELECT DISTINCT ON (w.id) p.slug, w.name, r.number, j.id
 		FROM runs r JOIN jobs j ON j.id = r.plan_job_id JOIN workspaces w ON w.id = r.workspace_id JOIN projects p ON p.id = w.project_id
 		WHERE w.archived_at IS NULL AND p.archived_at IS NULL AND r.trigger IN ('ui', 'push', 'schedule') AND j.status = 'succeeded'
@@ -184,6 +192,7 @@ func (h Graph) GetTopology(ctx context.Context, _ *connect.Request[v1.GetTopolog
 	slices.SortFunc(all, func(a, b latest) int { return strings.Compare(a.project+"/"+a.workspace, b.project+"/"+b.workspace) })
 	out := &v1.GetTopologyResponse{}
 	var plans []topology.Plan
+	var read []latest
 	for _, l := range all {
 		b, err := h.Jobs.ReadArtifact(ctx, tx, l.job, "plan.json")
 		if errors.Is(err, jobs.ErrNoArtifact) {
@@ -193,10 +202,21 @@ func (h Graph) GetTopology(ctx context.Context, _ *connect.Request[v1.GetTopolog
 			return nil, authz.Internal(err)
 		}
 		plans = append(plans, topology.Plan{Project: l.project, Workspace: l.workspace, JSON: b})
-		out.Sources = append(out.Sources, fmt.Sprintf("%s/%s #%d", l.project, l.workspace, l.number))
+		read = append(read, l)
 	}
-	if out.Topology, err = topology.Build(plans); err != nil {
+	full, err := topology.Build(plans)
+	if err != nil {
 		return nil, authz.Internal(err)
+	}
+	out.Topology = topology.Scope(full, project)
+	drawn := map[[2]string]bool{}
+	for _, n := range out.Topology.Nodes {
+		drawn[[2]string{n.Project, n.Workspace}] = true
+	}
+	for _, l := range read {
+		if drawn[[2]string{l.project, l.workspace}] {
+			out.Sources = append(out.Sources, fmt.Sprintf("%s/%s #%d", l.project, l.workspace, l.number))
+		}
 	}
 
 	rows, err = tx.Query(ctx, `SELECT p.slug, w.name, f.resource, f.severity FROM findings f JOIN workspaces w ON w.id = f.workspace_id
@@ -223,6 +243,9 @@ func (h Graph) GetTopology(ctx context.Context, _ *connect.Request[v1.GetTopolog
 		worst[f.key] = max(worst[f.key], severities[f.severity])
 	}
 	for _, n := range out.Topology.Nodes {
+		if n.Context {
+			continue
+		}
 		k := n.Id
 		if counts[k] == 0 {
 			k = n.Project + "/" + n.Workspace + "/" + graph.StripKeys(n.Address)

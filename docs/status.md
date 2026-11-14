@@ -1133,6 +1133,17 @@ Trivy on the host was refused, so it ran only inside Docker images.
 - The first run of the test found a bug: a plan with no findings closed
   none, since an empty list went to Postgres as NULL. It is fixed.
 
+- Added on 2026-11-14 ([0040](adr/0040-unmatched-findings.md)): findings
+  in modules and on root resources with `count` matched no plan address,
+  so they never blocked. Trivy names a module resource
+  `<type>.<name>_<md5 of module_address>`; Stackwright now maps that
+  back, and a finding that fits no address shows as unmatched and never
+  blocks. A unit test on real Trivy output maps all seven groups of a
+  fixture with plain, `count` and `for_each` modules. A Go test with real
+  sandboxes plans a module with SSH open: the finding is stored as
+  `module.bastion.aws_security_group.ssh` and blocks the apply. Nested
+  modules are not checked.
+
 **Not verified:**
 - The nightly loop itself at 02:00 UTC; the test calls the queue
   directly. A linked workspace's nightly run of its branch's newest
@@ -1156,9 +1167,13 @@ Trivy on the host was refused, so it ran only inside Docker images.
 
 ## Phase 17: Topology
 
-Decision: [0038](adr/0038-topology-from-plans.md). The user chose the
-latest plan as the source, one topology joined across the org, and zones
-as columns. The Topology page is at the org level, beside Waiting on you.
+Decisions: [0038](adr/0038-topology-from-plans.md) and
+[0039](adr/0039-topology-per-project.md). The user chose the latest plan
+as the source and zones as columns. After the first build the user moved
+the topology from the org to each project: other projects' VPCs,
+subnets and gateways that the project uses show dimmed as context. The
+page opens from the project list. Build servers moved from the sidebar to
+a Settings tab at the same time.
 
 **Verified on 2026-11-13:**
 - The fixture is real OpenTofu 1.10.7 output, made in Docker with fake
@@ -1184,13 +1199,18 @@ as columns. The Topology page is at the org level, beside Waiting on you.
   topology shows it with one High finding and an edge from the internet.
   A plan of the fixed code replaces it: no finding, no edge, and the rule
   shows `10.0.0.0/8`.
-- Web: a layout test on the Go golden file puts the zones in columns,
+- Scoped to the app project, the topology keeps its own seven nodes and
+  adds the network's VPC, four subnets, internet gateway and NAT as
+  context; scoped to the network project, it has no app node.
+- Web: layout tests on the Go golden files put the zones in columns,
   public subnets above private ones, the NAT inside its subnet, the
-  internet gateway on the VPC's top edge, and the load balancer, instance
-  group and database across both zones. A Playwright test, in both
-  themes, checks that the planned NAT's border is dashed and has the
-  create colour, opens a private subnet's route to the NAT, and the web
-  group's rule from `0.0.0.0/0`.
+  internet gateway on the VPC's top edge, and the app's load balancer,
+  instance group and database across both zones of the network's
+  subnets. Playwright tests, in both themes, open each project's page
+  from the project list: the planned NAT's border is dashed in the create
+  colour, a private subnet's route leads to it, the app's context subnets
+  are dimmed and its own nodes are not, and a context node links to its
+  project's topology.
 - Screenshots of the page in both themes were checked by eye.
 
 **Not verified:**
@@ -1201,6 +1221,13 @@ as columns. The Topology page is at the org level, beside Waiting on you.
   workspace's latest plan.
 
 **Known gaps:**
+- The web app's routes take two names, so the server refuses a project
+  named `new` and a workspace named `topology`. A Go test checks both in
+  `CreateProject`, and `topology` in `CreateWorkspace`. The importer
+  suggests `new-2` for a root folder named `new`. It also refuses a
+  repository's CLI workspace named `topology`, which it cannot rename;
+  no test covers that refusal. Rows that already have those names stay.
+- A project's page does not show what other projects put in its VPC.
 - A security group whose VPC is the default one, with no `vpc_id`, shows
   below the VPCs.
 - Edges can cross nodes; the layout does not route around them.

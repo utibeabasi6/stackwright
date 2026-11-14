@@ -5,6 +5,7 @@ package findings
 
 import (
 	"context"
+	"crypto/md5" //nolint:gosec // reproduces Trivy's resource names; no security use
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -21,6 +22,9 @@ type Result struct {
 	Title    string
 	Message  string
 	Resource string
+	// Unmatched is a resource that no plan address fits; it never blocks
+	// an apply (adr/0040).
+	Unmatched bool
 }
 
 // Blocks reports whether a severity, as stored, can block an apply.
@@ -62,39 +66,66 @@ func Parse(raw []byte) ([]Result, error) {
 	return out, nil
 }
 
-// Changed returns the addresses that a plan creates, updates or replaces.
-func Changed(planJSON []byte) (map[string]bool, error) {
+// Match gives each result its plan address, and returns the addresses the
+// plan creates, updates or replaces. Trivy 0.76.1 names a resource without
+// its own count or for_each key, and a resource in a module as
+// <type>.<name>_<md5 of the plan's module_address>, as
+// aws_security_group.this_b9757342... for module.web (adr/0040). A
+// result that fits no address keeps Trivy's name and is unmatched.
+func Match(results []Result, planJSON []byte) ([]Result, map[string]bool, error) {
 	var plan struct {
 		ResourceChanges []struct {
-			Address string `json:"address"`
-			Change  struct {
+			ModuleAddress string `json:"module_address"`
+			Mode          string `json:"mode"`
+			Type          string `json:"type"`
+			Name          string `json:"name"`
+			Change        struct {
 				Actions []string `json:"actions"`
 			} `json:"change"`
 		} `json:"resource_changes"`
 	}
 	if err := json.Unmarshal(planJSON, &plan); err != nil {
-		return nil, fmt.Errorf("the plan is not JSON: %w", err)
+		return nil, nil, fmt.Errorf("the plan is not JSON: %w", err)
 	}
-	out := map[string]bool{}
+	byTrivy, changed := map[string]string{}, map[string]bool{}
 	for _, rc := range plan.ResourceChanges {
+		if rc.Mode != "managed" {
+			continue
+		}
+		addr, name := rc.Type+"."+rc.Name, rc.Type+"."+rc.Name
+		if rc.ModuleAddress != "" {
+			addr = rc.ModuleAddress + "." + addr
+			name = fmt.Sprintf("%s_%x", name, md5.Sum([]byte(rc.ModuleAddress))) //nolint:gosec // as Trivy names it
+		}
+		byTrivy[name] = addr
 		if slices.Contains(rc.Change.Actions, "create") || slices.Contains(rc.Change.Actions, "update") {
-			out[rc.Address] = true
+			changed[addr] = true
 		}
 	}
-	return out, nil
+	out := make([]Result, len(results))
+	for i, r := range results {
+		if addr, ok := byTrivy[r.Resource]; ok {
+			r.Resource = addr
+		} else {
+			r.Unmatched = true
+		}
+		out[i] = r
+	}
+	return out, changed, nil
 }
 
-// Record opens the findings a plan of the workspace's own code saw, and
-// marks fixed those it no longer sees. tx needs the org setting.
+// Record opens the findings a plan of the workspace's own code saw, after
+// Match, and marks fixed those it no longer sees. tx needs the org setting.
 func Record(ctx context.Context, tx pgx.Tx, orgID, workspaceID string, results []Result) error {
 	ids := make([]string, 0, len(results))
 	for _, r := range results {
 		var id string
-		if err := tx.QueryRow(ctx, `INSERT INTO findings (id, org_id, workspace_id, check_id, resource, severity, title, message)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (workspace_id, check_id, resource) DO UPDATE SET severity = $6, title = $7, message = $8,
+		if err := tx.QueryRow(ctx, `INSERT INTO findings (id, org_id, workspace_id, check_id, resource, severity, title, message, unmatched)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			ON CONFLICT (workspace_id, check_id, resource) DO UPDATE SET severity = $6, title = $7, message = $8, unmatched = $9,
 				last_seen_at = now(), fixed_at = NULL
-			RETURNING id`, uuid.NewString(), orgID, workspaceID, r.CheckID, r.Resource, r.Severity, r.Title, r.Message).Scan(&id); err != nil {
+			RETURNING id`, uuid.NewString(), orgID, workspaceID, r.CheckID, r.Resource, r.Severity, r.Title, r.Message,
+			r.Unmatched).Scan(&id); err != nil {
 			return err
 		}
 		ids = append(ids, id)

@@ -17,8 +17,9 @@ service GraphService {
   // SaveGraphLayout stores node positions for the workspace. With replace,
   // the stored positions are dropped first.
   rpc SaveGraphLayout(SaveGraphLayoutRequest) returns (SaveGraphLayoutResponse);
-  // GetTopology returns the org's AWS network, joined from each
-  // workspace's latest plan of its own code (adr/0038).
+  // GetTopology returns a project's AWS network, from each workspace's
+  // latest plan of its own code, with what it uses from other projects as
+  // context (adr/0038, adr/0039).
   rpc GetTopology(GetTopologyRequest) returns (GetTopologyResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -242,6 +243,9 @@ message TopologyNode {
   // Open findings on the resource, and the worst one's severity.
   int32 findings = 18;
   Severity worst = 19;
+  // From another project's plan, shown because the project's own nodes
+  // use it.
+  bool context = 20;
 }
 
 enum TopologyEdgeKind {
@@ -272,11 +276,12 @@ message Topology {
 
 message GetTopologyRequest {
   string org = 1;
+  string project = 2;
 }
 
 message GetTopologyResponse {
   Topology topology = 1;
-  // The workspaces whose plans were read, as "project/workspace #run".
+  // The workspaces whose nodes are drawn, as "project/workspace #run".
   repeated string sources = 2;
 }
 

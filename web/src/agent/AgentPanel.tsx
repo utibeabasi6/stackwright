@@ -9,6 +9,7 @@ import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { useShell } from "../me";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
+import { useConfirm } from "../Confirm";
 
 type Props = {
   org: string;
@@ -194,6 +195,7 @@ function useSession(org: string, id: string) {
 }
 
 function Session({ org, id, writer, onChange }: { org: string; id: string; writer: boolean; onChange: () => void }) {
+  const confirm = useConfirm();
   const { session, steps } = useSession(org, id);
   const [error, setError] = useState<string>();
   const scroll = useRef<HTMLDivElement>(null);
@@ -243,8 +245,13 @@ function Session({ org, id, writer, onChange }: { org: string; id: string; write
             <button
               type="button"
               className="link"
-              onClick={() => {
-                if (session.dirty && !window.confirm("Close this session? Its uncommitted changes are lost.")) return;
+              onClick={async () => {
+                if (
+                  session.dirty &&
+                  !(await confirm({ message: "Close this session? Its uncommitted changes are lost.", action: "Close session", danger: true }))
+                ) {
+                  return;
+                }
                 void act(() => agentApi.closeSession({ org, id, discard: true }));
               }}
             >

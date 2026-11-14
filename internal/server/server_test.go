@@ -981,10 +981,15 @@ func TestProjects(t *testing.T) {
 		{"slug": "Bad Name", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"},
 		{"slug": "nows", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_CLI_WORKSPACES"},
 		{"slug": "twice", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_CLI_WORKSPACES", "workspaces": []string{"dev", "dev"}},
+		{"slug": "new", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"},
+		{"slug": "maps", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_CLI_WORKSPACES", "workspaces": []string{"topology"}},
 	} {
 		if _, code := create(bad); code != "invalid_argument" {
 			t.Errorf("%v: %s, want invalid_argument", bad["slug"], code)
 		}
+	}
+	if _, code := owner.call("ProjectService/CreateWorkspace", map[string]any{"org": "a", "project": "network", "name": "topology"}); code != "invalid_argument" {
+		t.Errorf("a workspace named topology: %s", code)
 	}
 	if _, code := create(map[string]any{"slug": "network", "engine": "ENGINE_OPENTOFU", "engineVersion": "1.10.7", "layout": "LAYOUT_PLAIN"}); code != "already_exists" {
 		t.Errorf("a second project named network: %s", code)

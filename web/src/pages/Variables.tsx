@@ -60,7 +60,6 @@ export function Variables({ org, project, workspace, admin }: Props) {
   };
 
   const remove = async (v: Variable) => {
-    if (!window.confirm(`Delete ${v.key}? Runs stop getting it.`)) return false;
     setError(undefined);
     try {
       await variableApi.deleteVariable({ org, scope: v.scope ?? {}, category: v.category, key: v.key });
@@ -118,7 +117,13 @@ export function Variables({ org, project, workspace, admin }: Props) {
                   {admin && (
                     <td style={{ textAlign: "right" }}>
                       {mine(v) && (
-                        <Action className="danger" run={() => remove(v)} busy="Deleting…" done="Deleted">
+                        <Action
+                          className="danger"
+                          confirm={{ message: `Delete ${v.key}? Runs stop getting it.`, action: "Delete", danger: true }}
+                          run={() => remove(v)}
+                          busy="Deleting…"
+                          done="Deleted"
+                        >
                           Delete
                         </Action>
                       )}

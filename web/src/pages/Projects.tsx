@@ -191,6 +191,9 @@ function ProjectCard({ p, org }: { p: Project; org: string }) {
         ))}
       </ul>
       {p.repoUrl && <span className="hint mono">{p.repoUrl}</span>}
+      <Link to="/$org/projects/$project/topology" params={{ org, project: p.slug }}>
+        Topology
+      </Link>
     </section>
   );
 }

@@ -26,6 +26,9 @@ export function Settings() {
         <Link to="/$org/settings/cloud" params={{ org }}>
           Cloud accounts
         </Link>
+        <Link to="/$org/settings/build-servers" params={{ org }}>
+          Build servers
+        </Link>
         <Link to="/$org/settings/github" params={{ org }}>
           GitHub
         </Link>

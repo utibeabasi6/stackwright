@@ -54,6 +54,9 @@ message Finding {
   RiskAcceptance acceptance = 12;
   // In a run's list: this finding blocks the run.
   bool blocking = 13;
+  // The resource is not one of the plan's addresses, as Trivy names a
+  // resource in a module. It never blocks an apply (adr/0040).
+  bool unmatched = 14;
 }
 
 message RiskAcceptance {

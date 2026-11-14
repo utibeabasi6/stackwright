@@ -48,16 +48,24 @@ const severityText: Record<Severity, string> = {
   [Severity.CRITICAL]: "Critical",
 };
 
-// TopologyPage draws the org's AWS network from each workspace's latest
-// plan (adr/0038). A node opens its details in the side panel.
+// TopologyPage draws a project's AWS network from each workspace's latest
+// plan, with what it uses from other projects dimmed (adr/0039). A node
+// opens its details in the side panel.
 export function TopologyPage() {
-  const { org } = useParams({ strict: false }) as { org: string };
-  const res = useLoad(`topology:${org}`, () => graphApi.getTopology({ org }));
+  const { org, project } = useParams({ strict: false }) as { org: string; project: string };
+  const res = useLoad(`topology:${org}/${project}`, () => graphApi.getTopology({ org, project }));
   const [selected, setSelected] = useState<string>();
   const topo = res.data?.topology;
   const l = useMemo(() => (topo ? layout(topo) : undefined), [topo]);
 
-  if (res.error) return <p className="error">{res.error}</p>;
+  if (res.error) {
+    return (
+      <div className="stack">
+        <h1>Topology</h1>
+        <p className="error">{res.error}</p>
+      </div>
+    );
+  }
   if (!topo || !l) return null;
   const nodes = new Map(topo.nodes.map((n) => [n.id, n]));
   const chosen = selected ? nodes.get(selected) : undefined;
@@ -69,7 +77,7 @@ export function TopologyPage() {
       <div className="topo-canvas" aria-label="Topology">
         {drawn.length === 0 ? (
           <p className="notice muted topo-empty">
-            No plan has AWS network resources yet. The topology reads each workspace's latest plan of its own code.
+            No plan of {project} has AWS network resources yet. The topology reads each workspace's latest plan of its own code.
           </p>
         ) : (
           <div className="topo-stage" style={{ width: l.width, height: l.height }}>
@@ -85,13 +93,16 @@ export function TopologyPage() {
                   key={n.id}
                   type="button"
                   className={["topo-node", `role-${TopologyRole[n.role].toLowerCase()}`, actionClass[n.action], n.public ? "public" : "",
-                    selected === n.id ? "selected" : ""].filter(Boolean).join(" ")}
+                    n.context ? "context" : "", selected === n.id ? "selected" : ""].filter(Boolean).join(" ")}
                   style={{ left: b.x, top: b.y, width: b.w, height: b.h }}
                   onClick={() => setSelected(n.id)}
                   aria-pressed={selected === n.id}
-                  aria-label={`${roleNames[n.role]} ${n.name}`}
+                  aria-label={`${roleNames[n.role]} ${n.name}${n.context ? `, from ${n.project}` : ""}`}
                 >
-                  <span className="topo-role">{n.role === TopologyRole.SUBNET ? (n.public ? "Public" : "Private") : roleNames[n.role]}</span>
+                  <span className="topo-role">
+                    {n.context && !(n.vpc && nodes.get(n.vpc)?.context) && `${n.project} · `}
+                    {n.role === TopologyRole.SUBNET ? (n.public ? "Public" : "Private") : roleNames[n.role]}
+                  </span>
                   <span className="topo-name">{n.name}</span>
                   {n.cidr && <span className="topo-cidr mono">{n.cidr}</span>}
                   {n.findings > 0 && (
@@ -115,9 +126,10 @@ export function TopologyPage() {
           <Details org={org} node={chosen} topo={topo} select={setSelected} />
         ) : (
           <div className="stack">
-            <h2>Topology</h2>
+            <h2 className="mono">{project}</h2>
             <p className="muted">
-              Each workspace's latest plan of its own code, joined by AWS id. Dashed nodes are planned. Select a node for its details.
+              The latest plan of each workspace's own code. Dashed nodes are planned. Dimmed nodes belong to another project and are shown
+              because this one uses them. Select a node for its details.
             </p>
             {topo.clashes.length > 0 && (
               <div className="notice">
@@ -157,6 +169,15 @@ function Details({ org, node: n, topo, select }: { org: string; node: TopologyNo
         <span className="hint">{roleNames[n.role]}</span>
         <h2>{n.name}</h2>
         {actionText[n.action] && <p className={actionClass[n.action]}>{actionText[n.action]}</p>}
+        {n.context && (
+          <p className="muted">
+            From project{" "}
+            <Link to="/$org/projects/$project/topology" params={{ org, project: n.project }} className="mono">
+              {n.project}
+            </Link>
+            , shown because this project uses it.
+          </p>
+        )}
       </div>
       <dl className="facts">
         {n.project && (

@@ -108,6 +108,9 @@ func checkWorkspace(name string) error {
 	if !workspacePattern.MatchString(name) {
 		return invalid(fmt.Sprintf("workspace %q needs 1 to 40 lowercase letters, digits, hyphens or underscores", name))
 	}
+	if name == reservedWorkspace {
+		return invalid(fmt.Sprintf("workspace %q: the name is reserved for the project's Topology page; pick another", name))
+	}
 	return nil
 }
 
@@ -233,8 +236,8 @@ func insertProject(ctx context.Context, s *authz.Scope, p *v1.Project, workspace
 
 func (h Projects) CreateProject(ctx context.Context, req *connect.Request[v1.CreateProjectRequest]) (*connect.Response[v1.CreateProjectResponse], error) {
 	m := req.Msg
-	if !slugPattern.MatchString(m.Slug) {
-		return nil, invalid("the project's short name needs 1 to 40 lowercase letters, digits or hyphens")
+	if err := checkProjectSlug(m.Slug); err != nil {
+		return nil, err
 	}
 	path, err := cleanPath(m.Path)
 	if err != nil {

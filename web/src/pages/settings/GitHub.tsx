@@ -118,10 +118,12 @@ export function GitHub() {
             {instanceAdmin && (
               <Action
                 className="danger"
-                run={() =>
-                  window.confirm("Forget the GitHub App? Every org's links to it go. The App stays on GitHub until you delete it there.") &&
-                  act(() => githubApi.deleteGitHubApp({}))
-                }
+                confirm={{
+                  message: "Forget the GitHub App? Every org's links to it go. The App stays on GitHub until you delete it there.",
+                  action: "Forget",
+                  danger: true,
+                }}
+                run={() => act(() => githubApi.deleteGitHubApp({}))}
                 busy="Forgetting…"
                 done="Forgotten"
               >
@@ -149,10 +151,8 @@ export function GitHub() {
             {admin && (
               <Action
                 className="danger"
-                run={() =>
-                  window.confirm(`Unlink ${i.account}? Its pull requests and pushes stop starting runs.`) &&
-                  act(() => githubApi.unlinkInstallation({ org, installationId: i.installationId }))
-                }
+                confirm={{ message: `Unlink ${i.account}? Its pull requests and pushes stop starting runs.`, action: "Unlink", danger: true }}
+                run={() => act(() => githubApi.unlinkInstallation({ org, installationId: i.installationId }))}
                 busy="Unlinking…"
                 done="Unlinked"
               >
