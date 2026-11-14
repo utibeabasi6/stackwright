@@ -32,6 +32,7 @@ import (
 	"github.com/stackwright/stackwright/internal/engine"
 	"github.com/stackwright/stackwright/internal/github"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/notify"
 	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/runs"
 	"github.com/stackwright/stackwright/internal/seal"
@@ -166,6 +167,10 @@ func runServer(args []string) error {
 		return err
 	}
 	go agentService.RunReaper(ctx, time.Minute)
+	stsEndpoint := config.Env("STACKWRIGHT_AWS_STS_ENDPOINT", "https://sts.amazonaws.com")
+	go (&notify.Sender{Pool: pool, KEK: kek, Client: &http.Client{}, PublicURL: publicURL}).Run(ctx)
+	go (&notify.Auditor{Pool: pool, KEK: kek, Issuer: issuer, STSEndpoint: stsEndpoint, Client: &http.Client{},
+		S3Endpoint: config.Env("STACKWRIGHT_AUDIT_S3_ENDPOINT", "")}).Run(ctx)
 
 	var web fs.FS
 	if *webDir != "" {
@@ -177,15 +182,18 @@ func runServer(args []string) error {
 		PublicURL: publicURL,
 		SetupCode: setupCode,
 		CLIDir:    config.Env("STACKWRIGHT_CLI_DIR", "/cli"),
-		Web:       web,
-		State:     state.Store{S3: s3, Bucket: bucket, KEK: kek},
-		Jobs:      jobService,
-		Runs:      orchestrator,
-		Builders:  hub,
-		Binaries:  binaries,
-		Issuer:    issuer,
-		GitHub:    gh,
-		Agent:     agentService,
+		// For development only: lets admins point webhooks and SAML
+		// metadata at http:// URLs.
+		AllowHTTPTargets: config.Env("STACKWRIGHT_ALLOW_HTTP_TARGETS", "") == "1",
+		Web:              web,
+		State:            state.Store{S3: s3, Bucket: bucket, KEK: kek},
+		Jobs:             jobService,
+		Runs:             orchestrator,
+		Builders:         hub,
+		Binaries:         binaries,
+		Issuer:           issuer,
+		GitHub:           gh,
+		Agent:            agentService,
 	}
 	handler := server.New(srvCfg)
 

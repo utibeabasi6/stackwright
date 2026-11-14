@@ -169,7 +169,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	go gh.RunChecks(ctx, 200*time.Millisecond)
 	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
 		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries, Issuer: issuer, GitHub: gh, Agent: ag,
-		CLIDir: cliDir(t)}
+		CLIDir: cliDir(t), AllowHTTPTargets: true}
 	if web != nil {
 		cfg.Web = web
 	}
@@ -305,6 +305,7 @@ func methods() []method {
 		v1.File_stackwright_v1_build_servers_proto, v1.File_stackwright_v1_variables_proto, v1.File_stackwright_v1_cloud_proto,
 		v1.File_stackwright_v1_github_proto, v1.File_stackwright_v1_graph_proto, v1.File_stackwright_v1_agent_proto,
 		v1.File_stackwright_v1_imports_proto, v1.File_stackwright_v1_security_proto, v1.File_stackwright_v1_deployments_proto,
+		v1.File_stackwright_v1_sso_proto, v1.File_stackwright_v1_notifications_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -699,6 +700,28 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 		settle(i+1, "applied")
 	}
 	step("DeploymentService/ArchiveDeployment", func() { owner.must("DeploymentService/ArchiveDeployment", deployment) })
+	sso := map[string]any{"org": "a", "metadataXml": testIdPMetadata(t), "defaultRole": "ROLE_VIEWER"}
+	step("SsoService/SaveSso", func() { owner.must("SsoService/SaveSso", sso) })
+	step("SsoService/RotateScimToken", func() { owner.must("SsoService/RotateScimToken", map[string]any{"org": "a"}) })
+	step("SsoService/DeleteSso", func() { owner.must("SsoService/DeleteSso", map[string]any{"org": "a"}) })
+	var destination string
+	step("NotificationService/CreateDestination", func() {
+		destination = owner.must("NotificationService/CreateDestination", map[string]any{"org": "a", "kind": "DESTINATION_KIND_WEBHOOK",
+			"name": "siem", "url": "https://siem.test/hook", "events": []string{"NOTIFICATION_EVENT_RUN_FAILED"}})["destination"].(map[string]any)["id"].(string)
+	})
+	step("NotificationService/UpdateDestinationEvents", func() {
+		owner.must("NotificationService/UpdateDestinationEvents", map[string]any{"org": "a", "id": destination,
+			"events": []string{"NOTIFICATION_EVENT_DRIFT_FOUND"}})
+	})
+	step("NotificationService/TestDestination", func() {
+		owner.must("NotificationService/TestDestination", map[string]any{"org": "a", "id": destination})
+	})
+	step("NotificationService/DeleteDestination", func() {
+		owner.must("NotificationService/DeleteDestination", map[string]any{"org": "a", "id": destination})
+	})
+	step("NotificationService/SaveAuditExport", func() {
+		owner.must("NotificationService/SaveAuditExport", map[string]any{"org": "a", "retentionDays": 400, "webhookUrl": "https://siem.test/audit"})
+	})
 	org := map[string]any{"org": "a"}
 	var manifest map[string]any
 	step("GitHubService/StartAppManifest", func() {

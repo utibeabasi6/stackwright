@@ -113,11 +113,38 @@ func checkOrg(ctx context.Context, s *Scope, slug string, min v1.Role) error {
 		return Internal(err)
 	}
 	s.Role = RoleFromDB(role)
+	if err := checkSSO(ctx, s.Tx, orgID, slug, s.Role); err != nil {
+		return err
+	}
 	if !AtLeast(s.Role, min) {
 		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("this needs the %s role or above", RoleToDB(min)))
 	}
 	if err := s.SetOrg(ctx, orgID); err != nil {
 		return Internal(err)
+	}
+	return nil
+}
+
+// ErrNeedsSSO is a member of an org that requires its identity provider,
+// signed in another way.
+var ErrNeedsSSO = errors.New("signs in through its identity provider; sign in with SSO")
+
+// checkSSO refuses a session or CLI token that an org's SAML sign-in made
+// for another org, and, in an org that requires SSO, one that its
+// identity provider did not sign in, unless the member is an owner
+// (adr/0045).
+func checkSSO(ctx context.Context, tx pgx.Tx, orgID, slug string, role v1.Role) error {
+	u, _ := auth.UserFrom(ctx)
+	if u.SSOOrg != "" && u.SSOOrg != orgID {
+		return connect.NewError(connect.CodePermissionDenied, errors.New("this sign-in came through another org's identity provider, and it opens only that org"))
+	}
+	var required bool
+	err := tx.QueryRow(ctx, `SELECT required FROM org_saml WHERE org_id = $1`, orgID).Scan(&required)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return Internal(err)
+	}
+	if required && u.SSOOrg != orgID && role != v1.Role_ROLE_OWNER {
+		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("org %s %w", slug, ErrNeedsSSO))
 	}
 	return nil
 }
@@ -154,8 +181,8 @@ func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 			if err := tx.QueryRow(ctx, `SELECT instance_admin FROM users WHERE id = $1`, user.ID).Scan(&admin); err != nil {
 				return nil, Internal(err)
 			}
-			if !admin {
-				return nil, connect.NewError(connect.CodePermissionDenied, errors.New("only an instance admin may do this"))
+			if !admin || user.SSOOrg != "" {
+				return nil, connect.NewError(connect.CodePermissionDenied, errors.New("only an instance admin may do this, signed in to the instance"))
 			}
 		case JobTicket, Job:
 			bearer, ok := strings.CutPrefix(req.Header().Get("Authorization"), "Bearer ")

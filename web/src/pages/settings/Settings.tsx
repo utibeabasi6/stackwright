@@ -39,9 +39,17 @@ export function Settings() {
           Security
         </Link>
         {admin && (
-          <Link to="/$org/settings/audit" params={{ org }}>
-            Audit log
-          </Link>
+          <>
+            <Link to="/$org/settings/audit" params={{ org }}>
+              Audit log
+            </Link>
+            <Link to="/$org/settings/sso" params={{ org }}>
+              Single sign-on
+            </Link>
+            <Link to="/$org/settings/notifications" params={{ org }}>
+              Notifications
+            </Link>
+          </>
         )}
         {me.user?.instanceAdmin && (
           <Link to="/$org/settings/sign-in" params={{ org }}>

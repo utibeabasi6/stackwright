@@ -36,22 +36,22 @@ func UserCode(s string) string {
 }
 
 // LookupCLIToken returns the user of a CLI token that is not revoked and
-// was used in the last CLITokenIdle.
-func LookupCLIToken(ctx context.Context, pool *pgxpool.Pool, token string) (string, error) {
-	var userID string
+// was used in the last CLITokenIdle, and the org whose identity provider
+// signed it in.
+func LookupCLIToken(ctx context.Context, pool *pgxpool.Pool, token string) (userID, ssoOrg string, err error) {
 	var stale bool
-	err := pool.QueryRow(ctx, `SELECT user_id, last_used_at < now() - interval '1 minute' FROM cli_tokens
-		WHERE token_hash = $1 AND revoked_at IS NULL AND last_used_at > $2`, HashToken(token), time.Now().Add(-CLITokenIdle)).Scan(&userID, &stale)
+	err = pool.QueryRow(ctx, `SELECT user_id, coalesce(sso_org_id::text, ''), last_used_at < now() - interval '1 minute' FROM cli_tokens
+		WHERE token_hash = $1 AND revoked_at IS NULL AND last_used_at > $2`, HashToken(token), time.Now().Add(-CLITokenIdle)).Scan(&userID, &ssoOrg, &stale)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrBadToken
+		return "", "", ErrBadToken
 	}
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if stale {
 		_, _ = pool.Exec(ctx, `UPDATE cli_tokens SET last_used_at = now() WHERE token_hash = $1`, HashToken(token))
 	}
-	return userID, nil
+	return userID, ssoOrg, nil
 }
 
 // Device serves the two endpoints of the OAuth device flow that the CLI
@@ -124,9 +124,9 @@ func (d Device) token(w http.ResponseWriter, r *http.Request) {
 	hash := HashToken(r.FormValue("device_code"))
 	var name string
 	var expired, denied, early bool
-	var approvedBy *string
-	err = tx.QueryRow(ctx, `SELECT name, expires_at < now(), denied, approved_by::text, coalesce(polled_at > $2, false) FROM device_codes
-		WHERE device_hash = $1 FOR UPDATE`, hash, time.Now().Add(-pollInterval)).Scan(&name, &expired, &denied, &approvedBy, &early)
+	var approvedBy, ssoOrg *string
+	err = tx.QueryRow(ctx, `SELECT name, expires_at < now(), denied, approved_by::text, sso_org_id::text, coalesce(polled_at > $2, false)
+		FROM device_codes WHERE device_hash = $1 FOR UPDATE`, hash, time.Now().Add(-pollInterval)).Scan(&name, &expired, &denied, &approvedBy, &ssoOrg, &early)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "expired_token"})
@@ -157,8 +157,8 @@ func (d Device) token(w http.ResponseWriter, r *http.Request) {
 		reply(http.StatusBadRequest, map[string]string{"error": "authorization_pending"}, false)
 	default:
 		token := CLITokenPrefix + RandomToken()
-		if _, err := tx.Exec(ctx, `INSERT INTO cli_tokens (id, user_id, token_hash, name) VALUES ($1, $2, $3, $4)`,
-			uuid.NewString(), *approvedBy, HashToken(token), name); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO cli_tokens (id, user_id, token_hash, name, sso_org_id) VALUES ($1, $2, $3, $4, $5)`,
+			uuid.NewString(), *approvedBy, HashToken(token), name, ssoOrg); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "server_error"})
 			return
 		}

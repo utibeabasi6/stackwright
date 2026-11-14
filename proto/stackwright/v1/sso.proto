@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stackwright/v1/orgs.proto";
+
+// SsoService sets up an org's SAML identity provider and its SCIM token
+// (adr/0045).
+service SsoService {
+  rpc GetSso(GetSsoRequest) returns (GetSsoResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc SaveSso(SaveSsoRequest) returns (SaveSsoResponse);
+  rpc DeleteSso(DeleteSsoRequest) returns (DeleteSsoResponse);
+  // RotateScimToken makes the org's SCIM token, replacing any other. The
+  // response is the only time it is shown.
+  rpc RotateScimToken(RotateScimTokenRequest) returns (RotateScimTokenResponse);
+}
+
+message GroupRole {
+  string group = 1;
+  Role role = 2;
+}
+
+message Sso {
+  string metadata_url = 1;
+  string idp_entity_id = 2;
+  string sso_url = 3;
+  // When each IdP certificate ends.
+  repeated google.protobuf.Timestamp certificates_expire = 4;
+  string groups_attribute = 5;
+  Role default_role = 6;
+  bool required = 7;
+  repeated GroupRole group_roles = 8;
+}
+
+message GetSsoRequest {
+  string org = 1;
+}
+
+message GetSsoResponse {
+  // Unset until an admin saves one.
+  Sso sso = 1;
+  // What to give the identity provider.
+  string sp_entity_id = 2;
+  string acs_url = 3;
+  string sp_metadata_url = 4;
+  string scim_url = 5;
+  google.protobuf.Timestamp scim_token_created_at = 6;
+}
+
+message SaveSsoRequest {
+  string org = 1;
+  // One of the two: a URL Stackwright fetches over HTTPS, or the XML.
+  string metadata_url = 2;
+  string metadata_xml = 3;
+  string groups_attribute = 4;
+  Role default_role = 5;
+  bool required = 6;
+  repeated GroupRole group_roles = 7;
+}
+
+message SaveSsoResponse {
+  GetSsoResponse sso = 1;
+}
+
+message DeleteSsoRequest {
+  string org = 1;
+}
+
+message DeleteSsoResponse {}
+
+message RotateScimTokenRequest {
+  string org = 1;
+}
+
+message RotateScimTokenResponse {
+  string token = 1;
+}

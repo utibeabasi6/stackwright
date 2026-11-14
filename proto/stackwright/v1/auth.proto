@@ -82,6 +82,9 @@ message OrgMembership {
   string slug = 1;
   string name = 2;
   Role role = 3;
+  // The org needs a sign-in through its identity provider, and this
+  // session has none: its pages send the user there (adr/0045).
+  bool needs_sso = 4;
 }
 
 message ListSignInProvidersRequest {}

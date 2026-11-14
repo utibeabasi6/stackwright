@@ -1,5 +1,7 @@
 import { Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { CliPage, Device } from "./pages/Cli";
+import { Notifications } from "./pages/settings/Notifications";
+import { Sso } from "./pages/settings/Sso";
 import { ConfirmProvider } from "./Confirm";
 import { Shell } from "./Shell";
 import { EditorPage } from "./editor/EditorPage";
@@ -83,6 +85,8 @@ export const routeTree = root.addChildren([
         createRoute({ getParentRoute: () => settings, path: "agent", component: AgentSettings }),
         createRoute({ getParentRoute: () => settings, path: "security", component: SecuritySettings }),
         createRoute({ getParentRoute: () => settings, path: "sign-in", component: SignInProviders }),
+        createRoute({ getParentRoute: () => settings, path: "sso", component: Sso }),
+        createRoute({ getParentRoute: () => settings, path: "notifications", component: Notifications }),
       ]),
     ]),
   ]),

@@ -547,10 +547,13 @@ func (x *User) GetInstanceAdmin() bool {
 }
 
 type OrgMembership struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Role          Role                   `protobuf:"varint,3,opt,name=role,proto3,enum=stackwright.v1.Role" json:"role,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Slug  string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Role  Role                   `protobuf:"varint,3,opt,name=role,proto3,enum=stackwright.v1.Role" json:"role,omitempty"`
+	// The org needs a sign-in through its identity provider, and this
+	// session has none: its pages send the user there (adr/0045).
+	NeedsSso      bool `protobuf:"varint,4,opt,name=needs_sso,json=needsSso,proto3" json:"needs_sso,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -604,6 +607,13 @@ func (x *OrgMembership) GetRole() Role {
 		return x.Role
 	}
 	return Role_ROLE_UNSPECIFIED
+}
+
+func (x *OrgMembership) GetNeedsSso() bool {
+	if x != nil {
+		return x.NeedsSso
+	}
+	return false
 }
 
 type ListSignInProvidersRequest struct {
@@ -1471,11 +1481,12 @@ const file_stackwright_v1_auth_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12%\n" +
-	"\x0einstance_admin\x18\x04 \x01(\bR\rinstanceAdmin\"a\n" +
+	"\x0einstance_admin\x18\x04 \x01(\bR\rinstanceAdmin\"~\n" +
 	"\rOrgMembership\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12(\n" +
-	"\x04role\x18\x03 \x01(\x0e2\x14.stackwright.v1.RoleR\x04role\"\x1c\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x14.stackwright.v1.RoleR\x04role\x12\x1b\n" +
+	"\tneeds_sso\x18\x04 \x01(\bR\bneedsSso\"\x1c\n" +
 	"\x1aListSignInProvidersRequest\"a\n" +
 	"\x1bListSignInProvidersResponse\x12B\n" +
 	"\tproviders\x18\x01 \x03(\v2$.stackwright.v1.SignInProviderButtonR\tproviders\":\n" +

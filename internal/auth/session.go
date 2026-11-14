@@ -29,6 +29,9 @@ const (
 type User struct {
 	ID string
 	IP string
+	// SSOOrg is the org whose identity provider signed this session or CLI
+	// token in, if any (adr/0045).
+	SSOOrg string
 }
 
 type userKey struct{}
@@ -93,7 +96,7 @@ func Middleware(pool *pgxpool.Pool, publicURL string, next http.Handler) http.Ha
 		// A CLI token in the Authorization header acts as its user; it is
 		// not a cookie, so it needs no CSRF header (adr/0044).
 		if bearer, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok && strings.HasPrefix(bearer, CLITokenPrefix) {
-			id, err := LookupCLIToken(r.Context(), pool, bearer)
+			id, sso, err := LookupCLIToken(r.Context(), pool, bearer)
 			switch {
 			case errors.Is(err, ErrBadToken):
 				_ = errs.Write(w, r, connect.NewError(connect.CodeUnauthenticated, errors.New("the CLI token is unknown, revoked or unused for 30 days; run stackwright login")))
@@ -103,12 +106,12 @@ func Middleware(pool *pgxpool.Pool, publicURL string, next http.Handler) http.Ha
 				_ = errs.Write(w, r, connect.NewError(connect.CodeInternal, errors.New("internal error")))
 				return
 			}
-			u.ID = id
+			u.ID, u.SSOOrg = id, sso
 		} else if token := SessionToken(r.Header); token != "" {
 			var csrf string
 			err := pool.QueryRow(r.Context(),
-				`SELECT user_id, csrf_token FROM sessions WHERE id_hash = $1 AND expires_at > now()`,
-				HashToken(token)).Scan(&u.ID, &csrf)
+				`SELECT user_id, csrf_token, coalesce(sso_org_id::text, '') FROM sessions WHERE id_hash = $1 AND expires_at > now()`,
+				HashToken(token)).Scan(&u.ID, &csrf, &u.SSOOrg)
 			switch {
 			case errors.Is(err, pgx.ErrNoRows):
 			case err != nil:
@@ -116,7 +119,7 @@ func Middleware(pool *pgxpool.Pool, publicURL string, next http.Handler) http.Ha
 				_ = errs.Write(w, r, connect.NewError(connect.CodeInternal, errors.New("internal error")))
 				return
 			case subtle.ConstantTimeCompare([]byte(r.Header.Get(CSRFHeader)), []byte(csrf)) != 1:
-				u.ID = ""
+				u.ID, u.SSOOrg = "", ""
 			}
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey{}, u)))

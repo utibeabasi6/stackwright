@@ -169,8 +169,11 @@ func (a *Auth) GetMe(ctx context.Context, _ *connect.Request[v1.GetMeRequest]) (
 		Scan(&u.Email, &u.Name, &u.InstanceAdmin); err != nil {
 		return nil, authz.Internal(err)
 	}
-	rows, err := s.Tx.Query(ctx, `SELECT o.slug, o.name, m.role FROM memberships m JOIN orgs o ON o.id = m.org_id
-		WHERE m.user_id = $1 ORDER BY o.name`, s.UserID)
+	// A session from an org's SAML sign-in shows only that org (adr/0045).
+	user, _ := auth.UserFrom(ctx)
+	rows, err := s.Tx.Query(ctx, `SELECT o.slug, o.name, m.role, coalesce(sso.required, false) AND m.role <> 'owner' AND o.id::text <> $2
+		FROM memberships m JOIN orgs o ON o.id = m.org_id LEFT JOIN org_saml sso ON sso.org_id = o.id
+		WHERE m.user_id = $1 AND ($2 = '' OR o.id::text = $2) ORDER BY o.name`, s.UserID, user.SSOOrg)
 	if err != nil {
 		return nil, authz.Internal(err)
 	}
@@ -178,7 +181,7 @@ func (a *Auth) GetMe(ctx context.Context, _ *connect.Request[v1.GetMeRequest]) (
 	for rows.Next() {
 		o := &v1.OrgMembership{}
 		var role string
-		if err := rows.Scan(&o.Slug, &o.Name, &role); err != nil {
+		if err := rows.Scan(&o.Slug, &o.Name, &role, &o.NeedsSso); err != nil {
 			return nil, authz.Internal(err)
 		}
 		o.Role = authz.RoleFromDB(role)
@@ -301,7 +304,9 @@ func (a *Auth) decideDevice(ctx context.Context, code string, approve bool) erro
 		return err
 	}
 	if approve {
-		_, err = s.Tx.Exec(ctx, `UPDATE device_codes SET approved_by = $2 WHERE user_code = $1`, auth.UserCode(code), s.UserID)
+		u, _ := auth.UserFrom(ctx)
+		_, err = s.Tx.Exec(ctx, `UPDATE device_codes SET approved_by = $2, sso_org_id = nullif($3, '')::uuid WHERE user_code = $1`,
+			auth.UserCode(code), s.UserID, u.SSOOrg)
 	} else {
 		_, err = s.Tx.Exec(ctx, `UPDATE device_codes SET denied = true WHERE user_code = $1`, auth.UserCode(code))
 	}

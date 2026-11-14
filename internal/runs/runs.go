@@ -27,6 +27,7 @@ import (
 	"github.com/stackwright/stackwright/internal/builders"
 	"github.com/stackwright/stackwright/internal/findings"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/notify"
 	"github.com/stackwright/stackwright/internal/seal"
 )
 
@@ -116,10 +117,33 @@ func appendEvent(ctx context.Context, tx pgx.Tx, runID, typ string, payload map[
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `WITH r AS (UPDATE runs SET last_seq = last_seq + 1, updated_at = now() WHERE id = $1 RETURNING org_id, last_seq)
+	if _, err = tx.Exec(ctx, `WITH r AS (UPDATE runs SET last_seq = last_seq + 1, updated_at = now() WHERE id = $1 RETURNING org_id, last_seq)
 		INSERT INTO run_events (run_id, org_id, seq, type, payload, actor_id)
-		SELECT $1, r.org_id, r.last_seq, $2, $3, nullif($4, '')::uuid FROM r`, runID, typ, b, actorID)
-	return err
+		SELECT $1, r.org_id, r.last_seq, $2, $3, nullif($4, '')::uuid FROM r`, runID, typ, b, actorID); err != nil {
+		return err
+	}
+	event, ok := map[string]string{"run.failed": notify.RunFailed, "run.applied": notify.RunApplied,
+		"run.needs_approval": notify.RunNeedsApproval}[typ]
+	if !ok {
+		return nil
+	}
+	e := notify.Event{Type: event}
+	var orgID string
+	if err := tx.QueryRow(ctx, `SELECT r.org_id, o.slug, p.slug, w.name, r.number, coalesce(r.error, '') FROM runs r
+		JOIN workspaces w ON w.id = r.workspace_id JOIN projects p ON p.id = w.project_id JOIN orgs o ON o.id = r.org_id WHERE r.id = $1`,
+		runID).Scan(&orgID, &e.Org, &e.Project, &e.Workspace, &e.Run, &e.Error); err != nil {
+		return err
+	}
+	where := fmt.Sprintf("Run #%d of %s/%s", e.Run, e.Project, e.Workspace)
+	switch event {
+	case notify.RunFailed:
+		e.Text = "✗ " + where + " failed: " + e.Error
+	case notify.RunApplied:
+		e.Text = "✓ " + where + " applied"
+	default:
+		e.Text = where + " waits for approval"
+	}
+	return notify.Enqueue(ctx, tx, orgID, e)
 }
 
 func finish(ctx context.Context, tx pgx.Tx, runID, status, msg, actorID string) error {

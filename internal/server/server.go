@@ -27,6 +27,7 @@ import (
 	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/runs"
+	"github.com/stackwright/stackwright/internal/scim"
 	"github.com/stackwright/stackwright/internal/seal"
 	"github.com/stackwright/stackwright/internal/state"
 )
@@ -48,6 +49,8 @@ type Config struct {
 	Agent    *agent.Service
 	// CLIDir holds the gzipped CLI binaries and their SHA256SUMS (adr/0044).
 	CLIDir string
+	// AllowHTTPTargets lets webhooks and SAML metadata use http://.
+	AllowHTTPTargets bool
 }
 
 var cliBinary = regexp.MustCompile(`^stackwright-(darwin|linux)-(arm64|amd64)$`)
@@ -73,6 +76,8 @@ func New(c Config) http.Handler {
 	serve(stackwrightv1connect.NewImportServiceHandler(api.Imports{GitHub: c.GitHub, Orchestrator: c.Runs}, opts))
 	serve(stackwrightv1connect.NewSecurityServiceHandler(api.Security{Jobs: c.Jobs, Orchestrator: c.Runs}, opts))
 	serve(stackwrightv1connect.NewDeploymentServiceHandler(api.Deployments{Orchestrator: c.Runs}, opts))
+	serve(stackwrightv1connect.NewSsoServiceHandler(api.SSO{PublicURL: c.PublicURL, AllowHTTP: c.AllowHTTPTargets}, opts))
+	serve(stackwrightv1connect.NewNotificationServiceHandler(api.Notifications{KEK: c.KEK, AllowHTTP: c.AllowHTTPTargets}, opts))
 	serve(stackwrightv1connect.NewBuilderServiceHandler(c.Builders, opts))
 	serve(stackwrightv1connect.NewBuildServerServiceHandler(api.BuildServers{KEK: c.KEK, Hub: c.Builders, Binaries: c.Binaries}, opts))
 	serve(stackwrightv1connect.NewVariableServiceHandler(api.Variables{KEK: c.KEK}, opts))
@@ -110,6 +115,8 @@ func New(c Config) http.Handler {
 		}
 		_, _ = w.Write([]byte("ok\n"))
 	})
+	mux.Handle("/scim/v2/", (&scim.Server{Pool: c.Pool, PublicURL: c.PublicURL}).Handler())
+	mux.Handle("/auth/saml/", (&auth.SAML{Pool: c.Pool, PublicURL: c.PublicURL, Cookies: cookies}).Handler())
 	mux.Handle("/auth/", signIn.Handler())
 	mux.Handle("/cli/device/", auth.Device{Pool: c.Pool, PublicURL: c.PublicURL}.Handler())
 	mux.HandleFunc("GET /cli/{name}", func(w http.ResponseWriter, r *http.Request) {

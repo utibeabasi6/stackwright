@@ -1441,9 +1441,11 @@ held that row `FOR UPDATE` and waited for the run. They now lock it `FOR
 NO KEY UPDATE`. The audit test hit it in 3 of 4 runs before the fix and
 in none of 4 after.
 
+**Verified on the development stack, 2026-11-14:** the macOS arm64 CLI
+downloads through the tunnel, plain and gzipped, with the hash in
+`SHA256SUMS`, and runs.
+
 **Not verified:**
-- A download from the development stack. The image builds with the four
-  gzipped binaries, a 46.5 MB layer.
 - The CLI on Linux; the test ran the macOS build.
 - An interactive workspace choice on a real terminal.
 
@@ -1451,4 +1453,63 @@ in none of 4 after.
 - There is no `logout`; the web app's CLI page signs a machine out.
 - The CLI finds GitHub remotes only.
 - Times in event text, such as when AWS credentials end, are in UTC.
+
+## Phase 21: Notifications, SSO, SCIM and audit export
+
+Decision: [0045](adr/0045-sso-scim-notifications-audit-export.md). The
+user chose SAML 2.0, SSO for every member but owners, IdP groups mapped
+to roles, and audit export to S3 and webhooks with a year's retention.
+`crewjam/saml` was not used: the releases with its November 2026
+security fixes were under 14 days old. `gosaml2` v0.12.0 (August 2026)
+is used instead.
+
+**Verified on 2026-11-14:**
+- A Go test against a real Keycloak 26.8.1 in Docker, pinned by digest:
+  - The org saves the IdP from its metadata URL, and an IdP that would
+    make owners is refused.
+  - A user the IdP knows signs in, joins the org with the role of their
+    mapped group (`platform-admins` → admin), and sees only that org.
+  - The same SAML response posted again is refused, and so is one whose
+    NameID was changed.
+  - An email of an account outside the org is refused.
+  - With SSO required, a writer's password session is refused in the
+    org, and their org list says they need SSO. The owner's password
+    session still works. A SAML session is refused in another org.
+- A Go test of SCIM, as Okta and Entra ID call it:
+  - A wrong token is refused. SCIM links an existing user by email and
+    makes a new one, filters on `userName`, and refuses a duplicate.
+  - Group membership moves roles: in `deployers` → writer, out → the
+    default viewer.
+  - Deactivating a user with Entra's `"False"` removes the membership,
+    ends their session at once, and revokes their CLI token. Deleting a
+    user removes the membership. SCIM leaves an owner as is.
+- A Go test with real sandboxes: an apply that fails posts to a fake
+  Slack within 10 s of the failure, with a link to the run. A signed
+  webhook gets the approval and the failure, in order, with a valid
+  signature. "Send a test" reaches only its destination.
+- A Go test of the audit export with a fake S3 and the fake STS: the rows
+  go to `prefix/YYYY/MM/DD/<first>-<last>.jsonl`, written with the apply
+  role and the audit-export token subject. The webhook gets the same
+  rows, signed. Rows past the retention are deleted once both exports
+  have them. A row the failing webhook lacks stays, and its error shows.
+- The access rules and the audit test cover the new RPCs. Playwright in
+  both themes: the SSO page saves a group mapping and shows a SCIM token
+  once, a member who needs SSO is sent to sign in through it, and a
+  webhook shows its secret once.
+
+**Not verified:**
+- A real Okta or Entra ID tenant. SCIM ran from the test, and SAML ran
+  against Keycloak only.
+- A Slack workspace; the test used a fake server.
+- An audit export to real S3 with a real role.
+
+**Known gaps:**
+- SSO is enforced on the API only. The Git proxy, the editor's language
+  server and the state backend's API tokens are not checked against it.
+- No single logout, and no encrypted assertions.
+- The server posts to any address a destination names, private ones
+  included, if it uses https.
+- IdP metadata is fetched over https, and its signature is not checked.
+- A finding that opens again after a fix sends no notification.
+- SAML sign-in does not change the role of an existing member; SCIM does.
 

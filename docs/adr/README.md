@@ -50,3 +50,4 @@ line to the old one that points to the new one.
 | [0042](0042-deployments-and-drift.md) | Deployments link outputs to variables, plan every step and ask once; drift is a refresh-only plan every 6 hours |
 | [0043](0043-stacks-as-deployments.md) | A Stack's files sync into a workspace for each component instance and a deployment for each Stack deployment; the engine evaluates its expressions |
 | [0044](0044-cli.md) | The CLI signs in with a device code and acts as its user; plans upload what git tracks and never apply; the server writes the timeline |
+| [0045](0045-sso-scim-notifications-audit-export.md) | SAML and SCIM per org, SSO for all but owners, sessions scoped to their IdP's org; notifications and audit export through an outbox |

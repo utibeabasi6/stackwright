@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// NotificationService sends run, finding and drift events to Slack and
+// HTTPS webhooks, and the audit log to S3 and webhooks (adr/0045).
+service NotificationService {
+  rpc ListDestinations(ListDestinationsRequest) returns (ListDestinationsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // CreateDestination returns a webhook's signing secret, the only time
+  // it is shown.
+  rpc CreateDestination(CreateDestinationRequest) returns (CreateDestinationResponse);
+  rpc UpdateDestinationEvents(UpdateDestinationEventsRequest) returns (UpdateDestinationEventsResponse);
+  rpc DeleteDestination(DeleteDestinationRequest) returns (DeleteDestinationResponse);
+  rpc TestDestination(TestDestinationRequest) returns (TestDestinationResponse);
+  rpc GetAuditExport(GetAuditExportRequest) returns (GetAuditExportResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // SaveAuditExport returns a new webhook's signing secret, the only time
+  // it is shown.
+  rpc SaveAuditExport(SaveAuditExportRequest) returns (SaveAuditExportResponse);
+}
+
+enum DestinationKind {
+  DESTINATION_KIND_UNSPECIFIED = 0;
+  DESTINATION_KIND_SLACK = 1;
+  DESTINATION_KIND_WEBHOOK = 2;
+}
+
+enum NotificationEvent {
+  NOTIFICATION_EVENT_UNSPECIFIED = 0;
+  NOTIFICATION_EVENT_RUN_FAILED = 1;
+  NOTIFICATION_EVENT_RUN_NEEDS_APPROVAL = 2;
+  NOTIFICATION_EVENT_RUN_APPLIED = 3;
+  NOTIFICATION_EVENT_FINDING_OPENED = 4;
+  NOTIFICATION_EVENT_DRIFT_FOUND = 5;
+}
+
+message Destination {
+  string id = 1;
+  DestinationKind kind = 2;
+  string name = 3;
+  // The URL's host only; the rest can be a secret.
+  string host = 4;
+  repeated NotificationEvent events = 5;
+  google.protobuf.Timestamp last_delivered_at = 6;
+  string last_error = 7;
+}
+
+message ListDestinationsRequest {
+  string org = 1;
+}
+
+message ListDestinationsResponse {
+  repeated Destination destinations = 1;
+}
+
+message CreateDestinationRequest {
+  string org = 1;
+  DestinationKind kind = 2;
+  string name = 3;
+  string url = 4;
+  repeated NotificationEvent events = 5;
+}
+
+message CreateDestinationResponse {
+  Destination destination = 1;
+  string secret = 2;
+}
+
+message UpdateDestinationEventsRequest {
+  string org = 1;
+  string id = 2;
+  repeated NotificationEvent events = 3;
+}
+
+message UpdateDestinationEventsResponse {}
+
+message DeleteDestinationRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message DeleteDestinationResponse {}
+
+message TestDestinationRequest {
+  string org = 1;
+  string id = 2;
+}
+
+message TestDestinationResponse {}
+
+message AuditExportTarget {
+  google.protobuf.Timestamp sent_at = 1;
+  int64 sent_id = 2;
+  string last_error = 3;
+}
+
+message GetAuditExportRequest {
+  string org = 1;
+}
+
+message GetAuditExportResponse {
+  int32 retention_days = 1;
+  string s3_bucket = 2;
+  string s3_prefix = 3;
+  string s3_cloud_account = 4;
+  AuditExportTarget s3 = 5;
+  string webhook_host = 6;
+  AuditExportTarget webhook = 7;
+}
+
+message SaveAuditExportRequest {
+  string org = 1;
+  int32 retention_days = 2;
+  // An empty bucket stops the export to S3.
+  string s3_bucket = 3;
+  string s3_prefix = 4;
+  string s3_cloud_account = 5;
+  // A URL starts or moves the export to a webhook, with a new secret; an
+  // empty one keeps it as it is.
+  string webhook_url = 6;
+  bool stop_webhook = 7;
+}
+
+message SaveAuditExportResponse {
+  GetAuditExportResponse export = 1;
+  string webhook_secret = 2;
+}

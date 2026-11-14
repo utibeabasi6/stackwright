@@ -10,6 +10,12 @@ const reasons: Record<string, string> = {
   invite: "That invite does not exist, has expired, or is for another email.",
   expired: "The sign-in took too long. Try again.",
   denied: "The provider did not let you sign in.",
+  "saml-setup": "That org has no working SAML sign-in. Ask its admin.",
+  "saml-response": "The identity provider's answer was not valid for this org.",
+  "saml-expired": "The SSO sign-in took too long, or was used already. Try again.",
+  "saml-account": "Your email belongs to an account outside this org. Sign in another way, or ask the org's admin.",
+  "saml-email": "The identity provider did not send an email address.",
+  "saml-internal": "The SSO sign-in failed. Try again.",
 };
 
 export function SignIn() {
@@ -43,6 +49,22 @@ export function SignIn() {
             Sign in with {p.name}
           </a>
         ))}
+        <form
+          className="row"
+          aria-label="Single sign-on"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const org = String(new FormData(e.currentTarget).get("org")).trim();
+            const next = search.next?.startsWith("/") && !search.next.startsWith("//") ? search.next : `/${org}`;
+            window.location.assign(`/auth/saml/${encodeURIComponent(org)}/start?next=${encodeURIComponent(next)}`);
+          }}
+        >
+          <label className="field grow">
+            <span>Org that signs in with SSO</span>
+            <input name="org" className="mono" required pattern="[a-z0-9]([a-z0-9\-]{0,38}[a-z0-9])?" placeholder="acme" />
+          </label>
+          <button type="submit">Sign in with SSO</button>
+        </form>
         <form className="stack" onSubmit={(e) => void pending.run(() => submit(e))}>
           <label className="field">
             <span>Email</span>

@@ -748,8 +748,8 @@ their way.
 - Audit export to S3 or a webhook, with retention.
 
 **Done when.**
-- [ ] A failed apply posts to Slack within 10 s
-- [ ] Removing a user in the identity provider removes their access
+- [x] A failed apply posts to Slack within 10 s
+- [x] Removing a user in the identity provider removes their access
 
 **Depends on:** 5.
 

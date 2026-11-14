@@ -98,6 +98,8 @@ export function Shell() {
   }, [navigate, router]);
 
   const org = params.org ?? me?.orgs[0]?.slug ?? "";
+  const current = params.org ? me?.orgs.find((o) => o.slug === params.org) : undefined;
+  const location = useRouterState({ select: (st) => st.location.href });
   const ws = params.project && params.workspace ? { org, project: params.project, workspace: params.workspace } : undefined;
   const projects = useLoad(`projects:${org}`, () =>
     org ? projectApi.listProjects({ org }).then((r) => r.projects) : Promise.resolve([]),
@@ -319,7 +321,19 @@ export function Shell() {
           </div>
           <div className="frame-body">
             <main className="page">
-              <Outlet />
+              {current?.needsSso ? (
+                <div className="stack">
+                  <h1>{current.name}</h1>
+                  <p className="notice">{current.name} signs in through its identity provider. Sign in with SSO to open it.</p>
+                  <div>
+                    <a className="button primary" href={`/auth/saml/${current.slug}/start?next=${encodeURIComponent(location)}`}>
+                      Sign in with SSO
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <Outlet />
+              )}
             </main>
             {ws && agentShown && (
               <Divider

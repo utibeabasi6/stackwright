@@ -14,6 +14,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/stackwright/stackwright/internal/notify"
 )
 
 // Result is one failed check on one resource.
@@ -121,15 +123,27 @@ func Record(ctx context.Context, tx pgx.Tx, orgID, workspaceID string, results [
 	ids := make([]string, 0, len(results))
 	for _, r := range results {
 		var id string
+		var opened bool
 		if err := tx.QueryRow(ctx, `INSERT INTO findings (id, org_id, workspace_id, check_id, resource, severity, title, message, unmatched)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (workspace_id, check_id, resource) DO UPDATE SET severity = $6, title = $7, message = $8, unmatched = $9,
 				last_seen_at = now(), fixed_at = NULL
-			RETURNING id`, uuid.NewString(), orgID, workspaceID, r.CheckID, r.Resource, r.Severity, r.Title, r.Message,
-			r.Unmatched).Scan(&id); err != nil {
+			RETURNING id, xmax = 0`, uuid.NewString(), orgID, workspaceID, r.CheckID, r.Resource, r.Severity, r.Title, r.Message,
+			r.Unmatched).Scan(&id, &opened); err != nil {
 			return err
 		}
 		ids = append(ids, id)
+		if opened && (r.Severity == "high" || r.Severity == "critical") {
+			e := notify.Event{Type: notify.FindingOpened, Resource: r.Resource, Severity: r.Severity, Check: r.CheckID}
+			if err := workspaceOf(ctx, tx, workspaceID, &e); err != nil {
+				return err
+			}
+			e.Text = fmt.Sprintf("! %s finding in %s/%s: %s on %s", strings.ToUpper(r.Severity[:1])+r.Severity[1:], e.Project, e.Workspace,
+				r.Title, r.Resource)
+			if err := notify.Enqueue(ctx, tx, orgID, e); err != nil {
+				return err
+			}
+		}
 	}
 	_, err := tx.Exec(ctx, `UPDATE findings SET fixed_at = now() WHERE workspace_id = $1 AND fixed_at IS NULL AND check_id <> $3
 		AND NOT (id = ANY($2::uuid[]))`, workspaceID, ids, DriftCheck)
@@ -190,15 +204,30 @@ func Drift(planJSON []byte) ([]Result, error) {
 // finding is Medium, so it never blocks an apply. tx needs the org setting.
 func RecordDrift(ctx context.Context, tx pgx.Tx, orgID, workspaceID string, drift []Result) error {
 	ids := make([]string, 0, len(drift))
+	var opened []string
 	for _, r := range drift {
 		var id string
+		var isNew bool
 		if err := tx.QueryRow(ctx, `INSERT INTO findings (id, org_id, workspace_id, check_id, resource, severity, title, message)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			ON CONFLICT (workspace_id, check_id, resource) DO UPDATE SET message = $8, last_seen_at = now(), fixed_at = NULL
-			RETURNING id`, uuid.NewString(), orgID, workspaceID, r.CheckID, r.Resource, r.Severity, r.Title, r.Message).Scan(&id); err != nil {
+			RETURNING id, xmax = 0`, uuid.NewString(), orgID, workspaceID, r.CheckID, r.Resource, r.Severity, r.Title, r.Message).Scan(&id, &isNew); err != nil {
 			return err
 		}
 		ids = append(ids, id)
+		if isNew {
+			opened = append(opened, r.Resource)
+		}
+	}
+	if len(opened) > 0 {
+		e := notify.Event{Type: notify.DriftFound, Resource: strings.Join(opened, ", ")}
+		if err := workspaceOf(ctx, tx, workspaceID, &e); err != nil {
+			return err
+		}
+		e.Text = fmt.Sprintf("~ Drift in %s/%s: %s changed outside Stackwright", e.Project, e.Workspace, e.Resource)
+		if err := notify.Enqueue(ctx, tx, orgID, e); err != nil {
+			return err
+		}
 	}
 	_, err := tx.Exec(ctx, `UPDATE findings SET fixed_at = now() WHERE workspace_id = $1 AND fixed_at IS NULL AND check_id = $3
 		AND NOT (id = ANY($2::uuid[]))`, workspaceID, ids, DriftCheck)
@@ -227,4 +256,10 @@ func Blocking(ctx context.Context, tx pgx.Tx, workspaceID string, changed map[st
 		}
 	}
 	return out, rows.Err()
+}
+
+// workspaceOf names an event's workspace.
+func workspaceOf(ctx context.Context, tx pgx.Tx, workspaceID string, e *notify.Event) error {
+	return tx.QueryRow(ctx, `SELECT o.slug, p.slug, w.name FROM workspaces w JOIN projects p ON p.id = w.project_id
+		JOIN orgs o ON o.id = w.org_id WHERE w.id = $1`, workspaceID).Scan(&e.Org, &e.Project, &e.Workspace)
 }
