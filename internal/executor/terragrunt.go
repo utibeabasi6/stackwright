@@ -70,7 +70,16 @@ func stackUnits(ctx context.Context, dir string, env []string) ([]unit, error) {
 // plan uploads the units' plan files as plan.bin, and one plan.json with
 // each unit as a module (adr/0041).
 func (r *runner) terragrunt(ctx context.Context, tofu, dir, root string, env []string, planTar []byte) error {
-	env = append(env, "TG_NON_INTERACTIVE=true", "TG_NO_COLOR=true")
+	// Without a shared cache, each unit keeps its own copy of each provider
+	// on the sandbox's tmpfs, and the AWS provider is over 700 MB. A unit
+	// with no lock file uses the cache only with the second variable.
+	// https://opentofu.org/docs/cli/config/config-file/#provider-plugin-cache
+	cache := filepath.Join(r.work, "plugin-cache")
+	if err := os.MkdirAll(cache, 0o700); err != nil {
+		return &stageError{"source", err}
+	}
+	env = append(env, "TG_NON_INTERACTIVE=true", "TG_NO_COLOR=true", "TF_PLUGIN_CACHE_DIR="+cache,
+		"TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE=true")
 	units, err := stackUnits(ctx, dir, env)
 	if err != nil {
 		return &stageError{"units", err}

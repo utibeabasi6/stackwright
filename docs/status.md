@@ -1266,6 +1266,13 @@ found no providers. It now looks at any depth. The fixture's vpc unit
 uses `//` and a provider from the registry, and the test failed before
 the fix with the error the dev stack showed.
 
+**Fixed on 2026-11-14:** a stack with the AWS provider ran out of memory.
+Each unit downloaded its own copy of the provider, 739 MB, into its
+`.terragrunt-cache` on the sandbox's tmpfs, which counts against the
+sandbox's 2 GiB. The kernel log on the build server showed the kills.
+The units now share one provider cache. In Docker, two of the lab's
+units kept one 717 MB copy, and each unit only links to it (336 KB).
+
 **Not verified:**
 - That app's apply used vpc's real output and not the mock.
 - A stack on S3 or any remote backend; the fixture uses local state.
