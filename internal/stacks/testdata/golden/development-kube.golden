@@ -1,0 +1,83 @@
+# Written by Stackwright from the Stack's files (adr/0043).
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.59.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.32.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6.2"
+    }
+  }
+}
+
+variable "stackwright_components" {
+  type      = any
+  default   = {}
+  sensitive = false
+}
+
+variable "cluster_name" {
+  type = string
+}
+
+variable "default_tags" {
+  description = "A map of default tags to apply to all AWS resources"
+  type        = map(string)
+  default     = {}
+}
+
+variable "identity_token" {
+  type      = string
+  ephemeral = true
+}
+
+variable "kubernetes_version" {
+  type = string
+}
+
+variable "region" {
+  type = string
+}
+
+variable "role_arn" {
+  type = string
+}
+
+locals {
+}
+
+provider "kubernetes" {
+  alias = "main_0"
+
+  host                   = var.stackwright_components.cluster.cluster_url
+  cluster_ca_certificate = var.stackwright_components.cluster.cluster_ca
+  token                  = var.stackwright_components.cluster.cluster_token
+
+}
+
+module "kube" {
+  source = "./kube"
+  providers = {
+    kubernetes = kubernetes.main_0
+  }
+}
+
+
+# {
+#   "cluster_name": "stacks-demo",
+#   "default_tags": {
+#     "stacks-preview-example": "eks-deferred-stack"
+#   },
+#   "kubernetes_version": "1.30",
+#   "region": "us-east-1",
+#   "role_arn": "\u003cSet to your AWS IAM OIDC role ARN\u003e",
+#   "stackwright_components": {}
+# }
+# env: TF_VAR_identity_token=token

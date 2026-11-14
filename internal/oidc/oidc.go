@@ -139,14 +139,18 @@ type Claims struct {
 }
 
 // Mint signs a token for aud that ends at TokenLifetime.
-func (is *Issuer) Mint(c Claims, aud string) (string, error) {
+func (is *Issuer) Mint(c Claims, aud ...string) (string, error) {
 	if !strings.HasPrefix(is.URL, "https://") || strings.HasSuffix(is.URL, "/") {
 		return "", ErrIssuer
+	}
+	var audience any = aud
+	if len(aud) == 1 {
+		audience = aud[0]
 	}
 	k := is.keys[0]
 	now := time.Now()
 	return jws.SignRS256(k.priv, k.kid, map[string]any{
-		"iss": is.URL, "sub": Subject(c.OrgID, c.WorkspaceID, c.Phase), "aud": aud,
+		"iss": is.URL, "sub": Subject(c.OrgID, c.WorkspaceID, c.Phase), "aud": audience,
 		"iat": now.Unix(), "nbf": now.Add(-30 * time.Second).Unix(), "exp": now.Add(TokenLifetime).Unix(),
 		"org": c.OrgSlug, "org_id": c.OrgID, "project": c.ProjectSlug, "project_id": c.ProjectID,
 		"workspace": c.WorkspaceName, "workspace_id": c.WorkspaceID, "run_id": c.RunID, "job_id": c.JobID, "phase": c.Phase,

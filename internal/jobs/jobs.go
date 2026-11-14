@@ -380,6 +380,31 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		}
 		job.Aws = &v1.AwsCredentials{RoleArn: role, Region: *region, WebIdentityToken: token, StsEndpoint: s.STSEndpoint}
 	}
+	if layout == "stacks" {
+		st := &v1.StackInstance{IdentityTokens: map[string]string{}}
+		var audiences map[string][]string
+		err := tx.QueryRow(ctx, `SELECT deployment, component, instance_key, keyed, removed, identity_tokens FROM stack_instances
+			WHERE workspace_id = $1`, workspaceID).Scan(&st.Deployment, &st.Component, &st.Key, &st.Keyed, &st.Removed, &audiences)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("workspace %s is not in the Stack's files", workspace)
+		}
+		if err != nil {
+			return nil, err
+		}
+		// Each identity_token block gets a Stackwright token with its own
+		// audience, minted for this job (adr/0043).
+		c := oidc.Claims{OrgID: orgID, OrgSlug: orgSlug, ProjectID: projectID, ProjectSlug: project,
+			WorkspaceID: workspaceID, WorkspaceName: workspace, JobID: jobID, Phase: operation}
+		if runID != nil {
+			c.RunID = *runID
+		}
+		for name, aud := range audiences {
+			if st.IdentityTokens[name], err = s.Issuer.Mint(c, aud...); err != nil {
+				return nil, err
+			}
+		}
+		job.Stack = st
+	}
 	return job, nil
 }
 

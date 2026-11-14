@@ -82,6 +82,11 @@ message Deployment {
   repeated WorkspaceRef steps = 2;
   repeated DeploymentLink links = 3;
   DeploymentRun last_run = 4;
+  // For a deployment that a Stack's files define: the project, the Stack's
+  // name for it, and its deployment_group (adr/0043).
+  string stack_project = 5;
+  string stack_deployment = 6;
+  string stack_group = 7;
 }
 
 message ListDeploymentsRequest {

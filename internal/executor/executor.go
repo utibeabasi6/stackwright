@@ -220,6 +220,13 @@ func (r *runner) run(ctx context.Context) (err error) {
 	if err != nil {
 		return &stageError{"credentials", err}
 	}
+	if job.GetStack() != nil {
+		stackEnv, err := r.stack(root, dir)
+		if err != nil {
+			return &stageError{"stack", err}
+		}
+		env = append(env, stackEnv...)
+	}
 	address := r.serverURL + job.GetStatePath()
 	// Stackwright's own entries come last: with a key twice, the last one
 	// wins, so a variable cannot replace them.
@@ -256,6 +263,11 @@ func (r *runner) run(ctx context.Context) (err error) {
 	}
 	if job.GetDestroy() {
 		planFlags = append(planFlags, "-destroy")
+	}
+	// A removed Stack instance's module gets null inputs, which a refresh
+	// would evaluate (adr/0043).
+	if job.GetStack().GetRemoved() {
+		planFlags = append(planFlags, "-refresh=false")
 	}
 	engine := &cli{
 		bin: binPath, dir: dir, initJSON: initJSON, redact: r.redact, env: env, planFlags: planFlags,
@@ -383,6 +395,9 @@ func (r *runner) scan(ctx context.Context, planJSON []byte, job *v1.Job) ([]byte
 func (r *runner) engineEnv(ctx context.Context) ([]string, error) {
 	var env []string
 	for _, v := range r.job.GetVariables() {
+		if r.job.GetStack() != nil && v.GetKey() == stackComponents {
+			continue
+		}
 		switch v.GetCategory() {
 		case v1.VariableCategory_VARIABLE_CATEGORY_TERRAFORM:
 			env = append(env, "TF_VAR_"+v.GetKey()+"="+v.GetValue())

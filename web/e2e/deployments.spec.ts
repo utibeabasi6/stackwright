@@ -43,3 +43,27 @@ test("a deployment run shows its steps in order and applies with one approval", 
   await expect.poll(() => decided).toEqual([{ org: "a", name: "platform", number: 1 }]);
   await expect(card.locator(".pill")).toHaveText("Applying");
 });
+
+test("a deployment that a Stack's files define shows its steps and cannot be edited", async ({ page }) => {
+  const sw = (workspace: string) => ({ project: "shop", workspace });
+  await mockApi(page, "ROLE_OWNER", {
+    ListProjects: () => ({ projects: [{ slug: "shop", layout: "LAYOUT_STACKS", workspaces: [{ name: "dev-network" }, { name: "dev-app-api" }] }] }),
+    GetDeployment: () => ({
+      deployment: {
+        name: "shop-dev",
+        steps: [sw("dev-network"), sw("dev-app-api")],
+        links: [{ from: sw("dev-network"), to: sw("dev-app-api") }],
+        stackProject: "shop",
+        stackDeployment: "dev",
+        stackGroup: "canary",
+      },
+      runs: [],
+    }),
+  });
+  await page.goto("/a/deployments/shop-dev");
+  const steps = page.getByLabel("Steps");
+  await expect(steps).toContainText("The Terraform Stack in project shop defines this deployment as dev, in group canary.");
+  await expect(steps.getByRole("listitem")).toHaveText(["dev-network", "dev-app-api"]);
+  await expect(page.getByRole("button", { name: "Save deployment" })).toHaveCount(0);
+  await expect(page.getByLabel("Workspace to add")).toHaveCount(0);
+});

@@ -83,6 +83,13 @@ func TestScanFindsEachFixtureLayout(t *testing.T) {
 				Labels: labels("path", "apps/batch")},
 			{Path: "apps/web", Workspaces: []string{"default"}, Backend: "cloud", Engine: "terraform", Slug: "apps-web", Labels: labels("path", "apps/web")},
 		}}},
+		{"stack", Result{
+			Roots: []Root{
+				{Path: "stack", Workspaces: []string{}, Backend: "stackwright", Engine: "opentofu", Slug: "stack", Labels: labels("path", "stack"),
+					StackDeployments: []string{"dev", "prod"}},
+			},
+			Modules: []string{"shared/nulls", "stack/pet"},
+		}},
 		{"nested", Result{
 			Roots: []Root{
 				{Path: "stacks/api", Workspaces: []string{"default"}, Backend: "local", Engine: "opentofu", Slug: "stacks-api",

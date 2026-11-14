@@ -1,0 +1,5 @@
+Repository: https://github.com/hashicorp-education/learn-terraform-stacks-deploy-aws
+Commit SHA: 1bb4ad5c3b5cb4fff305ccba753f9dd8d58b9f53 (commit date 2025-09-24)
+Licence: MPL-2.0 (LICENSE file copied alongside; GitHub reports MPL-2.0)
+.terraform-version in repo: 1.13.3
+Copied: full tree at that commit, without .git

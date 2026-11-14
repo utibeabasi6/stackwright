@@ -1,0 +1,5 @@
+Repository: https://github.com/hashicorp-guides/pet-nulls-stack
+Commit SHA: 0f49a4a681b14130f15bf2a43e48be77281bd7cb (commit date 2026-01-14)
+Licence: MPL-2.0 (LICENSE file copied alongside; GitHub reports MPL-2.0)
+.terraform-version in repo: 1.14.3
+Copied: full tree at that commit, without .git

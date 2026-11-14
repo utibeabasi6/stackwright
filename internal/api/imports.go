@@ -18,6 +18,7 @@ import (
 	"github.com/stackwright/stackwright/internal/github"
 	"github.com/stackwright/stackwright/internal/importer"
 	"github.com/stackwright/stackwright/internal/runs"
+	"github.com/stackwright/stackwright/internal/stacks"
 )
 
 // Imports imports a linked repository's root modules as projects on the
@@ -28,21 +29,24 @@ type Imports struct {
 	Orchestrator *runs.Orchestrator
 }
 
-func (h Imports) scan(ctx context.Context, tx pgx.Tx, orgID, repo string) (string, importer.Result, error) {
+func (h Imports) scan(ctx context.Context, tx pgx.Tx, orgID, repo string) (string, importer.Result, map[string][]byte, error) {
 	commit, names, files, err := h.GitHub.RepositoryHead(ctx, tx, orgID, repo)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", importer.Result{}, connect.NewError(connect.CodeNotFound, fmt.Errorf("no linked GitHub installation covers %s", repo))
+		return "", importer.Result{}, nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no linked GitHub installation covers %s", repo))
 	}
 	if err != nil {
-		return "", importer.Result{}, githubError(err)
+		return "", importer.Result{}, nil, githubError(err)
 	}
-	return commit, importer.Scan(repo, names, files), nil
+	return commit, importer.Scan(repo, names, files), files, nil
 }
 
-// backendOf says where a root's state lives: its backend block, or a file
-// in the repository for the local backend.
+// backendOf says where a root's state lives: its backend block, a file in
+// the repository for the local backend, or Stackwright for a Stack.
 func backendOf(r importer.Root) v1.StateBackend {
-	if r.Backend == "local" {
+	switch {
+	case r.IsStack():
+		return v1.StateBackend_STATE_BACKEND_STACKWRIGHT
+	case r.Backend == "local":
 		return v1.StateBackend_STATE_BACKEND_GIT
 	}
 	return v1.StateBackend_STATE_BACKEND_CODE
@@ -59,7 +63,7 @@ func existingProject(ctx context.Context, tx pgx.Tx, repo, path string) (string,
 
 func (h Imports) ScanRepository(ctx context.Context, req *connect.Request[v1.ScanRepositoryRequest]) (*connect.Response[v1.ScanRepositoryResponse], error) {
 	s := authz.ScopeFrom(ctx)
-	commit, res, err := h.scan(ctx, s.Tx, s.OrgID, req.Msg.Repo)
+	commit, res, _, err := h.scan(ctx, s.Tx, s.OrgID, req.Msg.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +75,7 @@ func (h Imports) ScanRepository(ctx context.Context, req *connect.Request[v1.Sca
 		}
 		out.Roots = append(out.Roots, &v1.FoundRoot{Path: r.Path, Workspaces: r.Workspaces, StateBackend: backendOf(r), Backend: r.Backend,
 			Engine: key(engines, r.Engine), Labels: r.Labels, Slug: r.Slug, ExistingProject: existing, CommittedState: r.CommittedState,
-			Units: r.Units})
+			Units: r.Units, StackDeployments: r.StackDeployments})
 	}
 	return connect.NewResponse(out), nil
 }
@@ -86,7 +90,7 @@ func (h Imports) StartImport(ctx context.Context, req *connect.Request[v1.StartI
 	if len(m.Roots) == 0 {
 		return nil, invalid("choose at least one folder to import")
 	}
-	commit, res, err := h.scan(ctx, s.Tx, s.OrgID, m.Repo)
+	commit, res, files, err := h.scan(ctx, s.Tx, s.OrgID, m.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +130,8 @@ func (h Imports) StartImport(ctx context.Context, req *connect.Request[v1.StartI
 			}
 			layout := v1.Layout_LAYOUT_PLAIN
 			switch {
+			case root.IsStack():
+				layout = v1.Layout_LAYOUT_STACKS
 			case len(root.Units) > 0:
 				layout = v1.Layout_LAYOUT_TERRAGRUNT
 			case !slices.Equal(root.Workspaces, []string{"default"}):
@@ -146,6 +152,12 @@ func (h Imports) StartImport(ctx context.Context, req *connect.Request[v1.StartI
 			}
 			id := account.GetId()
 			accountID = &id
+		}
+		if root.IsStack() {
+			if err := h.importStack(ctx, s, importID, slug, stacks.FilesIn(files, root.Path), accountID, &head); err != nil {
+				return nil, err
+			}
+			continue
 		}
 		for _, name := range root.Workspaces {
 			var wsID string
@@ -196,6 +208,59 @@ func (h Imports) StartImport(ctx context.Context, req *connect.Request[v1.StartI
 		return nil, err
 	}
 	return connect.NewResponse(&v1.StartImportResponse{Import: imp}), nil
+}
+
+// importStack syncs a Stack project with its files and starts a run of
+// each of its deployments at the import's commit (adr/0043).
+func (h Imports) importStack(ctx context.Context, s *authz.Scope, importID, slug string, files map[string][]byte, accountID *string,
+	head **runs.NewRun) error {
+	var projectID string
+	if err := s.Tx.QueryRow(ctx, `SELECT id FROM projects WHERE slug = $1 AND archived_at IS NULL`, slug).Scan(&projectID); err != nil {
+		return authz.Internal(err)
+	}
+	deployments, err := runs.SyncStack(ctx, s.Tx, s.OrgID, projectID, files)
+	if err != nil {
+		return invalid(fmt.Sprintf("project %s: %v", slug, err))
+	}
+	if _, err := s.Tx.Exec(ctx, `UPDATE workspaces SET cloud_account_id = $2 WHERE project_id = $1 AND archived_at IS NULL
+		AND cloud_account_id IS NULL`, projectID, accountID); err != nil {
+		return authz.Internal(err)
+	}
+	var runIDs []string
+	for _, d := range deployments {
+		var active bool
+		if err := s.Tx.QueryRow(ctx, `SELECT EXISTS (SELECT FROM deployment_runs WHERE deployment_id = $1
+			AND status IN ('planning', 'needs_approval', 'applying'))`, d.ID).Scan(&active); err != nil {
+			return authz.Internal(err)
+		}
+		if active {
+			continue
+		}
+		var first string
+		if err := s.Tx.QueryRow(ctx, `SELECT workspace_id FROM deployment_steps WHERE deployment_id = $1 LIMIT 1`, d.ID).Scan(&first); err != nil {
+			return authz.Internal(err)
+		}
+		if *head == nil {
+			r, _, err := h.GitHub.BranchHead(ctx, s.Tx, s.OrgID, first)
+			if err != nil {
+				return githubError(err)
+			}
+			*head = &r
+		}
+		id, _, err := h.Orchestrator.StartDeployment(ctx, s.Tx, s.OrgID, d.ID, s.UserID, d.Destroy, *head)
+		if err != nil {
+			return connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		runIDs = append(runIDs, id)
+	}
+	_, err = s.Tx.Exec(ctx, `INSERT INTO import_workspaces (import_id, org_id, workspace_id, created, run_id)
+		SELECT $1, app_org_id(), si.workspace_id, r.id IS NOT NULL, r.id FROM stack_instances si
+		LEFT JOIN runs r ON r.workspace_id = si.workspace_id AND r.deployment_run_id = ANY($3::uuid[])
+		WHERE si.project_id = $2 ON CONFLICT DO NOTHING`, importID, projectID, runIDs)
+	if err != nil {
+		return authz.Internal(err)
+	}
+	return nil
 }
 
 func (h Imports) GetImport(ctx context.Context, req *connect.Request[v1.GetImportRequest]) (*connect.Response[v1.GetImportResponse], error) {

@@ -67,6 +67,7 @@ export function Deployments() {
                     <Link to="/$org/deployments/$name" params={{ org, name: d.name }}>
                       {d.name}
                     </Link>
+                    {d.stackProject && <span className="muted"> · Stack {d.stackProject}</span>}
                   </td>
                   <td className="mono">{d.steps.map(refText).join(" → ")}</td>
                   <td>
@@ -121,12 +122,38 @@ export function DeploymentPage() {
   }, [latest, version]);
   const reload = () => setVersion((v) => v + 1);
   const target = { org, name, number: latest?.number ?? 0 };
+  const stack = got.data?.deployment?.stackProject ? got.data.deployment : undefined;
 
   return (
     <div className="stack">
       <h1 className="mono">{name}</h1>
-      <Editor org={org} name={name} steps={got.data?.deployment?.steps ?? []} links={got.data?.deployment?.links ?? []} writer={role >= Role.WRITER}
-        locked={active(latest?.status)} saved={reload} key={got.data ? "loaded" : "new"} />
+      {stack ? (
+        <section className="card stack" aria-label="Steps">
+          <p>
+            The Terraform Stack in project{" "}
+            <Link to="/$org/projects/$project" params={{ org, project: stack.stackProject }} className="mono">
+              {stack.stackProject}
+            </Link>{" "}
+            defines this deployment as <span className="mono">{stack.stackDeployment}</span>
+            {stack.stackGroup && (
+              <>
+                , in group <span className="mono">{stack.stackGroup}</span>
+              </>
+            )}
+            . Change the Stack&apos;s files to change it; a push deploys it.
+          </p>
+          <ol className="rows">
+            {stack.steps.map((s) => (
+              <li key={refText(s)} className="mono">
+                {s.workspace}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : (
+        <Editor org={org} name={name} steps={got.data?.deployment?.steps ?? []} links={got.data?.deployment?.links ?? []} writer={role >= Role.WRITER}
+          locked={active(latest?.status)} saved={reload} key={got.data ? "loaded" : "new"} />
+      )}
       {got.data?.deployment && (
         <section className="stack" aria-labelledby="runs-h">
           <div className="row">

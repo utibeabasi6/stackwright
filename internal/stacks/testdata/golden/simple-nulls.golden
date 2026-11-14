@@ -1,0 +1,59 @@
+# Written by Stackwright from the Stack's files (adr/0043).
+
+terraform {
+  required_providers {
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5.1"
+    }
+
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2.2"
+    }
+  }
+}
+
+variable "stackwright_components" {
+  type      = any
+  default   = {}
+  sensitive = false
+}
+
+variable "instances" {
+  type = number
+}
+
+variable "prefix" {
+  type = string
+}
+
+locals {
+}
+
+provider "null" {
+  alias = "this_0"
+
+}
+
+module "nulls" {
+  source = "./nulls"
+  providers = {
+    null = null.this_0
+  }
+  pet       = var.stackwright_components.pet.name
+  instances = var.instances
+}
+
+output "ids" {
+  value     = module.nulls.ids
+  sensitive = false
+}
+
+
+# {
+#   "instances": 1,
+#   "prefix": "simple",
+#   "stackwright_components": {}
+# }
+# env: 

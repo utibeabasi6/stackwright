@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/stackwright/stackwright/internal/stacks"
 )
 
 // Root is a folder that the engine runs in.
@@ -33,7 +35,15 @@ type Root struct {
 	// Units is set for a Terragrunt stack: the unit folders under Path,
 	// which run on the backends their remote_state names (adr/0041).
 	Units []string
+	// StackDeployments is set for a Terraform Stack: the deployments its
+	// files define (adr/0043).
+	StackDeployments []string
+	// StackError says why a Stack's files do not parse.
+	StackError string
 }
+
+// IsStack reports whether the root is a Terraform Stack.
+func (r Root) IsStack() bool { return r.Backend == "stackwright" }
 
 type Result struct {
 	Roots []Root
@@ -55,6 +65,9 @@ var notSlug = regexp.MustCompile(`[^a-z0-9]+`)
 func IsScanned(name string) bool {
 	switch path.Base(name) {
 	case "terragrunt.hcl", ".opentofu-version", ".terraform-version":
+		return true
+	}
+	if stacks.IsStackFile(name) {
 		return true
 	}
 	for _, ext := range []string{".tf", ".tofu", ".tf.json", ".tofu.json"} {
@@ -126,7 +139,39 @@ func Scan(repo string, names []string, files map[string][]byte) Result {
 		}
 	}
 
+	// A folder with a deployment file is a Terraform Stack; the folders its
+	// components name are its modules (adr/0043).
+	var stackRoots []Root
+	stackDirs := map[string]bool{}
+	for name := range files {
+		if strings.HasSuffix(name, ".tfdeploy.hcl") && !hidden(name) {
+			stackDirs[cleanDir(path.Dir(name))] = true
+		}
+	}
+	for dir := range stackDirs {
+		root := Root{Path: dir, Workspaces: []string{}, Backend: "stackwright", Engine: "opentofu", Labels: map[string]string{"repo": repo}}
+		if dir != "" {
+			root.Labels["path"] = dir
+		}
+		cfg, err := stacks.Parse(stacks.FilesIn(files, dir))
+		if err != nil {
+			root.StackError = err.Error()
+		} else {
+			for _, d := range cfg.Deployments {
+				root.StackDeployments = append(root.StackDeployments, d.Name)
+			}
+			for _, c := range cfg.Components {
+				modules[cleanDir(path.Join(dir, c.Source))] = true
+			}
+			for _, rm := range cfg.Removed {
+				modules[cleanDir(path.Join(dir, rm.Source))] = true
+			}
+		}
+		stackRoots = append(stackRoots, root)
+	}
+
 	var r Result
+	r.Roots = append(r.Roots, stackRoots...)
 	// The web app's /projects/new takes "new".
 	slugs := map[string]bool{"new": true}
 	for dir, f := range folders {
@@ -134,7 +179,7 @@ func Scan(repo string, names []string, files map[string][]byte) Result {
 		case f.terragrunt:
 			r.Terragrunt = append(r.Terragrunt, dir)
 			continue
-		case modules[dir] || len(f.config) == 0:
+		case modules[dir] || len(f.config) == 0 || stackDirs[dir]:
 			continue
 		}
 		root := Root{Path: dir, Backend: "local", Engine: "opentofu", Labels: map[string]string{"repo": repo}}

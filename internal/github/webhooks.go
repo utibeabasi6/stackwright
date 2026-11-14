@@ -12,12 +12,14 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/stackwright/stackwright/internal/runs"
+	"github.com/stackwright/stackwright/internal/stacks"
 )
 
 const (
@@ -199,12 +201,14 @@ func (g *GitHub) repo(ctx context.Context, tx pgx.Tx, installation, githubID int
 type target struct {
 	projectID, folder string
 	workspaces        []string
+	stack             bool
 }
 
 // targets returns the projects that apply from branch, with their live
 // workspaces. A project with no branch applies from the default branch.
 func targets(ctx context.Context, tx pgx.Tx, repo repoRow, branch string) (map[string]target, error) {
-	rows, err := tx.Query(ctx, `SELECT p.id, p.path, coalesce(array_agg(w.id::text ORDER BY w.name) FILTER (WHERE w.id IS NOT NULL), '{}')
+	rows, err := tx.Query(ctx, `SELECT p.id, p.path, coalesce(array_agg(w.id::text ORDER BY w.name) FILTER (WHERE w.id IS NOT NULL), '{}'),
+		p.layout = 'stacks'
 		FROM projects p LEFT JOIN workspaces w ON w.project_id = p.id AND w.archived_at IS NULL
 		WHERE p.archived_at IS NULL AND p.repo = lower($1) AND coalesce(nullif(p.branch, ''), $2) = $3
 		GROUP BY p.id`, repo.fullName, repo.defaultBranch, branch)
@@ -214,7 +218,7 @@ func targets(ctx context.Context, tx pgx.Tx, repo repoRow, branch string) (map[s
 	out := map[string]target{}
 	for rows.Next() {
 		var t target
-		if err := rows.Scan(&t.projectID, &t.folder, &t.workspaces); err != nil {
+		if err := rows.Scan(&t.projectID, &t.folder, &t.workspaces, &t.stack); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -319,7 +323,14 @@ func (g *GitHub) start(ctx context.Context, tx pgx.Tx, orgID string, repo repoRo
 	}
 	folders := map[string]string{}
 	for id, t := range ts {
-		folders[id] = t.folder
+		switch {
+		case !t.stack:
+			folders[id] = t.folder
+		case base.Trigger == "push":
+			if err := g.deployStack(ctx, tx, orgID, repo, t, changed, a, base); err != nil {
+				return err
+			}
+		}
 	}
 	for id := range affected(folders, changed, a.files) {
 		for _, ws := range ts[id].workspaces {
@@ -379,4 +390,65 @@ func (g *GitHub) BranchHead(ctx context.Context, tx pgx.Tx, orgID, workspaceID s
 		WorkspaceID: workspaceID, SourceKey: a.key, SourceSHA: a.sha256, CommitSHA: commit.SHA, Branch: branch, RepoID: repo.id,
 		SourceName: fmt.Sprintf("%s@%s · %s", repo.fullName, branch, commit.SHA[:min(7, len(commit.SHA))]),
 	}, true, nil
+}
+
+// deployStack syncs a Stack project with the pushed files and starts a
+// deployment run of the commit for each Stack deployment, when the push
+// changes the Stack's folder or a component's module (adr/0043). A sync
+// that fails leaves its reason on the project. A deployment with a run
+// that is applying keeps it; one that waits is canceled for the new one.
+func (g *GitHub) deployStack(ctx context.Context, tx pgx.Tx, orgID string, repo repoRow, t target, changed []string, a archive, base runs.NewRun) error {
+	folder := path.Clean(t.folder)
+	if folder == "." {
+		folder = ""
+	}
+	files := stacks.FilesIn(a.files, folder)
+	if changed != nil {
+		dirs := []string{path.Clean(t.folder)}
+		if cfg, err := stacks.Parse(files); err == nil {
+			for _, c := range cfg.Components {
+				dirs = append(dirs, path.Join(t.folder, c.Source))
+			}
+			for _, r := range cfg.Removed {
+				dirs = append(dirs, path.Join(t.folder, r.Source))
+			}
+		}
+		touched := false
+		for _, f := range changed {
+			for _, d := range dirs {
+				touched = touched || d == "." || strings.HasPrefix(f, d+"/")
+			}
+		}
+		if !touched {
+			return nil
+		}
+	}
+	deployments, err := runs.SyncStack(ctx, tx, orgID, t.projectID, files)
+	if err != nil {
+		slog.Warn("sync a Stack", "project", t.projectID, "err", err)
+		return nil
+	}
+	code := base
+	code.SourceKey, code.SourceSHA, code.RepoID = a.key, a.sha256, repo.id
+	for _, d := range deployments {
+		var runID, status string
+		err := tx.QueryRow(ctx, `SELECT id, status FROM deployment_runs WHERE deployment_id = $1 AND status IN ('planning', 'needs_approval', 'applying')`,
+			d.ID).Scan(&runID, &status)
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+		case err != nil:
+			return err
+		case status == "applying":
+			slog.Warn("a Stack deployment is applying, so the push does not deploy it", "deployment", d.Name, "commit", base.CommitSHA)
+			continue
+		default:
+			if err := g.Runs.DecideDeployment(ctx, tx, runID, "", "cancel"); err != nil {
+				return err
+			}
+		}
+		if _, _, err := g.Runs.StartDeployment(ctx, tx, orgID, d.ID, "", d.Destroy, &code); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -1,0 +1,5 @@
+Repository: https://github.com/hashicorp-guides/lambda-component-expansion-stack
+Commit SHA: 28222b9b2852af9900fca830c2af296ccbf030cf (commit date 2025-07-14)
+Licence: MPL-2.0 (LICENSE file copied alongside; GitHub reports MPL-2.0)
+.terraform-version in repo: 1.10.0-alpha20240918
+Copied: full tree at that commit, without .git

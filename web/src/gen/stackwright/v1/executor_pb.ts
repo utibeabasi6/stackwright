@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stackwright/v1/executor.proto.
  */
 export const file_stackwright_v1_executor: GenFile = /*@__PURE__*/
-  fileDesc("Ch1zdGFja3dyaWdodC92MS9leGVjdXRvci5wcm90bxIOc3RhY2t3cmlnaHQudjEiRQoIRG93bmxvYWQSDAoEbmFtZRgBIAEoCRILCgN1cmwYAiABKAkSDgoGc2hhMjU2GAMgASgJEg4KBmpvYl9pZBgEIAEoCSLEBQoDSm9iEgoKAmlkGAEgASgJEg0KBXRva2VuGAIgASgJEi8KCW9wZXJhdGlvbhgDIAEoDjIcLnN0YWNrd3JpZ2h0LnYxLkpvYk9wZXJhdGlvbhImCgZlbmdpbmUYBCABKA4yFi5zdGFja3dyaWdodC52MS5FbmdpbmUSFgoOZW5naW5lX3ZlcnNpb24YBSABKAkSLwoNZW5naW5lX2JpbmFyeRgGIAEoCzIYLnN0YWNrd3JpZ2h0LnYxLkRvd25sb2FkEhIKCnN0YXRlX3BhdGgYByABKAkSFAoMcHJvamVjdF9wYXRoGAggASgJEhQKDGFydGlmYWN0X2tleRgJIAEoDBIoCgZpbnB1dHMYCiADKAsyGC5zdGFja3dyaWdodC52MS5Eb3dubG9hZBIxCgd1cGxvYWRzGAsgAygLMiAuc3RhY2t3cmlnaHQudjEuSm9iLlVwbG9hZHNFbnRyeRIsCghkZWFkbGluZRgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoJdmFyaWFibGVzGA0gAygLMhsuc3RhY2t3cmlnaHQudjEuSm9iVmFyaWFibGUSKwoDYXdzGA4gASgLMh4uc3RhY2t3cmlnaHQudjEuQXdzQ3JlZGVudGlhbHMSFAoMY29kZV9iYWNrZW5kGA8gASgIEhEKCXdvcmtzcGFjZRgQIAEoCRIsCghwb2xpY2llcxgRIAMoCzIaLnN0YWNrd3JpZ2h0LnYxLlBvbGljeUZpbGUSFgoOc2tpcHBlZF9jaGVja3MYEiADKAkSEgoKdGVycmFncnVudBgTIAEoCBIUCgxyZWZyZXNoX29ubHkYFCABKAgSDwoHZGVzdHJveRgVIAEoCBouCgxVcGxvYWRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIoCgpQb2xpY3lGaWxlEgwKBG5hbWUYASABKAkSDAoEcmVnbxgCIAEoCSJwCgtKb2JWYXJpYWJsZRIyCghjYXRlZ29yeRgBIAEoDjIgLnN0YWNrd3JpZ2h0LnYxLlZhcmlhYmxlQ2F0ZWdvcnkSCwoDa2V5GAIgASgJEg0KBXZhbHVlGAMgASgJEhEKCXNlbnNpdGl2ZRgEIAEoCCJkCg5Bd3NDcmVkZW50aWFscxIQCghyb2xlX2FybhgBIAEoCRIOCgZyZWdpb24YAiABKAkSGgoSd2ViX2lkZW50aXR5X3Rva2VuGAMgASgJEhQKDHN0c19lbmRwb2ludBgEIAEoCSIRCg9DbGFpbUpvYlJlcXVlc3QiNAoQQ2xhaW1Kb2JSZXNwb25zZRIgCgNqb2IYASABKAsyEy5zdGFja3dyaWdodC52MS5Kb2IidQoISm9iRXZlbnQSCwoDc2VxGAEgASgDEgwKBHR5cGUYAiABKAkSFQoNcmVzb3VyY2VfYWRkchgDIAEoCRIPCgdwYXlsb2FkGAQgASgMEiYKAmF0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI/ChNSZXBvcnRFdmVudHNSZXF1ZXN0EigKBmV2ZW50cxgBIAMoCzIYLnN0YWNrd3JpZ2h0LnYxLkpvYkV2ZW50IhYKFFJlcG9ydEV2ZW50c1Jlc3BvbnNlIkkKEEZpbmlzaEpvYlJlcXVlc3QSEQoJc3VjY2VlZGVkGAEgASgIEg0KBWVycm9yGAIgASgJEhMKC2hhc19jaGFuZ2VzGAMgASgIIhMKEUZpbmlzaEpvYlJlc3BvbnNlKl4KDEpvYk9wZXJhdGlvbhIdChlKT0JfT1BFUkFUSU9OX1VOU1BFQ0lGSUVEEAASFgoSSk9CX09QRVJBVElPTl9QTEFOEAESFwoTSk9CX09QRVJBVElPTl9BUFBMWRACMo0CCg9FeGVjdXRvclNlcnZpY2USTQoIQ2xhaW1Kb2ISHy5zdGFja3dyaWdodC52MS5DbGFpbUpvYlJlcXVlc3QaIC5zdGFja3dyaWdodC52MS5DbGFpbUpvYlJlc3BvbnNlElkKDFJlcG9ydEV2ZW50cxIjLnN0YWNrd3JpZ2h0LnYxLlJlcG9ydEV2ZW50c1JlcXVlc3QaJC5zdGFja3dyaWdodC52MS5SZXBvcnRFdmVudHNSZXNwb25zZRJQCglGaW5pc2hKb2ISIC5zdGFja3dyaWdodC52MS5GaW5pc2hKb2JSZXF1ZXN0GiEuc3RhY2t3cmlnaHQudjEuRmluaXNoSm9iUmVzcG9uc2VCwQEKEmNvbS5zdGFja3dyaWdodC52MUINRXhlY3V0b3JQcm90b1ABWkNnaXRodWIuY29tL3N0YWNrd3JpZ2h0L3N0YWNrd3JpZ2h0L2dlbi9zdGFja3dyaWdodC92MTtzdGFja3dyaWdodHYxogIDU1hYqgIOU3RhY2t3cmlnaHQuVjHKAg5TdGFja3dyaWdodFxWMeICGlN0YWNrd3JpZ2h0XFYxXEdQQk1ldGFkYXRh6gIPU3RhY2t3cmlnaHQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_stackwright_v1_projects, file_stackwright_v1_variables]);
+  fileDesc("Ch1zdGFja3dyaWdodC92MS9leGVjdXRvci5wcm90bxIOc3RhY2t3cmlnaHQudjEiRQoIRG93bmxvYWQSDAoEbmFtZRgBIAEoCRILCgN1cmwYAiABKAkSDgoGc2hhMjU2GAMgASgJEg4KBmpvYl9pZBgEIAEoCSLyBQoDSm9iEgoKAmlkGAEgASgJEg0KBXRva2VuGAIgASgJEi8KCW9wZXJhdGlvbhgDIAEoDjIcLnN0YWNrd3JpZ2h0LnYxLkpvYk9wZXJhdGlvbhImCgZlbmdpbmUYBCABKA4yFi5zdGFja3dyaWdodC52MS5FbmdpbmUSFgoOZW5naW5lX3ZlcnNpb24YBSABKAkSLwoNZW5naW5lX2JpbmFyeRgGIAEoCzIYLnN0YWNrd3JpZ2h0LnYxLkRvd25sb2FkEhIKCnN0YXRlX3BhdGgYByABKAkSFAoMcHJvamVjdF9wYXRoGAggASgJEhQKDGFydGlmYWN0X2tleRgJIAEoDBIoCgZpbnB1dHMYCiADKAsyGC5zdGFja3dyaWdodC52MS5Eb3dubG9hZBIxCgd1cGxvYWRzGAsgAygLMiAuc3RhY2t3cmlnaHQudjEuSm9iLlVwbG9hZHNFbnRyeRIsCghkZWFkbGluZRgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoJdmFyaWFibGVzGA0gAygLMhsuc3RhY2t3cmlnaHQudjEuSm9iVmFyaWFibGUSKwoDYXdzGA4gASgLMh4uc3RhY2t3cmlnaHQudjEuQXdzQ3JlZGVudGlhbHMSFAoMY29kZV9iYWNrZW5kGA8gASgIEhEKCXdvcmtzcGFjZRgQIAEoCRIsCghwb2xpY2llcxgRIAMoCzIaLnN0YWNrd3JpZ2h0LnYxLlBvbGljeUZpbGUSFgoOc2tpcHBlZF9jaGVja3MYEiADKAkSEgoKdGVycmFncnVudBgTIAEoCBIUCgxyZWZyZXNoX29ubHkYFCABKAgSDwoHZGVzdHJveRgVIAEoCBIsCgVzdGFjaxgWIAEoCzIdLnN0YWNrd3JpZ2h0LnYxLlN0YWNrSW5zdGFuY2UaLgoMVXBsb2Fkc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEi5gEKDVN0YWNrSW5zdGFuY2USEgoKZGVwbG95bWVudBgBIAEoCRIRCgljb21wb25lbnQYAiABKAkSCwoDa2V5GAMgASgJEg0KBWtleWVkGAQgASgIEg8KB3JlbW92ZWQYBSABKAgSSgoPaWRlbnRpdHlfdG9rZW5zGAYgAygLMjEuc3RhY2t3cmlnaHQudjEuU3RhY2tJbnN0YW5jZS5JZGVudGl0eVRva2Vuc0VudHJ5GjUKE0lkZW50aXR5VG9rZW5zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIoCgpQb2xpY3lGaWxlEgwKBG5hbWUYASABKAkSDAoEcmVnbxgCIAEoCSJwCgtKb2JWYXJpYWJsZRIyCghjYXRlZ29yeRgBIAEoDjIgLnN0YWNrd3JpZ2h0LnYxLlZhcmlhYmxlQ2F0ZWdvcnkSCwoDa2V5GAIgASgJEg0KBXZhbHVlGAMgASgJEhEKCXNlbnNpdGl2ZRgEIAEoCCJkCg5Bd3NDcmVkZW50aWFscxIQCghyb2xlX2FybhgBIAEoCRIOCgZyZWdpb24YAiABKAkSGgoSd2ViX2lkZW50aXR5X3Rva2VuGAMgASgJEhQKDHN0c19lbmRwb2ludBgEIAEoCSIRCg9DbGFpbUpvYlJlcXVlc3QiNAoQQ2xhaW1Kb2JSZXNwb25zZRIgCgNqb2IYASABKAsyEy5zdGFja3dyaWdodC52MS5Kb2IidQoISm9iRXZlbnQSCwoDc2VxGAEgASgDEgwKBHR5cGUYAiABKAkSFQoNcmVzb3VyY2VfYWRkchgDIAEoCRIPCgdwYXlsb2FkGAQgASgMEiYKAmF0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI/ChNSZXBvcnRFdmVudHNSZXF1ZXN0EigKBmV2ZW50cxgBIAMoCzIYLnN0YWNrd3JpZ2h0LnYxLkpvYkV2ZW50IhYKFFJlcG9ydEV2ZW50c1Jlc3BvbnNlIkkKEEZpbmlzaEpvYlJlcXVlc3QSEQoJc3VjY2VlZGVkGAEgASgIEg0KBWVycm9yGAIgASgJEhMKC2hhc19jaGFuZ2VzGAMgASgIIhMKEUZpbmlzaEpvYlJlc3BvbnNlKl4KDEpvYk9wZXJhdGlvbhIdChlKT0JfT1BFUkFUSU9OX1VOU1BFQ0lGSUVEEAASFgoSSk9CX09QRVJBVElPTl9QTEFOEAESFwoTSk9CX09QRVJBVElPTl9BUFBMWRACMo0CCg9FeGVjdXRvclNlcnZpY2USTQoIQ2xhaW1Kb2ISHy5zdGFja3dyaWdodC52MS5DbGFpbUpvYlJlcXVlc3QaIC5zdGFja3dyaWdodC52MS5DbGFpbUpvYlJlc3BvbnNlElkKDFJlcG9ydEV2ZW50cxIjLnN0YWNrd3JpZ2h0LnYxLlJlcG9ydEV2ZW50c1JlcXVlc3QaJC5zdGFja3dyaWdodC52MS5SZXBvcnRFdmVudHNSZXNwb25zZRJQCglGaW5pc2hKb2ISIC5zdGFja3dyaWdodC52MS5GaW5pc2hKb2JSZXF1ZXN0GiEuc3RhY2t3cmlnaHQudjEuRmluaXNoSm9iUmVzcG9uc2VCwQEKEmNvbS5zdGFja3dyaWdodC52MUINRXhlY3V0b3JQcm90b1ABWkNnaXRodWIuY29tL3N0YWNrd3JpZ2h0L3N0YWNrd3JpZ2h0L2dlbi9zdGFja3dyaWdodC92MTtzdGFja3dyaWdodHYxogIDU1hYqgIOU3RhY2t3cmlnaHQuVjHKAg5TdGFja3dyaWdodFxWMeICGlN0YWNrd3JpZ2h0XFYxXEdQQk1ldGFkYXRh6gIPU3RhY2t3cmlnaHQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_stackwright_v1_projects, file_stackwright_v1_variables]);
 
 /**
  * A presigned URL. job_id names the job whose key sealed the object.
@@ -181,6 +181,13 @@ export type Job = Message<"stackwright.v1.Job"> & {
    * @generated from field: bool destroy = 21;
    */
   destroy: boolean;
+
+  /**
+   * Set for a component instance of a Terraform Stack (adr/0043).
+   *
+   * @generated from field: stackwright.v1.StackInstance stack = 22;
+   */
+  stack?: StackInstance | undefined;
 };
 
 /**
@@ -189,6 +196,52 @@ export type Job = Message<"stackwright.v1.Job"> & {
  */
 export const JobSchema: GenMessage<Job> = /*@__PURE__*/
   messageDesc(file_stackwright_v1_executor, 1);
+
+/**
+ * @generated from message stackwright.v1.StackInstance
+ */
+export type StackInstance = Message<"stackwright.v1.StackInstance"> & {
+  /**
+   * @generated from field: string deployment = 1;
+   */
+  deployment: string;
+
+  /**
+   * Empty for the deployment's stack outputs.
+   *
+   * @generated from field: string component = 2;
+   */
+  component: string;
+
+  /**
+   * @generated from field: string key = 3;
+   */
+  key: string;
+
+  /**
+   * @generated from field: bool keyed = 4;
+   */
+  keyed: boolean;
+
+  /**
+   * @generated from field: bool removed = 5;
+   */
+  removed: boolean;
+
+  /**
+   * A token for each identity_token block, with its audience.
+   *
+   * @generated from field: map<string, string> identity_tokens = 6;
+   */
+  identityTokens: { [key: string]: string };
+};
+
+/**
+ * Describes the message stackwright.v1.StackInstance.
+ * Use `create(StackInstanceSchema)` to create a new message.
+ */
+export const StackInstanceSchema: GenMessage<StackInstance> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_executor, 2);
 
 /**
  * @generated from message stackwright.v1.PolicyFile
@@ -210,7 +263,7 @@ export type PolicyFile = Message<"stackwright.v1.PolicyFile"> & {
  * Use `create(PolicyFileSchema)` to create a new message.
  */
 export const PolicyFileSchema: GenMessage<PolicyFile> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 2);
+  messageDesc(file_stackwright_v1_executor, 3);
 
 /**
  * @generated from message stackwright.v1.JobVariable
@@ -242,7 +295,7 @@ export type JobVariable = Message<"stackwright.v1.JobVariable"> & {
  * Use `create(JobVariableSchema)` to create a new message.
  */
 export const JobVariableSchema: GenMessage<JobVariable> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 3);
+  messageDesc(file_stackwright_v1_executor, 4);
 
 /**
  * The executor trades the token for credentials with
@@ -277,7 +330,7 @@ export type AwsCredentials = Message<"stackwright.v1.AwsCredentials"> & {
  * Use `create(AwsCredentialsSchema)` to create a new message.
  */
 export const AwsCredentialsSchema: GenMessage<AwsCredentials> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 4);
+  messageDesc(file_stackwright_v1_executor, 5);
 
 /**
  * @generated from message stackwright.v1.ClaimJobRequest
@@ -290,7 +343,7 @@ export type ClaimJobRequest = Message<"stackwright.v1.ClaimJobRequest"> & {
  * Use `create(ClaimJobRequestSchema)` to create a new message.
  */
 export const ClaimJobRequestSchema: GenMessage<ClaimJobRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 5);
+  messageDesc(file_stackwright_v1_executor, 6);
 
 /**
  * @generated from message stackwright.v1.ClaimJobResponse
@@ -307,7 +360,7 @@ export type ClaimJobResponse = Message<"stackwright.v1.ClaimJobResponse"> & {
  * Use `create(ClaimJobResponseSchema)` to create a new message.
  */
 export const ClaimJobResponseSchema: GenMessage<ClaimJobResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 6);
+  messageDesc(file_stackwright_v1_executor, 7);
 
 /**
  * @generated from message stackwright.v1.JobEvent
@@ -346,7 +399,7 @@ export type JobEvent = Message<"stackwright.v1.JobEvent"> & {
  * Use `create(JobEventSchema)` to create a new message.
  */
 export const JobEventSchema: GenMessage<JobEvent> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 7);
+  messageDesc(file_stackwright_v1_executor, 8);
 
 /**
  * @generated from message stackwright.v1.ReportEventsRequest
@@ -363,7 +416,7 @@ export type ReportEventsRequest = Message<"stackwright.v1.ReportEventsRequest"> 
  * Use `create(ReportEventsRequestSchema)` to create a new message.
  */
 export const ReportEventsRequestSchema: GenMessage<ReportEventsRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 8);
+  messageDesc(file_stackwright_v1_executor, 9);
 
 /**
  * @generated from message stackwright.v1.ReportEventsResponse
@@ -376,7 +429,7 @@ export type ReportEventsResponse = Message<"stackwright.v1.ReportEventsResponse"
  * Use `create(ReportEventsResponseSchema)` to create a new message.
  */
 export const ReportEventsResponseSchema: GenMessage<ReportEventsResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 9);
+  messageDesc(file_stackwright_v1_executor, 10);
 
 /**
  * @generated from message stackwright.v1.FinishJobRequest
@@ -403,7 +456,7 @@ export type FinishJobRequest = Message<"stackwright.v1.FinishJobRequest"> & {
  * Use `create(FinishJobRequestSchema)` to create a new message.
  */
 export const FinishJobRequestSchema: GenMessage<FinishJobRequest> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 10);
+  messageDesc(file_stackwright_v1_executor, 11);
 
 /**
  * @generated from message stackwright.v1.FinishJobResponse
@@ -416,7 +469,7 @@ export type FinishJobResponse = Message<"stackwright.v1.FinishJobResponse"> & {
  * Use `create(FinishJobResponseSchema)` to create a new message.
  */
 export const FinishJobResponseSchema: GenMessage<FinishJobResponse> = /*@__PURE__*/
-  messageDesc(file_stackwright_v1_executor, 11);
+  messageDesc(file_stackwright_v1_executor, 12);
 
 /**
  * @generated from enum stackwright.v1.JobOperation

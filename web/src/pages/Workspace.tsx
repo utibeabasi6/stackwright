@@ -106,6 +106,11 @@ export function Workspace({ section }: { section: Section }) {
           </span>
         )}
       </div>
+      {p.stackError && (
+        <p className="notice error" role="alert">
+          The last sync of the Stack&apos;s files failed, so pushes do not deploy: {p.stackError}
+        </p>
+      )}
 
       <div className="stack">
         {section === "overview" && (
@@ -257,7 +262,7 @@ export function Workspace({ section }: { section: Section }) {
                   </form>
                 )}
                 <div className="row">
-                  {p.workspaces.length > 1 && (
+                  {p.workspaces.length > 1 && p.layout !== Layout.STACKS && (
                     <Action
                       className="danger"
                       confirm={{ message: `Archive the workspace ${workspace}? It leaves every list.`, action: "Archive", danger: true }}

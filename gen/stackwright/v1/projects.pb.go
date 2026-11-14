@@ -80,6 +80,9 @@ const (
 	// A folder of Terragrunt units that run in dependency order, on the
 	// backend their remote_state names (adr/0041).
 	Layout_LAYOUT_TERRAGRUNT Layout = 3
+	// A Terraform Stack, synced into a workspace for each component instance
+	// and a deployment for each Stack deployment (adr/0043).
+	Layout_LAYOUT_STACKS Layout = 4
 )
 
 // Enum value maps for Layout.
@@ -89,12 +92,14 @@ var (
 		1: "LAYOUT_PLAIN",
 		2: "LAYOUT_CLI_WORKSPACES",
 		3: "LAYOUT_TERRAGRUNT",
+		4: "LAYOUT_STACKS",
 	}
 	Layout_value = map[string]int32{
 		"LAYOUT_UNSPECIFIED":    0,
 		"LAYOUT_PLAIN":          1,
 		"LAYOUT_CLI_WORKSPACES": 2,
 		"LAYOUT_TERRAGRUNT":     3,
+		"LAYOUT_STACKS":         4,
 	}
 )
 
@@ -284,10 +289,12 @@ type Project struct {
 	// The repository as "owner/name", when a linked GitHub installation
 	// covers it. Its runs plan run_branch, the project's branch or the
 	// repository's default one.
-	LinkedRepo    string            `protobuf:"bytes,11,opt,name=linked_repo,json=linkedRepo,proto3" json:"linked_repo,omitempty"`
-	RunBranch     string            `protobuf:"bytes,12,opt,name=run_branch,json=runBranch,proto3" json:"run_branch,omitempty"`
-	Labels        map[string]string `protobuf:"bytes,13,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	StateBackend  StateBackend      `protobuf:"varint,14,opt,name=state_backend,json=stateBackend,proto3,enum=stackwright.v1.StateBackend" json:"state_backend,omitempty"`
+	LinkedRepo   string            `protobuf:"bytes,11,opt,name=linked_repo,json=linkedRepo,proto3" json:"linked_repo,omitempty"`
+	RunBranch    string            `protobuf:"bytes,12,opt,name=run_branch,json=runBranch,proto3" json:"run_branch,omitempty"`
+	Labels       map[string]string `protobuf:"bytes,13,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	StateBackend StateBackend      `protobuf:"varint,14,opt,name=state_backend,json=stateBackend,proto3,enum=stackwright.v1.StateBackend" json:"state_backend,omitempty"`
+	// Why the last sync of a Stack's files failed, if it did.
+	StackError    string `protobuf:"bytes,15,opt,name=stack_error,json=stackError,proto3" json:"stack_error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -418,6 +425,13 @@ func (x *Project) GetStateBackend() StateBackend {
 		return x.StateBackend
 	}
 	return StateBackend_STATE_BACKEND_UNSPECIFIED
+}
+
+func (x *Project) GetStackError() string {
+	if x != nil {
+		return x.StackError
+	}
+	return ""
 }
 
 type Workspace struct {
@@ -1555,7 +1569,7 @@ const file_stackwright_v1_projects_proto_rawDesc = "" +
 	"\x19ListEngineVersionsRequest\x12.\n" +
 	"\x06engine\x18\x01 \x01(\x0e2\x16.stackwright.v1.EngineR\x06engine\"8\n" +
 	"\x1aListEngineVersionsResponse\x12\x1a\n" +
-	"\bversions\x18\x01 \x03(\tR\bversions\"\xf4\x04\n" +
+	"\bversions\x18\x01 \x03(\tR\bversions\"\x95\x05\n" +
 	"\aProject\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12.\n" +
@@ -1576,7 +1590,9 @@ const file_stackwright_v1_projects_proto_rawDesc = "" +
 	"\n" +
 	"run_branch\x18\f \x01(\tR\trunBranch\x12;\n" +
 	"\x06labels\x18\r \x03(\v2#.stackwright.v1.Project.LabelsEntryR\x06labels\x12A\n" +
-	"\rstate_backend\x18\x0e \x01(\x0e2\x1c.stackwright.v1.StateBackendR\fstateBackend\x1a9\n" +
+	"\rstate_backend\x18\x0e \x01(\x0e2\x1c.stackwright.v1.StateBackendR\fstateBackend\x12\x1f\n" +
+	"\vstack_error\x18\x0f \x01(\tR\n" +
+	"stackError\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb9\x02\n" +
@@ -1669,12 +1685,13 @@ const file_stackwright_v1_projects_proto_rawDesc = "" +
 	"\x06Engine\x12\x16\n" +
 	"\x12ENGINE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fENGINE_OPENTOFU\x10\x01\x12\x14\n" +
-	"\x10ENGINE_TERRAFORM\x10\x02*d\n" +
+	"\x10ENGINE_TERRAFORM\x10\x02*w\n" +
 	"\x06Layout\x12\x16\n" +
 	"\x12LAYOUT_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fLAYOUT_PLAIN\x10\x01\x12\x19\n" +
 	"\x15LAYOUT_CLI_WORKSPACES\x10\x02\x12\x15\n" +
-	"\x11LAYOUT_TERRAGRUNT\x10\x03*{\n" +
+	"\x11LAYOUT_TERRAGRUNT\x10\x03\x12\x11\n" +
+	"\rLAYOUT_STACKS\x10\x04*{\n" +
 	"\fStateBackend\x12\x1d\n" +
 	"\x19STATE_BACKEND_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19STATE_BACKEND_STACKWRIGHT\x10\x01\x12\x16\n" +

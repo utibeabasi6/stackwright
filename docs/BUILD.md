@@ -712,13 +712,13 @@ Stackwright, with no HCP Terraform account
   deployment and component.
 
 **Done when.**
-- [ ] A two-component Stack (`network` then `app`, `app` reads an output
+- [x] A two-component Stack (`network` then `app`, `app` reads an output
       of `network`) deploys `dev` and `prod` in order, with one approval for
       each deployment
-- [ ] The same fixture runs on OpenTofu and on Terraform 1.5.7
-- [ ] A component with `for_each` gives one workspace for each instance
-- [ ] A refused block fails the plan with its name, file and line
-- [ ] The parser test suite holds real Stacks files, with the version of the
+- [x] The same fixture runs on OpenTofu and on Terraform 1.5.7
+- [x] A component with `for_each` gives one workspace for each instance
+- [x] A refused block fails the plan with its name, file and line
+- [x] The parser test suite holds real Stacks files, with the version of the
       format they follow
 
 **Depends on:** 7, 15, 19.

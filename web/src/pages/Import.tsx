@@ -14,6 +14,9 @@ type Choice = { chosen: boolean; slug: string; engine: Engine; version: string; 
 // where says where a root's state lives and what that means for its runs
 // (adr/0036).
 function where(r: FoundRoot) {
+  if (r.stateBackend === StateBackend.STACKWRIGHT) {
+    return `A Terraform Stack with ${r.stackDeployments.length === 1 ? "deployment" : "deployments"} ${r.stackDeployments.join(", ")}: each component of each deployment gets a workspace, and each deployment deploys them in order with one approval. Stackwright keeps their state.`;
+  }
   if (r.units.length > 0) {
     return `A Terragrunt stack of ${r.units.length} ${r.units.length === 1 ? "unit" : "units"}: runs plan them in dependency order, on the backends their remote_state names.`;
   }
@@ -132,7 +135,13 @@ export function Import() {
                   {r.existingProject && <span className="pill">Imported as {r.existingProject}</span>}
                 </label>
                 <p className="hint">
-                  {where(r)} Workspaces: <span className="mono">{r.workspaces.join(", ")}</span>.
+                  {where(r)}
+                  {r.workspaces.length > 0 && (
+                    <>
+                      {" "}
+                      Workspaces: <span className="mono">{r.workspaces.join(", ")}</span>.
+                    </>
+                  )}
                 </p>
                 {c.chosen && !r.existingProject && (
                   <div className="row">

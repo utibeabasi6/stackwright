@@ -55,6 +55,8 @@ message FoundRoot {
   bool committed_state = 9;
   // For a Terragrunt stack, its unit folders (adr/0041).
   repeated string units = 10;
+  // For a Terraform Stack, its deployments (adr/0043).
+  repeated string stack_deployments = 11;
 }
 
 message StartImportRequest {

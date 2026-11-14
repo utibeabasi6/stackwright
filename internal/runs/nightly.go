@@ -62,7 +62,9 @@ func (o *Orchestrator) QueueNightly(ctx context.Context, slot time.Time, head He
 				return err
 			}
 			r.PlanOnly, r.Trigger = true, "schedule"
-			_, _, err = o.Create(ctx, tx, d.org, r)
+			if _, _, err = o.Create(ctx, tx, d.org, r); errors.Is(err, ErrStackInputs) {
+				return nil
+			}
 			return err
 		})
 		if err != nil {

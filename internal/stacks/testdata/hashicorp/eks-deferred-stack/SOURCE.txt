@@ -1,0 +1,5 @@
+Repository: https://github.com/hashicorp-guides/eks-deferred-stack
+Commit SHA: e759582fef6a06d68aeb20ddcd672193d4de6d4a (commit date 2025-07-22)
+Licence: MPL-2.0 (LICENSE file copied alongside; GitHub reports MPL-2.0)
+.terraform-version in repo: 1.10.0-alpha20240814
+Copied: full tree at that commit, without .git

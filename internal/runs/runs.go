@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -199,6 +200,16 @@ func (o *Orchestrator) Create(ctx context.Context, tx pgx.Tx, orgID string, r Ne
 	trigger := r.Trigger
 	if trigger == "" {
 		trigger = "ui"
+	}
+	if r.Inputs == nil {
+		b, missing, ok, err := o.stackInputs(ctx, tx, orgID, r.WorkspaceID)
+		if err != nil {
+			return "", 0, err
+		}
+		if ok && len(missing) > 0 {
+			return "", 0, fmt.Errorf("%w: %s", ErrStackInputs, strings.Join(missing, ", "))
+		}
+		r.Inputs = b
 	}
 	var inputs []byte
 	if r.Inputs != nil {

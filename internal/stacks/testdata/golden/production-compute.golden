@@ -1,0 +1,79 @@
+# Written by Stackwright from the Stack's files (adr/0043).
+
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.12.0"
+    }
+
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.4.1"
+    }
+  }
+}
+
+variable "stackwright_components" {
+  type      = any
+  default   = {}
+  sensitive = false
+}
+
+variable "gcp_credentials" {
+  type      = string
+  ephemeral = true
+}
+
+variable "gcp_project_id" {
+  type = string
+}
+
+variable "gcp_region" {
+  type = string
+}
+
+variable "gcp_zone" {
+  type = string
+}
+
+variable "public_ssh_key_url" {
+  type = string
+}
+
+locals {
+}
+
+provider "google" {
+  alias = "this_0"
+
+  project     = var.gcp_project_id
+  region      = var.gcp_region
+  zone        = var.gcp_zone
+  credentials = var.gcp_credentials
+
+}
+
+provider "http" {
+  alias = "this_1"
+
+}
+
+module "compute" {
+  source = "./compute"
+  providers = {
+    google = google.this_0
+    http   = http.this_1
+  }
+  public_ssh_key_url = var.public_ssh_key_url
+}
+
+
+# {
+#   "gcp_project_id": "\u003cSet to your GCP project ID\u003e",
+#   "gcp_region": "us-central1",
+#   "gcp_zone": "us-central1-a",
+#   "public_ssh_key_url": "\u003cSet to a URL where your public SSH key can be read. Used for compute instance login auth\u003e",
+#   "stackwright_components": {}
+# }
+# env: TF_VAR_gcp_credentials=terraform:credentials

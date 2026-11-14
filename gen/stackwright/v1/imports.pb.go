@@ -163,9 +163,11 @@ type FoundRoot struct {
 	// A state file for it is in the repository.
 	CommittedState bool `protobuf:"varint,9,opt,name=committed_state,json=committedState,proto3" json:"committed_state,omitempty"`
 	// For a Terragrunt stack, its unit folders (adr/0041).
-	Units         []string `protobuf:"bytes,10,rep,name=units,proto3" json:"units,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Units []string `protobuf:"bytes,10,rep,name=units,proto3" json:"units,omitempty"`
+	// For a Terraform Stack, its deployments (adr/0043).
+	StackDeployments []string `protobuf:"bytes,11,rep,name=stack_deployments,json=stackDeployments,proto3" json:"stack_deployments,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *FoundRoot) Reset() {
@@ -264,6 +266,13 @@ func (x *FoundRoot) GetCommittedState() bool {
 func (x *FoundRoot) GetUnits() []string {
 	if x != nil {
 		return x.Units
+	}
+	return nil
+}
+
+func (x *FoundRoot) GetStackDeployments() []string {
+	if x != nil {
+		return x.StackDeployments
 	}
 	return nil
 }
@@ -751,7 +760,7 @@ const file_stackwright_v1_imports_proto_rawDesc = "" +
 	"\x06commit\x18\x01 \x01(\tR\x06commit\x12/\n" +
 	"\x05roots\x18\x02 \x03(\v2\x19.stackwright.v1.FoundRootR\x05roots\x12\x18\n" +
 	"\amodules\x18\x03 \x03(\tR\amodules\x12)\n" +
-	"\x10terragrunt_units\x18\x04 \x03(\tR\x0fterragruntUnits\"\xc4\x03\n" +
+	"\x10terragrunt_units\x18\x04 \x03(\tR\x0fterragruntUnits\"\xf1\x03\n" +
 	"\tFoundRoot\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1e\n" +
 	"\n" +
@@ -765,7 +774,8 @@ const file_stackwright_v1_imports_proto_rawDesc = "" +
 	"\x10existing_project\x18\b \x01(\tR\x0fexistingProject\x12'\n" +
 	"\x0fcommitted_state\x18\t \x01(\bR\x0ecommittedState\x12\x14\n" +
 	"\x05units\x18\n" +
-	" \x03(\tR\x05units\x1a9\n" +
+	" \x03(\tR\x05units\x12+\n" +
+	"\x11stack_deployments\x18\v \x03(\tR\x10stackDeployments\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x84\x01\n" +

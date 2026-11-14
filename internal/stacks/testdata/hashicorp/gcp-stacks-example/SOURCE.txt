@@ -1,0 +1,5 @@
+Repository: https://github.com/hashicorp-guides/gcp-stacks-example
+Commit SHA: d72834017178cd6c7dd1ddb34b167815878e9c26 (commit date 2025-07-14)
+Licence: MPL-2.0 (LICENSE file copied alongside; GitHub reports MPL-2.0)
+.terraform-version in repo: 1.10.0-alpha20240619
+Copied: full tree at that commit, without .git

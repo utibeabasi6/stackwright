@@ -403,11 +403,16 @@ type Deployment struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// In the order they apply.
-	Steps         []*WorkspaceRef   `protobuf:"bytes,2,rep,name=steps,proto3" json:"steps,omitempty"`
-	Links         []*DeploymentLink `protobuf:"bytes,3,rep,name=links,proto3" json:"links,omitempty"`
-	LastRun       *DeploymentRun    `protobuf:"bytes,4,opt,name=last_run,json=lastRun,proto3" json:"last_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Steps   []*WorkspaceRef   `protobuf:"bytes,2,rep,name=steps,proto3" json:"steps,omitempty"`
+	Links   []*DeploymentLink `protobuf:"bytes,3,rep,name=links,proto3" json:"links,omitempty"`
+	LastRun *DeploymentRun    `protobuf:"bytes,4,opt,name=last_run,json=lastRun,proto3" json:"last_run,omitempty"`
+	// For a deployment that a Stack's files define: the project, the Stack's
+	// name for it, and its deployment_group (adr/0043).
+	StackProject    string `protobuf:"bytes,5,opt,name=stack_project,json=stackProject,proto3" json:"stack_project,omitempty"`
+	StackDeployment string `protobuf:"bytes,6,opt,name=stack_deployment,json=stackDeployment,proto3" json:"stack_deployment,omitempty"`
+	StackGroup      string `protobuf:"bytes,7,opt,name=stack_group,json=stackGroup,proto3" json:"stack_group,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Deployment) Reset() {
@@ -466,6 +471,27 @@ func (x *Deployment) GetLastRun() *DeploymentRun {
 		return x.LastRun
 	}
 	return nil
+}
+
+func (x *Deployment) GetStackProject() string {
+	if x != nil {
+		return x.StackProject
+	}
+	return ""
+}
+
+func (x *Deployment) GetStackDeployment() string {
+	if x != nil {
+		return x.StackDeployment
+	}
+	return ""
+}
+
+func (x *Deployment) GetStackGroup() string {
+	if x != nil {
+		return x.StackGroup
+	}
+	return ""
 }
 
 type ListDeploymentsRequest struct {
@@ -1210,13 +1236,17 @@ const file_stackwright_v1_deployments_proto_rawDesc = "" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
 	"\vfinished_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x124\n" +
-	"\x05steps\x18\t \x03(\v2\x1e.stackwright.v1.DeploymentStepR\x05steps\"\xc4\x01\n" +
+	"\x05steps\x18\t \x03(\v2\x1e.stackwright.v1.DeploymentStepR\x05steps\"\xb5\x02\n" +
 	"\n" +
 	"Deployment\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x122\n" +
 	"\x05steps\x18\x02 \x03(\v2\x1c.stackwright.v1.WorkspaceRefR\x05steps\x124\n" +
 	"\x05links\x18\x03 \x03(\v2\x1e.stackwright.v1.DeploymentLinkR\x05links\x128\n" +
-	"\blast_run\x18\x04 \x01(\v2\x1d.stackwright.v1.DeploymentRunR\alastRun\"*\n" +
+	"\blast_run\x18\x04 \x01(\v2\x1d.stackwright.v1.DeploymentRunR\alastRun\x12#\n" +
+	"\rstack_project\x18\x05 \x01(\tR\fstackProject\x12)\n" +
+	"\x10stack_deployment\x18\x06 \x01(\tR\x0fstackDeployment\x12\x1f\n" +
+	"\vstack_group\x18\a \x01(\tR\n" +
+	"stackGroup\"*\n" +
 	"\x16ListDeploymentsRequest\x12\x10\n" +
 	"\x03org\x18\x01 \x01(\tR\x03org\"W\n" +
 	"\x17ListDeploymentsResponse\x12<\n" +

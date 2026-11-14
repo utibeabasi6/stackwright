@@ -1,0 +1,111 @@
+# Written by Stackwright from the Stack's files (adr/0043).
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.7.0"
+    }
+
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5.1"
+    }
+
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4.0"
+    }
+
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.4.0"
+    }
+  }
+}
+
+variable "stackwright_components" {
+  type      = any
+  default   = {}
+  sensitive = false
+}
+
+variable "default_tags" {
+  description = "A map of default tags to apply to all AWS resources"
+  type        = map(string)
+  default     = {}
+}
+
+variable "identity_token" {
+  type      = string
+  ephemeral = true
+}
+
+variable "regions" {
+  type = set(string)
+}
+
+variable "role_arn" {
+  type = string
+}
+
+locals {
+  stackwright_each = {
+    key   = "us-west-1"
+    value = "us-west-1"
+  }
+  stackwright_provider_0 = {
+    key   = "us-west-1"
+    value = "us-west-1"
+  }
+}
+
+provider "aws" {
+  alias = "configurations_0"
+
+  region = local.stackwright_provider_0.value
+
+  assume_role_with_web_identity {
+    role_arn           = var.role_arn
+    web_identity_token = var.identity_token
+  }
+
+  default_tags {
+    tags = var.default_tags
+  }
+
+}
+
+provider "random" {
+  alias = "this_1"
+
+}
+
+module "api_gateway" {
+  source = "./api-gateway"
+  providers = {
+    aws    = aws.configurations_0
+    random = random.this_1
+  }
+  lambda_function_name = var.stackwright_components.lambda[local.stackwright_each.value].function_name
+  lambda_invoke_arn    = var.stackwright_components.lambda[local.stackwright_each.value].invoke_arn
+}
+
+output "hello_url" {
+  value     = module.api_gateway.hello_url
+  sensitive = false
+}
+
+
+# {
+#   "default_tags": {
+#     "stacks-preview-example": "lambda-component-expansion-stack"
+#   },
+#   "regions": [
+#     "us-east-1",
+#     "us-west-1"
+#   ],
+#   "role_arn": "\u003cSet to your production AWS account IAM role ARN\u003e",
+#   "stackwright_components": {}
+# }
+# env: TF_VAR_identity_token=token

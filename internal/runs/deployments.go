@@ -25,20 +25,23 @@ type Step struct {
 	WorkspaceID string
 	Name        string // "project/workspace"
 	After       []string
+	// Destroy is a step that plans with -destroy in every run: a Stack's
+	// removed instance (adr/0043).
+	Destroy bool
 }
 
 // DeploymentOrder returns a deployment's steps in the order they apply:
 // each after the steps it links from, and by name among equals. tx needs
 // the org setting.
 func DeploymentOrder(ctx context.Context, tx pgx.Tx, deploymentID string) ([]Step, error) {
-	rows, err := tx.Query(ctx, `SELECT s.workspace_id, p.slug || '/' || w.name FROM deployment_steps s
+	rows, err := tx.Query(ctx, `SELECT s.workspace_id, p.slug || '/' || w.name, s.destroy FROM deployment_steps s
 		JOIN workspaces w ON w.id = s.workspace_id JOIN projects p ON p.id = w.project_id WHERE s.deployment_id = $1`, deploymentID)
 	if err != nil {
 		return nil, err
 	}
 	steps, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Step, error) {
 		var s Step
-		return s, r.Scan(&s.WorkspaceID, &s.Name)
+		return s, r.Scan(&s.WorkspaceID, &s.Name, &s.Destroy)
 	})
 	if err != nil {
 		return nil, err
@@ -99,6 +102,9 @@ type output struct {
 // inputs are a step's variables from earlier steps' outputs, as JSON
 // JobVariables, and the outputs that are missing.
 func (o *Orchestrator) inputs(ctx context.Context, tx pgx.Tx, orgID, deploymentID, workspaceID string) ([]byte, []string, error) {
+	if b, missing, ok, err := o.stackInputs(ctx, tx, orgID, workspaceID); ok || err != nil {
+		return b, missing, err
+	}
 	rows, err := tx.Query(ctx, `SELECT l.from_workspace_id, p.slug || '/' || w.name, l.output, l.variable FROM deployment_links l
 		JOIN workspaces w ON w.id = l.from_workspace_id JOIN projects p ON p.id = w.project_id
 		WHERE l.deployment_id = $1 AND l.to_workspace_id = $2 AND l.output <> '' ORDER BY l.variable`, deploymentID, workspaceID)
@@ -158,7 +164,8 @@ func (o *Orchestrator) inputs(ctx context.Context, tx pgx.Tx, orgID, deploymentI
 // StartDeployment queues a deployment run, and plans each step whose
 // linked outputs exist. The others plan when the steps before them have
 // applied. tx needs the org setting.
-func (o *Orchestrator) StartDeployment(ctx context.Context, tx pgx.Tx, orgID, deploymentID, userID string, destroy bool) (string, int32, error) {
+// code is the commit every step plans; nil plans each step's newest code.
+func (o *Orchestrator) StartDeployment(ctx context.Context, tx pgx.Tx, orgID, deploymentID, userID string, destroy bool, code *NewRun) (string, int32, error) {
 	steps, err := DeploymentOrder(ctx, tx, deploymentID)
 	if err != nil {
 		return "", 0, err
@@ -168,9 +175,15 @@ func (o *Orchestrator) StartDeployment(ctx context.Context, tx pgx.Tx, orgID, de
 	}
 	id := uuid.NewString()
 	var number int32
-	if err := tx.QueryRow(ctx, `INSERT INTO deployment_runs (id, org_id, deployment_id, number, destroy, created_by)
-		SELECT $1, $2, $3, coalesce(max(number), 0) + 1, $4, $5 FROM deployment_runs WHERE deployment_id = $3 RETURNING number`,
-		id, orgID, deploymentID, destroy, userID).Scan(&number); err != nil {
+	var codeJSON []byte
+	if code != nil {
+		if codeJSON, err = json.Marshal(code); err != nil {
+			return "", 0, err
+		}
+	}
+	if err := tx.QueryRow(ctx, `INSERT INTO deployment_runs (id, org_id, deployment_id, number, destroy, created_by, code)
+		SELECT $1, $2, $3, coalesce(max(number), 0) + 1, $4, nullif($5, '')::uuid, $6 FROM deployment_runs WHERE deployment_id = $3
+		RETURNING number`, id, orgID, deploymentID, destroy, userID, codeJSON).Scan(&number); err != nil {
 		return "", 0, err
 	}
 	for _, s := range steps {
@@ -193,14 +206,25 @@ func (o *Orchestrator) startStep(ctx context.Context, tx pgx.Tx, orgID, deployme
 	if len(missing) > 0 && !mustStart {
 		return false, nil
 	}
-	r, ok, err := codeOf(ctx, tx, orgID, s.WorkspaceID, o.Head)
-	if err != nil {
+	var code *NewRun
+	if err := tx.QueryRow(ctx, `SELECT code FROM deployment_runs WHERE id = $1`, runID).Scan(&code); err != nil {
 		return false, err
 	}
-	if !ok {
-		return false, fmt.Errorf("%s has never run its own code; run it once, then deploy", s.Name)
+	var r NewRun
+	if code != nil {
+		r = *code
+		r.WorkspaceID = s.WorkspaceID
+	} else {
+		var ok bool
+		r, ok, err = codeOf(ctx, tx, orgID, s.WorkspaceID, o.Head)
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			return false, fmt.Errorf("%s has never run its own code; run it once, then deploy", s.Name)
+		}
 	}
-	r.Trigger, r.Destroy, r.Inputs, r.DeploymentRunID, r.CreatedBy = "deployment", destroy, inputs, runID, userID
+	r.Trigger, r.Destroy, r.Inputs, r.DeploymentRunID, r.CreatedBy = "deployment", destroy || s.Destroy, inputs, runID, userID
 	_, _, err = o.Create(ctx, tx, orgID, r)
 	return err == nil, err
 }
@@ -374,6 +398,20 @@ func (o *Orchestrator) advance(ctx context.Context, tx pgx.Tx, orgID, id string)
 			}
 		}
 		if allDone {
+			// A Stack's removed instance is gone once its destroy applies
+			// (adr/0043).
+			for _, s := range steps {
+				if !s.Destroy || runs[s.WorkspaceID].status != "applied" {
+					continue
+				}
+				for _, q := range []string{`UPDATE workspaces SET archived_at = now() WHERE id = $1`,
+					`DELETE FROM stack_instances WHERE workspace_id = $1`,
+					`DELETE FROM deployment_steps WHERE workspace_id = $1`} {
+					if _, err := tx.Exec(ctx, q, s.WorkspaceID); err != nil {
+						return err
+					}
+				}
+			}
 			return setDeploymentStatus(ctx, tx, id, "applied", "")
 		}
 	}

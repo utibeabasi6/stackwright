@@ -39,7 +39,7 @@ type Projects struct {
 
 var engines = map[v1.Engine]string{v1.Engine_ENGINE_OPENTOFU: "opentofu", v1.Engine_ENGINE_TERRAFORM: "terraform"}
 var layouts = map[v1.Layout]string{v1.Layout_LAYOUT_PLAIN: "plain", v1.Layout_LAYOUT_CLI_WORKSPACES: "cli_workspaces",
-	v1.Layout_LAYOUT_TERRAGRUNT: "terragrunt"}
+	v1.Layout_LAYOUT_TERRAGRUNT: "terragrunt", v1.Layout_LAYOUT_STACKS: "stacks"}
 
 var stateBackends = map[v1.StateBackend]string{v1.StateBackend_STATE_BACKEND_STACKWRIGHT: "stackwright", v1.StateBackend_STATE_BACKEND_CODE: "code",
 	v1.StateBackend_STATE_BACKEND_GIT: "git"}
@@ -122,7 +122,7 @@ type projectRow struct {
 
 func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, error) {
 	rows, err := tx.Query(ctx, `SELECT p.id, p.slug, p.path, p.engine, p.engine_version, p.layout, p.repo_url, p.branch, p.sample, p.created_at,
-		coalesce(r.full_name, ''), coalesce(nullif(p.branch, ''), r.default_branch, ''), p.labels, p.state_backend
+		coalesce(r.full_name, ''), coalesce(nullif(p.branch, ''), r.default_branch, ''), p.labels, p.state_backend, coalesce(p.stack_error, '')
 		FROM projects p LEFT JOIN repos r ON lower(r.full_name) = p.repo
 		WHERE p.org_id = app_org_id() AND p.archived_at IS NULL AND ($1 = '' OR p.slug = $1) ORDER BY p.slug`, slug)
 	if err != nil {
@@ -133,7 +133,7 @@ func loadProjects(ctx context.Context, tx pgx.Tx, slug string) ([]projectRow, er
 		var id, engine, layout, backend string
 		var created time.Time
 		err := r.Scan(&id, &p.Slug, &p.Path, &engine, &p.EngineVersion, &layout, &p.RepoUrl, &p.Branch, &p.Sample, &created,
-			&p.LinkedRepo, &p.RunBranch, &p.Labels, &backend)
+			&p.LinkedRepo, &p.RunBranch, &p.Labels, &backend, &p.StackError)
 		p.Engine, p.Layout, p.CreatedAt = key(engines, engine), key(layouts, layout), timestamppb.New(created)
 		p.StateBackend = key(stateBackends, backend)
 		return projectRow{id, p}, err
@@ -412,14 +412,20 @@ func (h Projects) ArchiveProject(ctx context.Context, req *connect.Request[v1.Ar
 	return connect.NewResponse(&v1.ArchiveProjectResponse{}), nil
 }
 
+var errStackWorkspaces = connect.NewError(connect.CodeFailedPrecondition,
+	errors.New("a Stack's files define its workspaces; change the files, or remove a component with a removed block"))
+
 func (h Projects) CreateWorkspace(ctx context.Context, req *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	pr, err := project(ctx, s.Tx, req.Msg.Project)
 	if err != nil {
 		return nil, err
 	}
-	if pr.p.Layout == v1.Layout_LAYOUT_PLAIN {
+	switch pr.p.Layout {
+	case v1.Layout_LAYOUT_PLAIN:
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("a plain folder has one workspace, default"))
+	case v1.Layout_LAYOUT_STACKS:
+		return nil, errStackWorkspaces
 	}
 	if err := checkWorkspace(req.Msg.Name); err != nil {
 		return nil, err
@@ -448,6 +454,9 @@ func (h Projects) ArchiveWorkspace(ctx context.Context, req *connect.Request[v1.
 	}
 	if !found {
 		return nil, errNotFound
+	}
+	if pr.p.Layout == v1.Layout_LAYOUT_STACKS {
+		return nil, errStackWorkspaces
 	}
 	if len(pr.p.Workspaces) == 1 {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this is the project's last workspace; archive the project instead"))

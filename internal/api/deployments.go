@@ -47,6 +47,20 @@ func deploymentID(ctx context.Context, tx pgx.Tx, name string) (string, error) {
 	return id, nil
 }
 
+// notStackDefined refuses to change a deployment that a Stack's files
+// define (adr/0043).
+func notStackDefined(ctx context.Context, tx pgx.Tx, id string) error {
+	var project string
+	if err := tx.QueryRow(ctx, `SELECT coalesce(p.slug, '') FROM deployments d LEFT JOIN projects p ON p.id = d.project_id WHERE d.id = $1`,
+		id).Scan(&project); err != nil {
+		return authz.Internal(err)
+	}
+	if project != "" {
+		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("the Stack files of project %s define this deployment; change them instead", project))
+	}
+	return nil
+}
+
 func refOf(name string) *v1.WorkspaceRef {
 	i := strings.LastIndexByte(name, '/')
 	return &v1.WorkspaceRef{Project: name[:i], Workspace: name[i+1:]}
@@ -58,6 +72,10 @@ func loadDeployment(ctx context.Context, tx pgx.Tx, id, name string) (*v1.Deploy
 		return nil, authz.Internal(err)
 	}
 	d := &v1.Deployment{Name: name}
+	if err := tx.QueryRow(ctx, `SELECT coalesce(p.slug, ''), coalesce(d.stack_deployment, ''), coalesce(d.stack_group, '') FROM deployments d
+		LEFT JOIN projects p ON p.id = d.project_id WHERE d.id = $1`, id).Scan(&d.StackProject, &d.StackDeployment, &d.StackGroup); err != nil {
+		return nil, authz.Internal(err)
+	}
 	for _, s := range steps {
 		d.Steps = append(d.Steps, refOf(s.Name))
 	}
@@ -273,6 +291,9 @@ func (Deployments) SaveDeployment(ctx context.Context, req *connect.Request[v1.S
 	case err != nil:
 		return nil, err
 	default:
+		if err := notStackDefined(ctx, s.Tx, id); err != nil {
+			return nil, err
+		}
 		var active bool
 		if err := s.Tx.QueryRow(ctx, `SELECT EXISTS (SELECT FROM deployment_runs WHERE deployment_id = $1
 			AND status IN ('planning', 'needs_approval', 'applying'))`, id).Scan(&active); err != nil {
@@ -311,6 +332,9 @@ func (Deployments) ArchiveDeployment(ctx context.Context, req *connect.Request[v
 	if err != nil {
 		return nil, err
 	}
+	if err := notStackDefined(ctx, s.Tx, id); err != nil {
+		return nil, err
+	}
 	if _, err := s.Tx.Exec(ctx, `UPDATE deployments SET archived_at = now() WHERE id = $1`, id); err != nil {
 		return nil, authz.Internal(err)
 	}
@@ -324,7 +348,23 @@ func (h Deployments) StartDeploymentRun(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, err
 	}
-	_, number, err := h.Orchestrator.StartDeployment(ctx, s.Tx, s.OrgID, id, s.UserID, req.Msg.Destroy)
+	// Every component of a Stack plans the same commit (adr/0043).
+	var code *runs.NewRun
+	var first string
+	if err := s.Tx.QueryRow(ctx, `SELECT coalesce(min(st.workspace_id::text), '') FROM deployments d JOIN deployment_steps st
+		ON st.deployment_id = d.id WHERE d.id = $1 AND d.project_id IS NOT NULL`, id).Scan(&first); err != nil {
+		return nil, authz.Internal(err)
+	}
+	if first != "" && h.Orchestrator.Head != nil {
+		r, linked, err := h.Orchestrator.Head(ctx, s.Tx, s.OrgID, first)
+		if err != nil {
+			return nil, githubError(err)
+		}
+		if linked {
+			code = &r
+		}
+	}
+	_, number, err := h.Orchestrator.StartDeployment(ctx, s.Tx, s.OrgID, id, s.UserID, req.Msg.Destroy, code)
 	switch {
 	case uniqueViolation(err):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("a run of this deployment is under way"))

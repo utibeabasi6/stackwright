@@ -1323,3 +1323,75 @@ after each apply, refresh-only drift checks, and one interval of 6 hours.
 - A step with a security finding that blocks it stops the approval until
   it is fixed or its risk accepted.
 
+## Phase 19b: Terraform Stacks files
+
+Decision: [0043](adr/0043-stacks-as-deployments.md), on top of
+[0019](adr/0019-terraform-stacks-files.md). The user chose a sync on
+import and on each push, the engine to evaluate the expressions, a
+Stackwright token for each `identity_token`, and auto-approve refused.
+
+Before the build, a check compared each block with HashiCorp's docs, the
+open-source Stacks parser in Terraform v1.17.0, and five real Stacks
+repositories, and ran more than 50 cases through `terraform stacks
+validate` in Docker. It found that `validate` reads only the component
+files, so the deployment-file rules come from the docs and the language
+server's schema, not from a run. Where the docs and the code disagree,
+the parser follows the code; ADR 0043 lists the cases.
+
+**Verified on 2026-11-14:**
+- The parser tests hold five HashiCorp Stacks repositories (MPL-2.0;
+  each folder's `SOURCE.txt` names its commit). Every one parses with
+  nothing refused. The tests check each instance's workspace and the
+  components it reads, and compare five generated modules with golden
+  files.
+- Refused blocks name their file and line: `deployment_auto_approve`,
+  `auto_approve_checks`, `publish_output`, `store "tfvars"`, `migrate`,
+  embedded `stack` blocks and JSON files.
+- `for_each` over a set gives one instance for each key, and an empty set
+  gives none. A `for_each` that reads another component's output is
+  refused, and so is a list. A component that is gone with no `removed`
+  block fails the sync.
+- A Go test with real sandboxes and the fake GitHub, on OpenTofu 1.12.8
+  and on Terraform 1.5.7:
+  - The scan finds the Stack as one root with its deployments. Its
+    component modules are not roots.
+  - The import makes eight workspaces (network, app for `api` and `web`,
+    and the outputs, for dev and prod) and one deployment for each Stack
+    deployment. The web app cannot edit those deployments.
+  - Each deployment plans network first and waits for one approval. After
+    it, app plans with network's real output and applies. The stack
+    outputs hold each app's view of its network.
+- On OpenTofu only, each job gets a minted token for an `identity_token`
+  block. The token reaches an ephemeral variable whose validation checks
+  that it is a JWT, at plan and at apply.
+- On OpenTofu only, a push that adds `deployment_auto_approve` fails the
+  next deployment run with `deployments.tfdeploy.hcl:19: a
+  deployment_auto_approve block is not supported by Stackwright yet`.
+- On OpenTofu only, a push that drops `web` with a `removed` block
+  destroys it as the last step, with `-refresh=false`, and archives its
+  workspace.
+- The importer fixture test, and Playwright in both themes: a Stack's
+  deployment shows its steps and has no editor.
+
+**Not verified:**
+- A real AWS role that trusts Stackwright's issuer, with the token
+  audience a Stack names. The fake STS is not used here; the test checks
+  only that the token is a JWT.
+- The real Stacks examples run only through the parser and the
+  generator, not through an engine.
+- `store "varset"` values in a run; a unit test covers the lookup.
+- A Stack deployment with `destroy = true`, and a deployment removed from
+  the files after its destroy.
+- The pages on the development stack.
+
+**Known gaps:**
+- A pull request does not plan a Stack.
+- A component's source must be a local path. Registry and Git sources are
+  refused.
+- Stackwright evaluates `for_each` and deployment inputs with HCL's
+  standard functions only, not Terraform's full set.
+- A push while a Stack's deployment is applying does not deploy that
+  deployment. A run that waits for approval is canceled for the new one.
+- A removed instance destroys without a refresh, so a resource deleted
+  outside Stackwright can fail the destroy.
+- `.terraform-version` is not read; the project's engine runs the Stack.

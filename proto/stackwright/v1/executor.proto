@@ -63,6 +63,19 @@ message Job {
   bool refresh_only = 20;
   // Plan -destroy.
   bool destroy = 21;
+  // Set for a component instance of a Terraform Stack (adr/0043).
+  StackInstance stack = 22;
+}
+
+message StackInstance {
+  string deployment = 1;
+  // Empty for the deployment's stack outputs.
+  string component = 2;
+  string key = 3;
+  bool keyed = 4;
+  bool removed = 5;
+  // A token for each identity_token block, with its audience.
+  map<string, string> identity_tokens = 6;
 }
 
 message PolicyFile {
