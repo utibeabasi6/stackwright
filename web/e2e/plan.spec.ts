@@ -83,6 +83,23 @@ test("Enter shows a resource's diff and a link to its file", async ({ page }) =>
   const panel = page.getByRole("complementary", { name: "Resource" });
   await expect(panel.getByText("forces replacement")).toBeVisible();
   await expect(panel.getByRole("link", { name: "main.tf:13" })).toHaveAttribute("href", "https://github.com/acme/infra/blob/abc123/main.tf#L13");
+  await panel.getByRole("button", { name: "Close" }).click();
+  await expect(panel).toBeHidden();
+});
+
+test("the resource panel takes no room until a resource is chosen", async ({ page }) => {
+  await open(page, { graph: golden("actions") });
+  const canvas = page.getByRole("application", { name: "Plan graph" });
+  await expect(page.getByRole("complementary", { name: "Resource" })).toBeHidden();
+  const wide = (await canvas.boundingBox())!.width;
+  const node = page.getByRole("button", { name: /^terraform_data\.recreate, replace,/ });
+  await node.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("complementary", { name: "Resource" })).toBeVisible();
+  expect((await canvas.boundingBox())!.width).toBeLessThan(wide);
+  await node.focus();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("complementary", { name: "Resource" })).toBeHidden();
 });
 
 test("a 300-node plan draws in under 1 s", async ({ page }) => {

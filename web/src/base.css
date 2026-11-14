@@ -1881,3 +1881,9 @@ dialog.confirm p {
 .accept-form {
   margin-top: var(--space-3);
 }
+
+.inspector-close {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}

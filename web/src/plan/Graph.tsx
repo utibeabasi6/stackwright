@@ -224,6 +224,10 @@ function Canvas({ org, project, workspace, data, writer, states, diagnostics, co
   };
 
   const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape" && selected) {
+      setSelected(undefined);
+      return;
+    }
     const id = (e.target as HTMLElement).closest(".react-flow__node")?.getAttribute("data-id");
     if (!id || !pos || !shown) return;
     if (e.key === "Enter" || e.key === " ") {
@@ -322,8 +326,13 @@ function Canvas({ org, project, workspace, data, writer, states, diagnostics, co
             <Controls showInteractive={false} />
           </ReactFlow>
         </div>
-        <aside className="inspector" aria-label="Resource">
-          {selected ? (
+        {selected && (
+          <aside className="inspector" aria-label="Resource">
+            <div className="inspector-close">
+              <button type="button" className="link" onClick={() => setSelected(undefined)}>
+                Close
+              </button>
+            </div>
             <NodePanel
               org={org}
               project={project}
@@ -334,17 +343,13 @@ function Canvas({ org, project, workspace, data, writer, states, diagnostics, co
               status={states?.get(selected)}
               diagnostics={diagnostics?.get(selected) ?? []}
             />
-          ) : (
-            <p className="muted">
-              {closed ? `This plan has ${g.nodes.length} resources, so its modules start closed. ` : ""}Choose a resource to see what changes.
-            </p>
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
       <div className="plan-foot">
         {states && <span>{progressText(states)} </span>}
-        {saveError ?? (closed ? "Press Enter on a module to open it. " : "")}
-        Arrow keys move between resources; Enter shows one.
+        {saveError ?? (closed ? `This plan has ${g.nodes.length} resources, so its modules start closed. Press Enter on a module to open it. ` : "")}
+        Arrow keys move between resources; Enter shows one; Escape closes it.
       </div>
     </>
   );
