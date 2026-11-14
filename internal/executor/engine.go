@@ -17,7 +17,10 @@ import (
 // cli runs OpenTofu or Terraform in one folder. Both take the same flags and
 // write the same -json lines, except that Terraform's init has no -json.
 type cli struct {
-	bin      string
+	bin string
+	// prefix comes before every command's arguments, as Terragrunt's
+	// "run --tf-path <engine> --".
+	prefix   []string
 	dir      string
 	env      []string
 	initJSON bool
@@ -106,7 +109,7 @@ func (c *cli) stream(ctx context.Context, args ...string) (int, error) {
 // command interrupts the engine on cancel, so it can release its state
 // lock, and kills it 30 s later.
 func (c *cli) command(ctx context.Context, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, c.bin, args...) //nolint:gosec // the engine binary, checked against its SHA-256
+	cmd := exec.CommandContext(ctx, c.bin, append(append([]string{}, c.prefix...), args...)...) //nolint:gosec // the engine binary, checked against its SHA-256, or the image's Terragrunt
 	cmd.Dir = c.dir
 	cmd.Env = c.env
 	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }

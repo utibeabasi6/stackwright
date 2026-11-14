@@ -14,6 +14,9 @@ type Choice = { chosen: boolean; slug: string; engine: Engine; version: string; 
 // where says where a root's state lives and what that means for its runs
 // (adr/0036).
 function where(r: FoundRoot) {
+  if (r.units.length > 0) {
+    return `A Terragrunt stack of ${r.units.length} ${r.units.length === 1 ? "unit" : "units"}: runs plan them in dependency order, on the backends their remote_state names.`;
+  }
   if (r.stateBackend === StateBackend.CODE) return `Runs use its ${r.backend} backend, as the code says.`;
   if (r.committedState) return "Its state is committed to Git: runs plan from it and never apply.";
   return "It has a local backend and no state in the repository: runs only plan, and the first plan shows everything as new.";
@@ -159,19 +162,12 @@ export function Import() {
               </section>
             );
           })}
-          {(scan.modules.length > 0 || scan.terragruntUnits.length > 0) && (
+          {scan.modules.length > 0 && (
             <section className="card stack" aria-label="Not imported">
               <h2>Not imported</h2>
-              {scan.modules.length > 0 && (
-                <p className="hint">
-                  Modules that the folders above call: <span className="mono">{scan.modules.join(", ")}</span>.
-                </p>
-              )}
-              {scan.terragruntUnits.length > 0 && (
-                <p className="hint">
-                  Terragrunt units, which import once Stackwright runs Terragrunt: <span className="mono">{scan.terragruntUnits.join(", ")}</span>.
-                </p>
-              )}
+              <p className="hint">
+                Modules that the folders above call: <span className="mono">{scan.modules.join(", ")}</span>.
+              </p>
             </section>
           )}
           {(accounts.data?.length ?? 0) > 0 && (

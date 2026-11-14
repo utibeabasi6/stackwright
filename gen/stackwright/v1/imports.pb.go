@@ -162,8 +162,10 @@ type FoundRoot struct {
 	ExistingProject string `protobuf:"bytes,8,opt,name=existing_project,json=existingProject,proto3" json:"existing_project,omitempty"`
 	// A state file for it is in the repository.
 	CommittedState bool `protobuf:"varint,9,opt,name=committed_state,json=committedState,proto3" json:"committed_state,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// For a Terragrunt stack, its unit folders (adr/0041).
+	Units         []string `protobuf:"bytes,10,rep,name=units,proto3" json:"units,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FoundRoot) Reset() {
@@ -257,6 +259,13 @@ func (x *FoundRoot) GetCommittedState() bool {
 		return x.CommittedState
 	}
 	return false
+}
+
+func (x *FoundRoot) GetUnits() []string {
+	if x != nil {
+		return x.Units
+	}
+	return nil
 }
 
 type StartImportRequest struct {
@@ -742,7 +751,7 @@ const file_stackwright_v1_imports_proto_rawDesc = "" +
 	"\x06commit\x18\x01 \x01(\tR\x06commit\x12/\n" +
 	"\x05roots\x18\x02 \x03(\v2\x19.stackwright.v1.FoundRootR\x05roots\x12\x18\n" +
 	"\amodules\x18\x03 \x03(\tR\amodules\x12)\n" +
-	"\x10terragrunt_units\x18\x04 \x03(\tR\x0fterragruntUnits\"\xae\x03\n" +
+	"\x10terragrunt_units\x18\x04 \x03(\tR\x0fterragruntUnits\"\xc4\x03\n" +
 	"\tFoundRoot\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1e\n" +
 	"\n" +
@@ -754,7 +763,9 @@ const file_stackwright_v1_imports_proto_rawDesc = "" +
 	"\x06labels\x18\x06 \x03(\v2%.stackwright.v1.FoundRoot.LabelsEntryR\x06labels\x12\x12\n" +
 	"\x04slug\x18\a \x01(\tR\x04slug\x12)\n" +
 	"\x10existing_project\x18\b \x01(\tR\x0fexistingProject\x12'\n" +
-	"\x0fcommitted_state\x18\t \x01(\bR\x0ecommittedState\x1a9\n" +
+	"\x0fcommitted_state\x18\t \x01(\bR\x0ecommittedState\x12\x14\n" +
+	"\x05units\x18\n" +
+	" \x03(\tR\x05units\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x84\x01\n" +

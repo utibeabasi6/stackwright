@@ -284,6 +284,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	if job.SkippedChecks, err = pgx.CollectRows(rows, pgx.RowTo[string]); err != nil {
 		return nil, err
 	}
+	job.Terragrunt = layout == "terragrunt"
 	// A project on the code's backend runs it as written (adr/0036).
 	if stateBackend != "stackwright" {
 		job.CodeBackend = true

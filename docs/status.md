@@ -1232,3 +1232,44 @@ a Settings tab at the same time.
   below the VPCs.
 - Edges can cross nodes; the layout does not route around them.
 
+## Phase 18: Terragrunt
+
+Decision: [0041](adr/0041-terragrunt-stacks.md). The user chose a stack
+for each project, the real Terragrunt, and state where the code puts it.
+Terragrunt 1.2.1 is in the executor image, checked against its release's
+SHA-256 sums (1.2.2 was under 14 days old).
+
+**Verified on 2026-11-14:**
+- By hand, in Docker with Terragrunt 1.2.1 and OpenTofu 1.10.7:
+  `terragrunt find --dag --json --dependencies` lists units in
+  dependency order; `terragrunt run --tf-path <tofu> -- plan -json`
+  writes only OpenTofu's JSON lines on stdout; a unit plans with its
+  dependency's mock outputs; `show` through Terragrunt fails when mocks
+  are allowed for plan only, so OpenTofu shows the plan in Terragrunt's
+  working folder.
+- A Go test merges the real plans of three units (app and db depend on
+  vpc): the graph has `module.vpc`, `module.app` and `module.db` as
+  groups, each change keeps its unit prefix, and the planned values nest
+  under each unit.
+- A Go test with real sandboxes plans the same stack: the units plan
+  with vpc first, the plan graph has one group for each unit, and after
+  approval the apply runs vpc first and applies all three resources.
+- The importer groups units into stacks by `root.hcl` or a parent
+  `terragrunt.hcl`, and imports each stack as one project with the
+  Terragrunt layout on the code's backend. The wizard says how a stack
+  runs (Playwright).
+
+**Not verified:**
+- That app's apply used vpc's real output and not the mock.
+- A stack on S3 or any remote backend; the fixture uses local state.
+- An import of a Terragrunt repository end to end; the scan and the
+  layout are tested apart.
+
+**Known gaps:**
+- BUILD.md's "a unit cannot write its dependency's state" is not met. A
+  stack on Stackwright's own backend is refused: units need a state
+  each, and the state service keeps one for each workspace. On other
+  backends the cloud account's IAM decides.
+- The graph has no source links into units.
+- An apply that fails stops at that unit; the units after it do not run.
+

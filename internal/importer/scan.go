@@ -30,6 +30,9 @@ type Root struct {
 	Engine string
 	Slug   string
 	Labels map[string]string
+	// Units is set for a Terragrunt stack: the unit folders under Path,
+	// which run on the backends their remote_state names (adr/0041).
+	Units []string
 }
 
 type Result struct {
@@ -90,6 +93,7 @@ func Scan(repo string, names []string, files map[string][]byte) Result {
 		return folders[dir]
 	}
 	modules := map[string]bool{}
+	parents := map[string]bool{}
 	callsFrom := func(dir string, sources []string) {
 		for _, src := range sources {
 			if strings.HasPrefix(src, "./") || strings.HasPrefix(src, "../") {
@@ -108,6 +112,8 @@ func Scan(repo string, names []string, files map[string][]byte) Result {
 			unit, sources := terragrunt(src)
 			if unit {
 				at(dir).terragrunt = true
+			} else {
+				parents[dir] = true
 			}
 			callsFrom(dir, sources)
 		case strings.HasSuffix(base, ".tf") || strings.HasSuffix(base, ".tofu"):
@@ -160,6 +166,42 @@ func Scan(repo string, names []string, files map[string][]byte) Result {
 		}
 		root.Workspaces = append(root.Workspaces, cli...)
 		for _, part := range strings.Split(dir, "/") {
+			if environments[part] {
+				root.Labels["env"] = part
+			}
+		}
+		r.Roots = append(r.Roots, root)
+	}
+	// A unit's stack is the nearest folder above it with the stack's parent
+	// config: root.hcl, or a terragrunt.hcl that runs no module. With none,
+	// it is the unit's own parent folder.
+	stacks := map[string][]string{}
+	for _, n := range names {
+		if path.Base(n) == "root.hcl" && !hidden(n) {
+			parents[path.Dir(n)] = true
+		}
+	}
+	for _, unit := range r.Terragrunt {
+		stack := ""
+		if d := path.Dir(unit); d != "." {
+			stack = d
+		}
+		for d := path.Dir(unit); d != "."; d = path.Dir(d) {
+			if parents[d] {
+				stack = d
+				break
+			}
+		}
+		stacks[stack] = append(stacks[stack], unit)
+	}
+	for stack, units := range stacks {
+		slices.Sort(units)
+		root := Root{Path: stack, Workspaces: []string{"default"}, Backend: "terragrunt", Engine: "opentofu", Units: units,
+			Labels: map[string]string{"repo": repo}}
+		if stack != "" {
+			root.Labels["path"] = stack
+		}
+		for _, part := range strings.Split(stack, "/") {
 			if environments[part] {
 				root.Labels["env"] = part
 			}

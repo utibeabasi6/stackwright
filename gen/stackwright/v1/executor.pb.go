@@ -168,6 +168,9 @@ type Job struct {
 	// checks it skips (adr/0037).
 	Policies      []*PolicyFile `protobuf:"bytes,17,rep,name=policies,proto3" json:"policies,omitempty"`
 	SkippedChecks []string      `protobuf:"bytes,18,rep,name=skipped_checks,json=skippedChecks,proto3" json:"skipped_checks,omitempty"`
+	// The project path is a Terragrunt stack: its units run in dependency
+	// order (adr/0041).
+	Terragrunt    bool `protobuf:"varint,19,opt,name=terragrunt,proto3" json:"terragrunt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -326,6 +329,13 @@ func (x *Job) GetSkippedChecks() []string {
 		return x.SkippedChecks
 	}
 	return nil
+}
+
+func (x *Job) GetTerragrunt() bool {
+	if x != nil {
+		return x.Terragrunt
+	}
+	return false
 }
 
 type PolicyFile struct {
@@ -860,7 +870,7 @@ const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x16\n" +
 	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x15\n" +
-	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xd1\x06\n" +
+	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xf1\x06\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12:\n" +
@@ -881,7 +891,10 @@ const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"\fcode_backend\x18\x0f \x01(\bR\vcodeBackend\x12\x1c\n" +
 	"\tworkspace\x18\x10 \x01(\tR\tworkspace\x126\n" +
 	"\bpolicies\x18\x11 \x03(\v2\x1a.stackwright.v1.PolicyFileR\bpolicies\x12%\n" +
-	"\x0eskipped_checks\x18\x12 \x03(\tR\rskippedChecks\x1a:\n" +
+	"\x0eskipped_checks\x18\x12 \x03(\tR\rskippedChecks\x12\x1e\n" +
+	"\n" +
+	"terragrunt\x18\x13 \x01(\bR\n" +
+	"terragrunt\x1a:\n" +
 	"\fUploadsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"4\n" +

@@ -77,6 +77,9 @@ const (
 	Layout_LAYOUT_UNSPECIFIED    Layout = 0
 	Layout_LAYOUT_PLAIN          Layout = 1
 	Layout_LAYOUT_CLI_WORKSPACES Layout = 2
+	// A folder of Terragrunt units that run in dependency order, on the
+	// backend their remote_state names (adr/0041).
+	Layout_LAYOUT_TERRAGRUNT Layout = 3
 )
 
 // Enum value maps for Layout.
@@ -85,11 +88,13 @@ var (
 		0: "LAYOUT_UNSPECIFIED",
 		1: "LAYOUT_PLAIN",
 		2: "LAYOUT_CLI_WORKSPACES",
+		3: "LAYOUT_TERRAGRUNT",
 	}
 	Layout_value = map[string]int32{
 		"LAYOUT_UNSPECIFIED":    0,
 		"LAYOUT_PLAIN":          1,
 		"LAYOUT_CLI_WORKSPACES": 2,
+		"LAYOUT_TERRAGRUNT":     3,
 	}
 )
 
@@ -1664,11 +1669,12 @@ const file_stackwright_v1_projects_proto_rawDesc = "" +
 	"\x06Engine\x12\x16\n" +
 	"\x12ENGINE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fENGINE_OPENTOFU\x10\x01\x12\x14\n" +
-	"\x10ENGINE_TERRAFORM\x10\x02*M\n" +
+	"\x10ENGINE_TERRAFORM\x10\x02*d\n" +
 	"\x06Layout\x12\x16\n" +
 	"\x12LAYOUT_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fLAYOUT_PLAIN\x10\x01\x12\x19\n" +
-	"\x15LAYOUT_CLI_WORKSPACES\x10\x02*{\n" +
+	"\x15LAYOUT_CLI_WORKSPACES\x10\x02\x12\x15\n" +
+	"\x11LAYOUT_TERRAGRUNT\x10\x03*{\n" +
 	"\fStateBackend\x12\x1d\n" +
 	"\x19STATE_BACKEND_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19STATE_BACKEND_STACKWRIGHT\x10\x01\x12\x16\n" +

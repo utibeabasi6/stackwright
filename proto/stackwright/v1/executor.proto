@@ -56,6 +56,9 @@ message Job {
   // checks it skips (adr/0037).
   repeated PolicyFile policies = 17;
   repeated string skipped_checks = 18;
+  // The project path is a Terragrunt stack: its units run in dependency
+  // order (adr/0041).
+  bool terragrunt = 19;
 }
 
 message PolicyFile {

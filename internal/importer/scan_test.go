@@ -69,7 +69,14 @@ func TestScanFindsEachFixtureLayout(t *testing.T) {
 			{Path: "infra", Workspaces: []string{"default"}, Backend: "local", CommittedState: true, Engine: "opentofu", Slug: "infra",
 				Labels: labels("path", "infra")},
 		}}},
-		{"terragrunt", Result{Modules: []string{"modules/vpc"}, Terragrunt: []string{"live/prod/vpc"}}},
+		{"terragrunt", Result{
+			Roots: []Root{
+				{Path: "live", Workspaces: []string{"default"}, Backend: "terragrunt", Engine: "opentofu", Slug: "live", Labels: labels("path", "live"),
+					Units: []string{"live/prod/vpc"}},
+			},
+			Modules:    []string{"modules/vpc"},
+			Terragrunt: []string{"live/prod/vpc"},
+		}},
 		{"engines", Result{Roots: []Root{
 			{Path: "apps/api", Workspaces: []string{"default"}, Backend: "local", Engine: "opentofu", Slug: "apps-api", Labels: labels("path", "apps/api")},
 			{Path: "apps/batch", Workspaces: []string{"default"}, Backend: "local", Engine: "terraform", Slug: "apps-batch",

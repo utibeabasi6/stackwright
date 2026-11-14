@@ -456,7 +456,7 @@ func TestEngineVersionsComeFromTheReleases(t *testing.T) {
 			t.Errorf("OpenTofu below 1.8.0 is listed: %v", got)
 		}
 	}
-	if _, code := owner.call("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "new", "engine": "ENGINE_TERRAFORM",
+	if _, code := owner.call("ProjectService/CreateProject", map[string]any{"org": "a", "slug": "tf117", "engine": "ENGINE_TERRAFORM",
 		"engineVersion": "1.17.2", "layout": "LAYOUT_PLAIN"}); code != "" {
 		t.Errorf("Terraform 1.17.2: %q", code)
 	}

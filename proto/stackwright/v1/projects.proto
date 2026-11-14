@@ -43,6 +43,9 @@ enum Layout {
   LAYOUT_UNSPECIFIED = 0;
   LAYOUT_PLAIN = 1;
   LAYOUT_CLI_WORKSPACES = 2;
+  // A folder of Terragrunt units that run in dependency order, on the
+  // backend their remote_state names (adr/0041).
+  LAYOUT_TERRAGRUNT = 3;
 }
 
 // StateBackend says where a project's state lives (adr/0036).

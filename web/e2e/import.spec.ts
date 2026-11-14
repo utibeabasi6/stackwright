@@ -30,6 +30,8 @@ test("the import wizard scans, imports and shows each first plan, and a reload k
           labels: { repo: "acme/infra", path: "envs/prod", env: "prod" } },
         { path: "legacy", workspaces: ["default"], stateBackend: "STATE_BACKEND_GIT", backend: "local", engine: "ENGINE_OPENTOFU", slug: "legacy",
           labels: {}, committedState: true, existingProject: "legacy" },
+        { path: "live", workspaces: ["default"], stateBackend: "STATE_BACKEND_CODE", backend: "terragrunt", engine: "ENGINE_OPENTOFU", slug: "live",
+          labels: { repo: "acme/infra", path: "live" }, units: ["live/prod/vpc"], existingProject: "live" },
       ],
       modules: ["modules/network"],
       terragruntUnits: ["live/prod/vpc"],
@@ -48,7 +50,9 @@ test("the import wizard scans, imports and shows each first plan, and a reload k
   await expect(page.getByText("Runs use its s3 backend, as the code says.").first()).toBeVisible();
   await expect(page.getByText("Its state is committed to Git: runs plan from it and never apply.")).toBeVisible();
   await expect(page.getByText("Imported as legacy")).toBeVisible();
-  await expect(page.getByText("live/prod/vpc")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Folder live" }).getByText("A Terragrunt stack of 1 unit: runs plan them in dependency order, on the backends their remote_state names."),
+  ).toBeVisible();
   const legacy = page.getByRole("region", { name: "Folder legacy" }).getByRole("checkbox");
   await expect(legacy).not.toBeChecked();
 

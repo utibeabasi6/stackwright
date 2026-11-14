@@ -200,7 +200,7 @@ func (r *runner) run(ctx context.Context) (err error) {
 	if !job.GetCodeBackend() {
 		files[filepath.Join(dir, "stackwright_override.tf")] = []byte("terraform {\n  backend \"http\" {\n    username = \"stackwright\"\n  }\n}\n")
 	}
-	if b, ok := inputs["plan.bin"]; ok {
+	if b, ok := inputs["plan.bin"]; ok && !job.GetTerragrunt() {
 		files[plan] = b
 	}
 	if b, ok := inputs["lock.hcl"]; ok {
@@ -237,6 +237,12 @@ func (r *runner) run(ctx context.Context) (err error) {
 			return &stageError{"source", err}
 		}
 		env = append(env, "TF_CLI_CONFIG_FILE="+config)
+	}
+	if job.GetTerragrunt() {
+		if !job.GetCodeBackend() {
+			return &stageError{"source", errors.New("a Terragrunt stack runs on the backends its remote_state names, not on Stackwright's")}
+		}
+		return r.terragrunt(ctx, binPath, dir, root, env, inputs["plan.bin"])
 	}
 	initJSON := job.GetEngine() == v1.Engine_ENGINE_OPENTOFU
 	if !initJSON {
@@ -282,6 +288,13 @@ func (r *runner) run(ctx context.Context) (err error) {
 			return &stageError{"artifacts", err}
 		}
 	}
+	return r.finishPlan(ctx, planJSON, root, dir, plan)
+}
+
+// finishPlan uploads a plan's JSON, its security scan, the source map and
+// the tree the plan left, without skip.
+func (r *runner) finishPlan(ctx context.Context, planJSON []byte, root, dir, skip string) error {
+	job := r.job
 	if err := r.upload(ctx, "plan.json", planJSON); err != nil {
 		return &stageError{"artifacts", err}
 	}
@@ -304,7 +317,7 @@ func (r *runner) run(ctx context.Context) (err error) {
 	if err := r.upload(ctx, "sources.json", b); err != nil {
 		return &stageError{"artifacts", err}
 	}
-	workdir, err := tarTree(root, plan)
+	workdir, err := tarTree(root, skip)
 	if err != nil {
 		return &stageError{"artifacts", err}
 	}
@@ -524,7 +537,7 @@ func tarTree(dir, skip string) ([]byte, error) {
 		if err != nil || path == dir || path == skip {
 			return err
 		}
-		if d.IsDir() && d.Name() == ".terraform" {
+		if d.IsDir() && (d.Name() == ".terraform" || d.Name() == ".terragrunt-cache") {
 			return filepath.SkipDir
 		}
 		if !d.IsDir() && !d.Type().IsRegular() {

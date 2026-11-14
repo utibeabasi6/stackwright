@@ -50,6 +50,7 @@ Each decision has a record in [adr/](adr/).
 | Importer | Runs use the code's own backend, so the repo still works alone; committed state is plan-only; no state copy, no migration PR | [0036](adr/0036-importer-and-the-codes-backend.md) |
 | Security review | Trivy scans each plan in the sandbox, offline; Rego policy sets are Trivy custom checks; findings by workspace, check and resource; High on what the plan changes blocks; the security role or an admin accepts a risk for up to 90 days; a nightly plan | [0037](adr/0037-security-review-with-trivy.md) |
 | Topology | Each workspace's latest own-code plan, joined by AWS id, or by configuration reference inside a workspace; one topology for each project, with other projects as dimmed context; zones as columns, laid out by the web app | [0038](adr/0038-topology-from-plans.md), [0039](adr/0039-topology-per-project.md) |
+| Terragrunt | A stack is a project; the real Terragrunt runs units in dependency order with the checked OpenTofu; one merged plan with a module for each unit; state where the code puts it | [0041](adr/0041-terragrunt-stacks.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**
@@ -658,7 +659,7 @@ latest plans, with planned changes and findings on top.
 - Units as groups in the graph.
 
 **Done when.**
-- [ ] The Terragrunt fixture plans its units in dependency order
+- [x] The Terragrunt fixture plans its units in dependency order
 - [ ] A unit cannot write its dependency's state
 
 **Depends on:** 10, 15.

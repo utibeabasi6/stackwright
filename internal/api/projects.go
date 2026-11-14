@@ -38,7 +38,8 @@ type Projects struct {
 }
 
 var engines = map[v1.Engine]string{v1.Engine_ENGINE_OPENTOFU: "opentofu", v1.Engine_ENGINE_TERRAFORM: "terraform"}
-var layouts = map[v1.Layout]string{v1.Layout_LAYOUT_PLAIN: "plain", v1.Layout_LAYOUT_CLI_WORKSPACES: "cli_workspaces"}
+var layouts = map[v1.Layout]string{v1.Layout_LAYOUT_PLAIN: "plain", v1.Layout_LAYOUT_CLI_WORKSPACES: "cli_workspaces",
+	v1.Layout_LAYOUT_TERRAGRUNT: "terragrunt"}
 
 var stateBackends = map[v1.StateBackend]string{v1.StateBackend_STATE_BACKEND_STACKWRIGHT: "stackwright", v1.StateBackend_STATE_BACKEND_CODE: "code",
 	v1.StateBackend_STATE_BACKEND_GIT: "git"}

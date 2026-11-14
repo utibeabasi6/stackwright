@@ -70,7 +70,8 @@ func (h Imports) ScanRepository(ctx context.Context, req *connect.Request[v1.Sca
 			return nil, authz.Internal(err)
 		}
 		out.Roots = append(out.Roots, &v1.FoundRoot{Path: r.Path, Workspaces: r.Workspaces, StateBackend: backendOf(r), Backend: r.Backend,
-			Engine: key(engines, r.Engine), Labels: r.Labels, Slug: r.Slug, ExistingProject: existing, CommittedState: r.CommittedState})
+			Engine: key(engines, r.Engine), Labels: r.Labels, Slug: r.Slug, ExistingProject: existing, CommittedState: r.CommittedState,
+			Units: r.Units})
 	}
 	return connect.NewResponse(out), nil
 }
@@ -124,7 +125,10 @@ func (h Imports) StartImport(ctx context.Context, req *connect.Request[v1.StartI
 				return nil, err
 			}
 			layout := v1.Layout_LAYOUT_PLAIN
-			if !slices.Equal(root.Workspaces, []string{"default"}) {
+			switch {
+			case len(root.Units) > 0:
+				layout = v1.Layout_LAYOUT_TERRAGRUNT
+			case !slices.Equal(root.Workspaces, []string{"default"}):
 				layout = v1.Layout_LAYOUT_CLI_WORKSPACES
 			}
 			if _, err := insertProject(ctx, s, &v1.Project{Slug: chosen.Slug, Path: root.Path, Engine: chosen.Engine,

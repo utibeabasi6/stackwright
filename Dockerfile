@@ -50,12 +50,25 @@ RUN case "$TARGETARCH" in \
     echo "$sum  /tmp/trivy.tar.gz" | sha256sum -c - && \
     tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy
 
+FROM alpine:3.22.2 AS terragrunt
+ARG TARGETARCH
+ARG TERRAGRUNT_VERSION=1.2.1
+RUN case "$TARGETARCH" in \
+      arm64) sum=01c0768aab01e0c183209ba7edce9d2ebc8f8a7690763bb52f1b8900aec224bc ;; \
+      amd64) sum=f2f6238ad2348855a4e876b90fd31f3f5d106bb234794202a00b2bcc139fa753 ;; \
+      *) echo "no terragrunt for $TARGETARCH"; exit 1 ;; \
+    esac && \
+    wget -q -O /usr/local/bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${TARGETARCH}" && \
+    echo "$sum  /usr/local/bin/terragrunt" | sha256sum -c - && \
+    chmod 0755 /usr/local/bin/terragrunt
+
 # Alpine for git, which the engines use to download most modules
 # (adr/0024). The sandbox still runs as 65532 with a read-only root.
 FROM alpine:3.22.2 AS executor
 RUN apk add --no-cache git ca-certificates
 COPY --from=tofu-ls /usr/local/bin/tofu-ls /usr/local/bin/tofu-ls
 COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
+COPY --from=terragrunt /usr/local/bin/terragrunt /usr/local/bin/terragrunt
 USER 65532:65532
 COPY --from=go /out/stackwright-executor /stackwright-executor
 COPY --from=go --chown=65532:65532 /out/files /run/stackwright

@@ -53,6 +53,8 @@ message FoundRoot {
   string existing_project = 8;
   // A state file for it is in the repository.
   bool committed_state = 9;
+  // For a Terragrunt stack, its unit folders (adr/0041).
+  repeated string units = 10;
 }
 
 message StartImportRequest {
