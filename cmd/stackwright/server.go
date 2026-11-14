@@ -176,6 +176,7 @@ func runServer(args []string) error {
 		KEK:       kek,
 		PublicURL: publicURL,
 		SetupCode: setupCode,
+		CLIDir:    config.Env("STACKWRIGHT_CLI_DIR", "/cli"),
 		Web:       web,
 		State:     state.Store{S3: s3, Bucket: bucket, KEK: kek},
 		Jobs:      jobService,

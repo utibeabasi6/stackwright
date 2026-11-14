@@ -9,6 +9,7 @@ package stackwrightv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -953,11 +954,496 @@ func (x *AcceptInviteResponse) GetOrgSlug() string {
 	return ""
 }
 
+type GetDeviceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserCode      string                 `protobuf:"bytes,1,opt,name=user_code,json=userCode,proto3" json:"user_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDeviceRequest) Reset() {
+	*x = GetDeviceRequest{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDeviceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDeviceRequest) ProtoMessage() {}
+
+func (x *GetDeviceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDeviceRequest.ProtoReflect.Descriptor instead.
+func (*GetDeviceRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetDeviceRequest) GetUserCode() string {
+	if x != nil {
+		return x.UserCode
+	}
+	return ""
+}
+
+type GetDeviceResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The machine name the CLI sent.
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDeviceResponse) Reset() {
+	*x = GetDeviceResponse{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDeviceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDeviceResponse) ProtoMessage() {}
+
+func (x *GetDeviceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDeviceResponse.ProtoReflect.Descriptor instead.
+func (*GetDeviceResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetDeviceResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetDeviceResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ApproveDeviceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserCode      string                 `protobuf:"bytes,1,opt,name=user_code,json=userCode,proto3" json:"user_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApproveDeviceRequest) Reset() {
+	*x = ApproveDeviceRequest{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApproveDeviceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApproveDeviceRequest) ProtoMessage() {}
+
+func (x *ApproveDeviceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApproveDeviceRequest.ProtoReflect.Descriptor instead.
+func (*ApproveDeviceRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ApproveDeviceRequest) GetUserCode() string {
+	if x != nil {
+		return x.UserCode
+	}
+	return ""
+}
+
+type ApproveDeviceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApproveDeviceResponse) Reset() {
+	*x = ApproveDeviceResponse{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApproveDeviceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApproveDeviceResponse) ProtoMessage() {}
+
+func (x *ApproveDeviceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApproveDeviceResponse.ProtoReflect.Descriptor instead.
+func (*ApproveDeviceResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{22}
+}
+
+type DenyDeviceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserCode      string                 `protobuf:"bytes,1,opt,name=user_code,json=userCode,proto3" json:"user_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DenyDeviceRequest) Reset() {
+	*x = DenyDeviceRequest{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DenyDeviceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DenyDeviceRequest) ProtoMessage() {}
+
+func (x *DenyDeviceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DenyDeviceRequest.ProtoReflect.Descriptor instead.
+func (*DenyDeviceRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *DenyDeviceRequest) GetUserCode() string {
+	if x != nil {
+		return x.UserCode
+	}
+	return ""
+}
+
+type DenyDeviceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DenyDeviceResponse) Reset() {
+	*x = DenyDeviceResponse{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DenyDeviceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DenyDeviceResponse) ProtoMessage() {}
+
+func (x *DenyDeviceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DenyDeviceResponse.ProtoReflect.Descriptor instead.
+func (*DenyDeviceResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{24}
+}
+
+type CliToken struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastUsedAt    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CliToken) Reset() {
+	*x = CliToken{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CliToken) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CliToken) ProtoMessage() {}
+
+func (x *CliToken) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CliToken.ProtoReflect.Descriptor instead.
+func (*CliToken) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *CliToken) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CliToken) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CliToken) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *CliToken) GetLastUsedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastUsedAt
+	}
+	return nil
+}
+
+type ListCliTokensRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCliTokensRequest) Reset() {
+	*x = ListCliTokensRequest{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCliTokensRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCliTokensRequest) ProtoMessage() {}
+
+func (x *ListCliTokensRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCliTokensRequest.ProtoReflect.Descriptor instead.
+func (*ListCliTokensRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{26}
+}
+
+type ListCliTokensResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tokens        []*CliToken            `protobuf:"bytes,1,rep,name=tokens,proto3" json:"tokens,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCliTokensResponse) Reset() {
+	*x = ListCliTokensResponse{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCliTokensResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCliTokensResponse) ProtoMessage() {}
+
+func (x *ListCliTokensResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCliTokensResponse.ProtoReflect.Descriptor instead.
+func (*ListCliTokensResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ListCliTokensResponse) GetTokens() []*CliToken {
+	if x != nil {
+		return x.Tokens
+	}
+	return nil
+}
+
+type RevokeCliTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeCliTokenRequest) Reset() {
+	*x = RevokeCliTokenRequest{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeCliTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeCliTokenRequest) ProtoMessage() {}
+
+func (x *RevokeCliTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeCliTokenRequest.ProtoReflect.Descriptor instead.
+func (*RevokeCliTokenRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RevokeCliTokenRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type RevokeCliTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeCliTokenResponse) Reset() {
+	*x = RevokeCliTokenResponse{}
+	mi := &file_stackwright_v1_auth_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeCliTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeCliTokenResponse) ProtoMessage() {}
+
+func (x *RevokeCliTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_auth_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeCliTokenResponse.ProtoReflect.Descriptor instead.
+func (*RevokeCliTokenResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_auth_proto_rawDescGZIP(), []int{29}
+}
+
 var File_stackwright_v1_auth_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x19stackwright/v1/auth.proto\x12\x0estackwright.v1\x1a\x19stackwright/v1/orgs.proto\"\x11\n" +
+	"\x19stackwright/v1/auth.proto\x12\x0estackwright.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19stackwright/v1/orgs.proto\"\x11\n" +
 	"\x0fGetSetupRequest\"*\n" +
 	"\x10GetSetupResponse\x12\x16\n" +
 	"\x06needed\x18\x01 \x01(\bR\x06needed\"\xb1\x01\n" +
@@ -1009,7 +1495,32 @@ const file_stackwright_v1_auth_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
 	"\bpassword\x18\x03 \x01(\tR\bpassword\"1\n" +
 	"\x14AcceptInviteResponse\x12\x19\n" +
-	"\borg_slug\x18\x01 \x01(\tR\aorgSlug2\xc6\x05\n" +
+	"\borg_slug\x18\x01 \x01(\tR\aorgSlug\"/\n" +
+	"\x10GetDeviceRequest\x12\x1b\n" +
+	"\tuser_code\x18\x01 \x01(\tR\buserCode\"b\n" +
+	"\x11GetDeviceResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x129\n" +
+	"\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"3\n" +
+	"\x14ApproveDeviceRequest\x12\x1b\n" +
+	"\tuser_code\x18\x01 \x01(\tR\buserCode\"\x17\n" +
+	"\x15ApproveDeviceResponse\"0\n" +
+	"\x11DenyDeviceRequest\x12\x1b\n" +
+	"\tuser_code\x18\x01 \x01(\tR\buserCode\"\x14\n" +
+	"\x12DenyDeviceResponse\"\xa7\x01\n" +
+	"\bCliToken\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\flast_used_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastUsedAt\"\x16\n" +
+	"\x14ListCliTokensRequest\"I\n" +
+	"\x15ListCliTokensResponse\x120\n" +
+	"\x06tokens\x18\x01 \x03(\v2\x18.stackwright.v1.CliTokenR\x06tokens\"'\n" +
+	"\x15RevokeCliTokenRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x18\n" +
+	"\x16RevokeCliTokenResponse2\x94\t\n" +
 	"\vAuthService\x12R\n" +
 	"\bGetSetup\x12\x1f.stackwright.v1.GetSetupRequest\x1a .stackwright.v1.GetSetupResponse\"\x03\x90\x02\x01\x12\\\n" +
 	"\rCompleteSetup\x12$.stackwright.v1.CompleteSetupRequest\x1a%.stackwright.v1.CompleteSetupResponse\x12G\n" +
@@ -1018,7 +1529,13 @@ const file_stackwright_v1_auth_proto_rawDesc = "" +
 	"\x05GetMe\x12\x1c.stackwright.v1.GetMeRequest\x1a\x1d.stackwright.v1.GetMeResponse\"\x03\x90\x02\x01\x12s\n" +
 	"\x13ListSignInProviders\x12*.stackwright.v1.ListSignInProvidersRequest\x1a+.stackwright.v1.ListSignInProvidersResponse\"\x03\x90\x02\x01\x12U\n" +
 	"\tGetInvite\x12 .stackwright.v1.GetInviteRequest\x1a!.stackwright.v1.GetInviteResponse\"\x03\x90\x02\x01\x12Y\n" +
-	"\fAcceptInvite\x12#.stackwright.v1.AcceptInviteRequest\x1a$.stackwright.v1.AcceptInviteResponseB\xbd\x01\n" +
+	"\fAcceptInvite\x12#.stackwright.v1.AcceptInviteRequest\x1a$.stackwright.v1.AcceptInviteResponse\x12U\n" +
+	"\tGetDevice\x12 .stackwright.v1.GetDeviceRequest\x1a!.stackwright.v1.GetDeviceResponse\"\x03\x90\x02\x01\x12\\\n" +
+	"\rApproveDevice\x12$.stackwright.v1.ApproveDeviceRequest\x1a%.stackwright.v1.ApproveDeviceResponse\x12S\n" +
+	"\n" +
+	"DenyDevice\x12!.stackwright.v1.DenyDeviceRequest\x1a\".stackwright.v1.DenyDeviceResponse\x12a\n" +
+	"\rListCliTokens\x12$.stackwright.v1.ListCliTokensRequest\x1a%.stackwright.v1.ListCliTokensResponse\"\x03\x90\x02\x01\x12_\n" +
+	"\x0eRevokeCliToken\x12%.stackwright.v1.RevokeCliTokenRequest\x1a&.stackwright.v1.RevokeCliTokenResponseB\xbd\x01\n" +
 	"\x12com.stackwright.v1B\tAuthProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
 var (
@@ -1033,7 +1550,7 @@ func file_stackwright_v1_auth_proto_rawDescGZIP() []byte {
 	return file_stackwright_v1_auth_proto_rawDescData
 }
 
-var file_stackwright_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_stackwright_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_stackwright_v1_auth_proto_goTypes = []any{
 	(*GetSetupRequest)(nil),             // 0: stackwright.v1.GetSetupRequest
 	(*GetSetupResponse)(nil),            // 1: stackwright.v1.GetSetupResponse
@@ -1054,35 +1571,61 @@ var file_stackwright_v1_auth_proto_goTypes = []any{
 	(*GetInviteResponse)(nil),           // 16: stackwright.v1.GetInviteResponse
 	(*AcceptInviteRequest)(nil),         // 17: stackwright.v1.AcceptInviteRequest
 	(*AcceptInviteResponse)(nil),        // 18: stackwright.v1.AcceptInviteResponse
-	(Role)(0),                           // 19: stackwright.v1.Role
+	(*GetDeviceRequest)(nil),            // 19: stackwright.v1.GetDeviceRequest
+	(*GetDeviceResponse)(nil),           // 20: stackwright.v1.GetDeviceResponse
+	(*ApproveDeviceRequest)(nil),        // 21: stackwright.v1.ApproveDeviceRequest
+	(*ApproveDeviceResponse)(nil),       // 22: stackwright.v1.ApproveDeviceResponse
+	(*DenyDeviceRequest)(nil),           // 23: stackwright.v1.DenyDeviceRequest
+	(*DenyDeviceResponse)(nil),          // 24: stackwright.v1.DenyDeviceResponse
+	(*CliToken)(nil),                    // 25: stackwright.v1.CliToken
+	(*ListCliTokensRequest)(nil),        // 26: stackwright.v1.ListCliTokensRequest
+	(*ListCliTokensResponse)(nil),       // 27: stackwright.v1.ListCliTokensResponse
+	(*RevokeCliTokenRequest)(nil),       // 28: stackwright.v1.RevokeCliTokenRequest
+	(*RevokeCliTokenResponse)(nil),      // 29: stackwright.v1.RevokeCliTokenResponse
+	(Role)(0),                           // 30: stackwright.v1.Role
+	(*timestamppb.Timestamp)(nil),       // 31: google.protobuf.Timestamp
 }
 var file_stackwright_v1_auth_proto_depIdxs = []int32{
 	10, // 0: stackwright.v1.GetMeResponse.user:type_name -> stackwright.v1.User
 	11, // 1: stackwright.v1.GetMeResponse.orgs:type_name -> stackwright.v1.OrgMembership
-	19, // 2: stackwright.v1.OrgMembership.role:type_name -> stackwright.v1.Role
+	30, // 2: stackwright.v1.OrgMembership.role:type_name -> stackwright.v1.Role
 	14, // 3: stackwright.v1.ListSignInProvidersResponse.providers:type_name -> stackwright.v1.SignInProviderButton
-	19, // 4: stackwright.v1.GetInviteResponse.role:type_name -> stackwright.v1.Role
-	0,  // 5: stackwright.v1.AuthService.GetSetup:input_type -> stackwright.v1.GetSetupRequest
-	2,  // 6: stackwright.v1.AuthService.CompleteSetup:input_type -> stackwright.v1.CompleteSetupRequest
-	4,  // 7: stackwright.v1.AuthService.SignIn:input_type -> stackwright.v1.SignInRequest
-	6,  // 8: stackwright.v1.AuthService.SignOut:input_type -> stackwright.v1.SignOutRequest
-	8,  // 9: stackwright.v1.AuthService.GetMe:input_type -> stackwright.v1.GetMeRequest
-	12, // 10: stackwright.v1.AuthService.ListSignInProviders:input_type -> stackwright.v1.ListSignInProvidersRequest
-	15, // 11: stackwright.v1.AuthService.GetInvite:input_type -> stackwright.v1.GetInviteRequest
-	17, // 12: stackwright.v1.AuthService.AcceptInvite:input_type -> stackwright.v1.AcceptInviteRequest
-	1,  // 13: stackwright.v1.AuthService.GetSetup:output_type -> stackwright.v1.GetSetupResponse
-	3,  // 14: stackwright.v1.AuthService.CompleteSetup:output_type -> stackwright.v1.CompleteSetupResponse
-	5,  // 15: stackwright.v1.AuthService.SignIn:output_type -> stackwright.v1.SignInResponse
-	7,  // 16: stackwright.v1.AuthService.SignOut:output_type -> stackwright.v1.SignOutResponse
-	9,  // 17: stackwright.v1.AuthService.GetMe:output_type -> stackwright.v1.GetMeResponse
-	13, // 18: stackwright.v1.AuthService.ListSignInProviders:output_type -> stackwright.v1.ListSignInProvidersResponse
-	16, // 19: stackwright.v1.AuthService.GetInvite:output_type -> stackwright.v1.GetInviteResponse
-	18, // 20: stackwright.v1.AuthService.AcceptInvite:output_type -> stackwright.v1.AcceptInviteResponse
-	13, // [13:21] is the sub-list for method output_type
-	5,  // [5:13] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	30, // 4: stackwright.v1.GetInviteResponse.role:type_name -> stackwright.v1.Role
+	31, // 5: stackwright.v1.GetDeviceResponse.created_at:type_name -> google.protobuf.Timestamp
+	31, // 6: stackwright.v1.CliToken.created_at:type_name -> google.protobuf.Timestamp
+	31, // 7: stackwright.v1.CliToken.last_used_at:type_name -> google.protobuf.Timestamp
+	25, // 8: stackwright.v1.ListCliTokensResponse.tokens:type_name -> stackwright.v1.CliToken
+	0,  // 9: stackwright.v1.AuthService.GetSetup:input_type -> stackwright.v1.GetSetupRequest
+	2,  // 10: stackwright.v1.AuthService.CompleteSetup:input_type -> stackwright.v1.CompleteSetupRequest
+	4,  // 11: stackwright.v1.AuthService.SignIn:input_type -> stackwright.v1.SignInRequest
+	6,  // 12: stackwright.v1.AuthService.SignOut:input_type -> stackwright.v1.SignOutRequest
+	8,  // 13: stackwright.v1.AuthService.GetMe:input_type -> stackwright.v1.GetMeRequest
+	12, // 14: stackwright.v1.AuthService.ListSignInProviders:input_type -> stackwright.v1.ListSignInProvidersRequest
+	15, // 15: stackwright.v1.AuthService.GetInvite:input_type -> stackwright.v1.GetInviteRequest
+	17, // 16: stackwright.v1.AuthService.AcceptInvite:input_type -> stackwright.v1.AcceptInviteRequest
+	19, // 17: stackwright.v1.AuthService.GetDevice:input_type -> stackwright.v1.GetDeviceRequest
+	21, // 18: stackwright.v1.AuthService.ApproveDevice:input_type -> stackwright.v1.ApproveDeviceRequest
+	23, // 19: stackwright.v1.AuthService.DenyDevice:input_type -> stackwright.v1.DenyDeviceRequest
+	26, // 20: stackwright.v1.AuthService.ListCliTokens:input_type -> stackwright.v1.ListCliTokensRequest
+	28, // 21: stackwright.v1.AuthService.RevokeCliToken:input_type -> stackwright.v1.RevokeCliTokenRequest
+	1,  // 22: stackwright.v1.AuthService.GetSetup:output_type -> stackwright.v1.GetSetupResponse
+	3,  // 23: stackwright.v1.AuthService.CompleteSetup:output_type -> stackwright.v1.CompleteSetupResponse
+	5,  // 24: stackwright.v1.AuthService.SignIn:output_type -> stackwright.v1.SignInResponse
+	7,  // 25: stackwright.v1.AuthService.SignOut:output_type -> stackwright.v1.SignOutResponse
+	9,  // 26: stackwright.v1.AuthService.GetMe:output_type -> stackwright.v1.GetMeResponse
+	13, // 27: stackwright.v1.AuthService.ListSignInProviders:output_type -> stackwright.v1.ListSignInProvidersResponse
+	16, // 28: stackwright.v1.AuthService.GetInvite:output_type -> stackwright.v1.GetInviteResponse
+	18, // 29: stackwright.v1.AuthService.AcceptInvite:output_type -> stackwright.v1.AcceptInviteResponse
+	20, // 30: stackwright.v1.AuthService.GetDevice:output_type -> stackwright.v1.GetDeviceResponse
+	22, // 31: stackwright.v1.AuthService.ApproveDevice:output_type -> stackwright.v1.ApproveDeviceResponse
+	24, // 32: stackwright.v1.AuthService.DenyDevice:output_type -> stackwright.v1.DenyDeviceResponse
+	27, // 33: stackwright.v1.AuthService.ListCliTokens:output_type -> stackwright.v1.ListCliTokensResponse
+	29, // 34: stackwright.v1.AuthService.RevokeCliToken:output_type -> stackwright.v1.RevokeCliTokenResponse
+	22, // [22:35] is the sub-list for method output_type
+	9,  // [9:22] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_stackwright_v1_auth_proto_init() }
@@ -1097,7 +1640,7 @@ func file_stackwright_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stackwright_v1_auth_proto_rawDesc), len(file_stackwright_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

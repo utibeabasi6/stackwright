@@ -123,18 +123,24 @@ func (h Runs) CreateRun(ctx context.Context, req *connect.Request[v1.CreateRunRe
 		}
 		return h.created(ctx, s, m, r)
 	}
-	head, linked, err := h.GitHub.BranchHead(ctx, s.Tx, s.OrgID, ws)
-	switch {
-	case linked && len(m.Source) > 0:
-		return nil, invalid("this project runs from its GitHub repository; uploads are for projects with no repository")
-	case linked && err != nil:
-		return nil, githubError(err)
-	case linked:
-		head.PlanOnly, head.CreatedBy = m.PlanOnly, s.UserID
-		return h.created(ctx, s, m, head)
+	// A speculative plan from the CLI plans the upload on any project and
+	// never applies (adr/0044).
+	if !m.Speculative {
+		head, linked, err := h.GitHub.BranchHead(ctx, s.Tx, s.OrgID, ws)
+		switch {
+		case linked && len(m.Source) > 0:
+			return nil, invalid("this project runs from its GitHub repository; uploads are for projects with no repository")
+		case linked && err != nil:
+			return nil, githubError(err)
+		case linked:
+			head.PlanOnly, head.CreatedBy = m.PlanOnly, s.UserID
+			return h.created(ctx, s, m, head)
+		}
 	}
 	source, name := m.Source, strings.TrimSpace(m.SourceName)
 	switch {
+	case len(source) == 0 && m.Speculative:
+		return nil, invalid("a speculative plan needs an upload of the working tree")
 	case len(source) == 0:
 		var sample bool
 		if err := s.Tx.QueryRow(ctx, `SELECT p.sample FROM projects p JOIN workspaces w ON w.project_id = p.id WHERE w.id = $1`, ws).Scan(&sample); err != nil {
@@ -158,13 +164,18 @@ func (h Runs) CreateRun(ctx context.Context, req *connect.Request[v1.CreateRunRe
 		name = name[:maxSourceName]
 	}
 	sum := sha256.Sum256(source)
-	return h.created(ctx, s, m, runs.NewRun{
-		WorkspaceID: ws, PlanOnly: m.PlanOnly, Source: source, SourceName: name, SourceSHA: hex.EncodeToString(sum[:]), CreatedBy: s.UserID,
-	})
+	r := runs.NewRun{WorkspaceID: ws, PlanOnly: m.PlanOnly, Source: source, SourceName: name, SourceSHA: hex.EncodeToString(sum[:]), CreatedBy: s.UserID}
+	if m.Speculative {
+		r.PlanOnly, r.Trigger = true, "cli"
+	}
+	return h.created(ctx, s, m, r)
 }
 
 func (h Runs) created(ctx context.Context, s *authz.Scope, m *v1.CreateRunRequest, r runs.NewRun) (*connect.Response[v1.CreateRunResponse], error) {
 	id, number, err := h.Orchestrator.Create(ctx, s.Tx, s.OrgID, r)
+	if errors.Is(err, runs.ErrStackInputs) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	if err != nil {
 		return nil, authz.Internal(err)
 	}
@@ -257,6 +268,7 @@ func (h Runs) WatchRun(ctx context.Context, req *connect.Request[v1.WatchRunRequ
 				var at time.Time
 				err := r.Scan(&e.Seq, &e.Type, &e.ResourceAddr, &e.Payload, &at, &e.Actor)
 				e.At = timestamppb.New(at)
+				runs.Describe(e)
 				return e, err
 			})
 			if err != nil {

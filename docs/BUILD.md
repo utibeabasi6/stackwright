@@ -732,8 +732,8 @@ Stackwright, with no HCP Terraform account
   applies), `runs`, `logs --follow`.
 
 **Done when.**
-- [ ] `stackwright plan` streams the same timeline as the UI
-- [ ] An uploaded plan cannot be applied
+- [x] `stackwright plan` streams the same timeline as the UI
+- [x] An uploaded plan cannot be applied
 
 **Depends on:** 5.
 

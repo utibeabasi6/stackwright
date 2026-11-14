@@ -43,6 +43,11 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.AuthServiceAcceptInviteProcedure:        {Access: Public},
 	stackwrightv1connect.AuthServiceSignOutProcedure:             {Access: SignedIn},
 	stackwrightv1connect.AuthServiceGetMeProcedure:               {Access: SignedIn},
+	stackwrightv1connect.AuthServiceGetDeviceProcedure:           {Access: SignedIn},
+	stackwrightv1connect.AuthServiceApproveDeviceProcedure:       {Access: SignedIn},
+	stackwrightv1connect.AuthServiceDenyDeviceProcedure:          {Access: SignedIn},
+	stackwrightv1connect.AuthServiceListCliTokensProcedure:       {Access: SignedIn},
+	stackwrightv1connect.AuthServiceRevokeCliTokenProcedure:      {Access: SignedIn},
 
 	stackwrightv1connect.InstanceServiceListSignInProviderSettingsProcedure: {Access: InstanceAdmin},
 	stackwrightv1connect.InstanceServiceCreateSignInProviderProcedure:       {Access: InstanceAdmin},

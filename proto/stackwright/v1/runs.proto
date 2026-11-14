@@ -83,6 +83,13 @@ message RunEvent {
   string payload = 4;
   google.protobuf.Timestamp at = 5;
   string actor = 6;
+  // The timeline's line for the event, the same in the web app and the
+  // CLI (adr/0044). tone is "ok", "warn", "error", "muted" or empty; fix
+  // is what to send the agent about an error.
+  string text = 7;
+  string tone = 8;
+  string detail = 9;
+  string fix = 10;
 }
 
 message CreateRunRequest {
@@ -98,6 +105,9 @@ message CreateRunRequest {
   bool revert = 7;
   // A drift check now: a refresh-only plan of the code last applied.
   bool check_drift = 8;
+  // A plan of an upload from the CLI, which never applies, on any project
+  // (adr/0044).
+  bool speculative = 9;
 }
 
 message CreateRunResponse {

@@ -21,6 +21,14 @@ RUN for arch in amd64 arm64; do \
       CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" \
         -o /out/downloads/stackwright-builder-linux_$arch ./cmd/stackwright-builder; \
     done
+# The CLI for engineers' machines, gzipped, with the SHA-256 of each
+# binary (adr/0044).
+RUN mkdir -p /out/cli && cd /out/cli && for t in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do \
+      name=stackwright-${t%/*}-${t#*/}; \
+      CGO_ENABLED=0 GOOS=${t%/*} GOARCH=${t#*/} go build -C /src -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" \
+        -o /out/cli/$name ./cmd/stackwright && \
+      sha256sum $name >> SHA256SUMS && gzip -9 $name; \
+    done
 RUN mkdir -p /out/files
 
 # The editor's language server (adr/0034), checked against the release's
@@ -85,5 +93,6 @@ ENTRYPOINT ["/stackwright"]
 
 FROM binary
 COPY --from=go /out/downloads /downloads
+COPY --from=go /out/cli /cli
 COPY --from=web /src/web/dist /srv/web
 CMD ["server", "--web", "/srv/web"]

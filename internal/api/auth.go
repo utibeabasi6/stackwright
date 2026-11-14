@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
@@ -269,4 +270,94 @@ func (a *Auth) AcceptInvite(ctx context.Context, req *connect.Request[v1.AcceptI
 	s.OrgID = inv.OrgID
 	s.Target("invite:" + inv.ID)
 	return resp, nil
+}
+
+func deviceByCode(ctx context.Context, tx pgx.Tx, code string) (string, time.Time, error) {
+	var name string
+	var created time.Time
+	err := tx.QueryRow(ctx, `SELECT name, created_at FROM device_codes WHERE user_code = $1 AND expires_at > now()
+		AND approved_by IS NULL AND NOT denied`, auth.UserCode(code)).Scan(&name, &created)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", created, connect.NewError(connect.CodeNotFound, errors.New("no sign-in waits for that code; it may have ended after 10 minutes"))
+	}
+	if err != nil {
+		return "", created, authz.Internal(err)
+	}
+	return name, created, nil
+}
+
+func (a *Auth) GetDevice(ctx context.Context, req *connect.Request[v1.GetDeviceRequest]) (*connect.Response[v1.GetDeviceResponse], error) {
+	name, created, err := deviceByCode(ctx, authz.ScopeFrom(ctx).Tx, req.Msg.UserCode)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&v1.GetDeviceResponse{Name: name, CreatedAt: timestamppb.New(created)}), nil
+}
+
+func (a *Auth) decideDevice(ctx context.Context, code string, approve bool) error {
+	s := authz.ScopeFrom(ctx)
+	name, _, err := deviceByCode(ctx, s.Tx, code)
+	if err != nil {
+		return err
+	}
+	if approve {
+		_, err = s.Tx.Exec(ctx, `UPDATE device_codes SET approved_by = $2 WHERE user_code = $1`, auth.UserCode(code), s.UserID)
+	} else {
+		_, err = s.Tx.Exec(ctx, `UPDATE device_codes SET denied = true WHERE user_code = $1`, auth.UserCode(code))
+	}
+	if err != nil {
+		return authz.Internal(err)
+	}
+	s.Target("cli sign-in of " + name)
+	return nil
+}
+
+func (a *Auth) ApproveDevice(ctx context.Context, req *connect.Request[v1.ApproveDeviceRequest]) (*connect.Response[v1.ApproveDeviceResponse], error) {
+	if err := a.decideDevice(ctx, req.Msg.UserCode, true); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&v1.ApproveDeviceResponse{}), nil
+}
+
+func (a *Auth) DenyDevice(ctx context.Context, req *connect.Request[v1.DenyDeviceRequest]) (*connect.Response[v1.DenyDeviceResponse], error) {
+	if err := a.decideDevice(ctx, req.Msg.UserCode, false); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&v1.DenyDeviceResponse{}), nil
+}
+
+func (a *Auth) ListCliTokens(ctx context.Context, _ *connect.Request[v1.ListCliTokensRequest]) (*connect.Response[v1.ListCliTokensResponse], error) {
+	s := authz.ScopeFrom(ctx)
+	rows, err := s.Tx.Query(ctx, `SELECT id, name, created_at, last_used_at FROM cli_tokens WHERE user_id = $1 AND revoked_at IS NULL
+		AND last_used_at > $2 ORDER BY last_used_at DESC`, s.UserID, time.Now().Add(-auth.CLITokenIdle))
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
+	tokens, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (*v1.CliToken, error) {
+		t := &v1.CliToken{}
+		var created, used time.Time
+		err := r.Scan(&t.Id, &t.Name, &created, &used)
+		t.CreatedAt, t.LastUsedAt = timestamppb.New(created), timestamppb.New(used)
+		return t, err
+	})
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
+	return connect.NewResponse(&v1.ListCliTokensResponse{Tokens: tokens}), nil
+}
+
+func (a *Auth) RevokeCliToken(ctx context.Context, req *connect.Request[v1.RevokeCliTokenRequest]) (*connect.Response[v1.RevokeCliTokenResponse], error) {
+	s := authz.ScopeFrom(ctx)
+	if _, err := uuid.Parse(req.Msg.Id); err != nil {
+		return nil, errNotFound
+	}
+	tag, err := s.Tx.Exec(ctx, `UPDATE cli_tokens SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL`, req.Msg.Id, s.UserID)
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, errNotFound
+	}
+	s.Target("cli token " + req.Msg.Id)
+	return connect.NewResponse(&v1.RevokeCliTokenResponse{}), nil
 }

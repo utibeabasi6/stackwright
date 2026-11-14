@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -89,7 +90,21 @@ func Middleware(pool *pgxpool.Pool, publicURL string, next http.Handler) http.Ha
 			return
 		}
 		u := User{IP: ClientIP(r)}
-		if token := SessionToken(r.Header); token != "" {
+		// A CLI token in the Authorization header acts as its user; it is
+		// not a cookie, so it needs no CSRF header (adr/0044).
+		if bearer, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok && strings.HasPrefix(bearer, CLITokenPrefix) {
+			id, err := LookupCLIToken(r.Context(), pool, bearer)
+			switch {
+			case errors.Is(err, ErrBadToken):
+				_ = errs.Write(w, r, connect.NewError(connect.CodeUnauthenticated, errors.New("the CLI token is unknown, revoked or unused for 30 days; run stackwright login")))
+				return
+			case err != nil:
+				slog.Error("look up CLI token", "err", err)
+				_ = errs.Write(w, r, connect.NewError(connect.CodeInternal, errors.New("internal error")))
+				return
+			}
+			u.ID = id
+		} else if token := SessionToken(r.Header); token != "" {
 			var csrf string
 			err := pool.QueryRow(r.Context(),
 				`SELECT user_id, csrf_token FROM sessions WHERE id_hash = $1 AND expires_at > now()`,

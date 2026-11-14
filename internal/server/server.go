@@ -1,12 +1,16 @@
 package server
 
 import (
+	"compress/gzip"
 	"context"
 	"errors"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -42,7 +46,11 @@ type Config struct {
 	Issuer   *oidc.Issuer
 	GitHub   *github.GitHub
 	Agent    *agent.Service
+	// CLIDir holds the gzipped CLI binaries and their SHA256SUMS (adr/0044).
+	CLIDir string
 }
+
+var cliBinary = regexp.MustCompile(`^stackwright-(darwin|linux)-(arm64|amd64)$`)
 
 func New(c Config) http.Handler {
 	cookies := auth.Cookies{Secure: strings.HasPrefix(c.PublicURL, "https://")}
@@ -103,6 +111,39 @@ func New(c Config) http.Handler {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 	mux.Handle("/auth/", signIn.Handler())
+	mux.Handle("/cli/device/", auth.Device{Pool: c.Pool, PublicURL: c.PublicURL}.Handler())
+	mux.HandleFunc("GET /cli/{name}", func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		if name == "SHA256SUMS" {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			http.ServeFile(w, r, filepath.Join(c.CLIDir, "SHA256SUMS"))
+			return
+		}
+		if !cliBinary.MatchString(name) {
+			http.NotFound(w, r)
+			return
+		}
+		f, err := os.Open(filepath.Join(c.CLIDir, name+".gz")) //nolint:gosec // a name the pattern allows, in the CLI folder
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer func() { _ = f.Close() }()
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", `attachment; filename="stackwright"`)
+		w.Header().Set("Vary", "Accept-Encoding")
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			w.Header().Set("Content-Encoding", "gzip")
+			_, _ = io.Copy(w, f)
+			return
+		}
+		zr, err := gzip.NewReader(f)
+		if err != nil {
+			http.Error(w, "the CLI file is damaged", http.StatusInternalServerError)
+			return
+		}
+		_, _ = io.Copy(w, zr) //nolint:gosec // a file the image ships, not user input
+	})
 	if c.Web != nil {
 		files := http.FileServerFS(c.Web)
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

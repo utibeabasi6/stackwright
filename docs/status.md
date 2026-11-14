@@ -1395,3 +1395,53 @@ the parser follows the code; ADR 0043 lists the cases.
 - A removed instance destroys without a refresh, so a resource deleted
   outside Stackwright can fail the destroy.
 - `.terraform-version` is not read; the project's engine runs the Stack.
+
+## Phase 20: CLI
+
+Decision: [0044](adr/0044-cli.md). The user chose the device flow, CLI
+tokens that act as their user, the project found from git with flags to
+override, and binaries that the server serves.
+
+**Verified on 2026-11-14:**
+- A Go test builds the real `stackwright` binary and runs it against the
+  test server with real sandboxes:
+  - `login` prints a code; the owner approves it through the web app's
+    API, and the CLI saves its token and says who it signed in as. A code
+    cannot be approved twice, and a second poll at once gets `slow_down`.
+  - With two workspaces and no terminal, `plan` asks for `-workspace`.
+  - `plan -workspace dev` in a git repository's `network/` folder finds
+    the project from the remote `git@github.com:acme/infra.git` and the
+    path. It uploads the tracked and untracked files, without the one
+    that `.gitignore` excludes, and plans a module from `../modules`.
+  - The lines the CLI prints equal, entry for entry, the lines the web
+    app gets from `WatchRun` for the same run, details included.
+  - The run has trigger `cli` and is plan-only. Approving it fails, and
+    the database refuses to clear `plan_only` on a `cli` run.
+  - `runs` and `logs 1` print the run. After the token is revoked in the
+    web app, the CLI is refused and told to sign in again.
+- `/cli/<binary>` is gzipped for a client that accepts gzip and unpacked
+  for one that does not. `SHA256SUMS` is served. Other names get 404.
+- A Go table test covers the timeline text for queued, waiting, summary,
+  credentials (in UTC), diagnostics with their fix, and log lines.
+- Playwright in both themes: the device page approves a code, and the
+  CLI page has four downloads and signs a machine out. The web app's
+  unit tests now feed it the server's lines.
+
+**Fixed on 2026-11-14:** a deadlock from phase 19. A run that updates
+itself twice in one transaction re-checks its foreign keys, with KEY
+SHARE on its deployment run. Cancelling or advancing a deployment run
+held that row `FOR UPDATE` and waited for the run. They now lock it `FOR
+NO KEY UPDATE`. The audit test hit it in 3 of 4 runs before the fix and
+in none of 4 after.
+
+**Not verified:**
+- A download from the development stack. The image builds with the four
+  gzipped binaries, a 46.5 MB layer.
+- The CLI on Linux; the test ran the macOS build.
+- An interactive workspace choice on a real terminal.
+
+**Known gaps:**
+- There is no `logout`; the web app's CLI page signs a machine out.
+- The CLI finds GitHub remotes only.
+- Times in event text, such as when AWS credentials end, are in UTC.
+

@@ -403,14 +403,15 @@ test("a reviewer approves a run from its timeline", async () => {
   api.projects = [network];
   api.runs = [waitingRun];
   api.events = [
-    { seq: 1n, type: "run.queued", payload: '{"source":"network.tar.gz","plan_only":false}', actor: "Owner" },
+    { seq: 1n, type: "run.queued", payload: '{"source":"network.tar.gz","plan_only":false}', actor: "Owner", text: "Queued by Owner, from network.tar.gz" },
     {
       seq: 2n,
       type: "engine.planned_change",
       resourceAddr: "aws_nat_gateway.main",
       payload: '{"@message":"aws_nat_gateway.main: Plan to create","change":{"action":"create"}}',
+      text: "aws_nat_gateway.main: Plan to create",
     },
-    { seq: 3n, type: "run.needs_approval", payload: "{}" },
+    { seq: 3n, type: "run.needs_approval", payload: "{}", text: "Waits for approval", tone: "warn" },
   ];
   at("/a/projects/network/prod/runs/1");
   const timeline = await screen.findByRole("list", { name: "Timeline" });
@@ -789,6 +790,10 @@ test("a plan error shows its file, line and detail", async () => {
           range: { filename: "main.tf", start: { line: 3 } },
         },
       }),
+      text: "! Unsupported argument (main.tf:3)",
+      tone: "error",
+      detail: 'An argument named "nope" is not expected here.',
+      fix: 'Unsupported argument (main.tf:3)\nAn argument named "nope" is not expected here.',
     },
   ];
   at("/a/projects/network/prod/runs/1");
@@ -804,6 +809,10 @@ const planError = {
   payload: JSON.stringify({
     diagnostic: { severity: "error", summary: "Unsupported argument", detail: "Not expected here.", range: { filename: "main.tf", start: { line: 3 } } },
   }),
+  text: "! Unsupported argument (main.tf:3)",
+  tone: "error",
+  detail: "Not expected here.",
+  fix: "Unsupported argument (main.tf:3)\nNot expected here.",
 };
 
 test("Ask agent to fix sends a plan error to the open session", async () => {

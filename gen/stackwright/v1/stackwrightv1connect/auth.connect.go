@@ -52,6 +52,19 @@ const (
 	// AuthServiceAcceptInviteProcedure is the fully-qualified name of the AuthService's AcceptInvite
 	// RPC.
 	AuthServiceAcceptInviteProcedure = "/stackwright.v1.AuthService/AcceptInvite"
+	// AuthServiceGetDeviceProcedure is the fully-qualified name of the AuthService's GetDevice RPC.
+	AuthServiceGetDeviceProcedure = "/stackwright.v1.AuthService/GetDevice"
+	// AuthServiceApproveDeviceProcedure is the fully-qualified name of the AuthService's ApproveDevice
+	// RPC.
+	AuthServiceApproveDeviceProcedure = "/stackwright.v1.AuthService/ApproveDevice"
+	// AuthServiceDenyDeviceProcedure is the fully-qualified name of the AuthService's DenyDevice RPC.
+	AuthServiceDenyDeviceProcedure = "/stackwright.v1.AuthService/DenyDevice"
+	// AuthServiceListCliTokensProcedure is the fully-qualified name of the AuthService's ListCliTokens
+	// RPC.
+	AuthServiceListCliTokensProcedure = "/stackwright.v1.AuthService/ListCliTokens"
+	// AuthServiceRevokeCliTokenProcedure is the fully-qualified name of the AuthService's
+	// RevokeCliToken RPC.
+	AuthServiceRevokeCliTokenProcedure = "/stackwright.v1.AuthService/RevokeCliToken"
 )
 
 // AuthServiceClient is a client for the stackwright.v1.AuthService service.
@@ -64,6 +77,12 @@ type AuthServiceClient interface {
 	ListSignInProviders(context.Context, *connect.Request[v1.ListSignInProvidersRequest]) (*connect.Response[v1.ListSignInProvidersResponse], error)
 	GetInvite(context.Context, *connect.Request[v1.GetInviteRequest]) (*connect.Response[v1.GetInviteResponse], error)
 	AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error)
+	// The device flow of `stackwright login` (adr/0044).
+	GetDevice(context.Context, *connect.Request[v1.GetDeviceRequest]) (*connect.Response[v1.GetDeviceResponse], error)
+	ApproveDevice(context.Context, *connect.Request[v1.ApproveDeviceRequest]) (*connect.Response[v1.ApproveDeviceResponse], error)
+	DenyDevice(context.Context, *connect.Request[v1.DenyDeviceRequest]) (*connect.Response[v1.DenyDeviceResponse], error)
+	ListCliTokens(context.Context, *connect.Request[v1.ListCliTokensRequest]) (*connect.Response[v1.ListCliTokensResponse], error)
+	RevokeCliToken(context.Context, *connect.Request[v1.RevokeCliTokenRequest]) (*connect.Response[v1.RevokeCliTokenResponse], error)
 }
 
 // NewAuthServiceClient constructs a client for the stackwright.v1.AuthService service. By default,
@@ -129,6 +148,38 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("AcceptInvite")),
 			connect.WithClientOptions(opts...),
 		),
+		getDevice: connect.NewClient[v1.GetDeviceRequest, v1.GetDeviceResponse](
+			httpClient,
+			baseURL+AuthServiceGetDeviceProcedure,
+			connect.WithSchema(authServiceMethods.ByName("GetDevice")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		approveDevice: connect.NewClient[v1.ApproveDeviceRequest, v1.ApproveDeviceResponse](
+			httpClient,
+			baseURL+AuthServiceApproveDeviceProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ApproveDevice")),
+			connect.WithClientOptions(opts...),
+		),
+		denyDevice: connect.NewClient[v1.DenyDeviceRequest, v1.DenyDeviceResponse](
+			httpClient,
+			baseURL+AuthServiceDenyDeviceProcedure,
+			connect.WithSchema(authServiceMethods.ByName("DenyDevice")),
+			connect.WithClientOptions(opts...),
+		),
+		listCliTokens: connect.NewClient[v1.ListCliTokensRequest, v1.ListCliTokensResponse](
+			httpClient,
+			baseURL+AuthServiceListCliTokensProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ListCliTokens")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		revokeCliToken: connect.NewClient[v1.RevokeCliTokenRequest, v1.RevokeCliTokenResponse](
+			httpClient,
+			baseURL+AuthServiceRevokeCliTokenProcedure,
+			connect.WithSchema(authServiceMethods.ByName("RevokeCliToken")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -142,6 +193,11 @@ type authServiceClient struct {
 	listSignInProviders *connect.Client[v1.ListSignInProvidersRequest, v1.ListSignInProvidersResponse]
 	getInvite           *connect.Client[v1.GetInviteRequest, v1.GetInviteResponse]
 	acceptInvite        *connect.Client[v1.AcceptInviteRequest, v1.AcceptInviteResponse]
+	getDevice           *connect.Client[v1.GetDeviceRequest, v1.GetDeviceResponse]
+	approveDevice       *connect.Client[v1.ApproveDeviceRequest, v1.ApproveDeviceResponse]
+	denyDevice          *connect.Client[v1.DenyDeviceRequest, v1.DenyDeviceResponse]
+	listCliTokens       *connect.Client[v1.ListCliTokensRequest, v1.ListCliTokensResponse]
+	revokeCliToken      *connect.Client[v1.RevokeCliTokenRequest, v1.RevokeCliTokenResponse]
 }
 
 // GetSetup calls stackwright.v1.AuthService.GetSetup.
@@ -184,6 +240,31 @@ func (c *authServiceClient) AcceptInvite(ctx context.Context, req *connect.Reque
 	return c.acceptInvite.CallUnary(ctx, req)
 }
 
+// GetDevice calls stackwright.v1.AuthService.GetDevice.
+func (c *authServiceClient) GetDevice(ctx context.Context, req *connect.Request[v1.GetDeviceRequest]) (*connect.Response[v1.GetDeviceResponse], error) {
+	return c.getDevice.CallUnary(ctx, req)
+}
+
+// ApproveDevice calls stackwright.v1.AuthService.ApproveDevice.
+func (c *authServiceClient) ApproveDevice(ctx context.Context, req *connect.Request[v1.ApproveDeviceRequest]) (*connect.Response[v1.ApproveDeviceResponse], error) {
+	return c.approveDevice.CallUnary(ctx, req)
+}
+
+// DenyDevice calls stackwright.v1.AuthService.DenyDevice.
+func (c *authServiceClient) DenyDevice(ctx context.Context, req *connect.Request[v1.DenyDeviceRequest]) (*connect.Response[v1.DenyDeviceResponse], error) {
+	return c.denyDevice.CallUnary(ctx, req)
+}
+
+// ListCliTokens calls stackwright.v1.AuthService.ListCliTokens.
+func (c *authServiceClient) ListCliTokens(ctx context.Context, req *connect.Request[v1.ListCliTokensRequest]) (*connect.Response[v1.ListCliTokensResponse], error) {
+	return c.listCliTokens.CallUnary(ctx, req)
+}
+
+// RevokeCliToken calls stackwright.v1.AuthService.RevokeCliToken.
+func (c *authServiceClient) RevokeCliToken(ctx context.Context, req *connect.Request[v1.RevokeCliTokenRequest]) (*connect.Response[v1.RevokeCliTokenResponse], error) {
+	return c.revokeCliToken.CallUnary(ctx, req)
+}
+
 // AuthServiceHandler is an implementation of the stackwright.v1.AuthService service.
 type AuthServiceHandler interface {
 	GetSetup(context.Context, *connect.Request[v1.GetSetupRequest]) (*connect.Response[v1.GetSetupResponse], error)
@@ -194,6 +275,12 @@ type AuthServiceHandler interface {
 	ListSignInProviders(context.Context, *connect.Request[v1.ListSignInProvidersRequest]) (*connect.Response[v1.ListSignInProvidersResponse], error)
 	GetInvite(context.Context, *connect.Request[v1.GetInviteRequest]) (*connect.Response[v1.GetInviteResponse], error)
 	AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error)
+	// The device flow of `stackwright login` (adr/0044).
+	GetDevice(context.Context, *connect.Request[v1.GetDeviceRequest]) (*connect.Response[v1.GetDeviceResponse], error)
+	ApproveDevice(context.Context, *connect.Request[v1.ApproveDeviceRequest]) (*connect.Response[v1.ApproveDeviceResponse], error)
+	DenyDevice(context.Context, *connect.Request[v1.DenyDeviceRequest]) (*connect.Response[v1.DenyDeviceResponse], error)
+	ListCliTokens(context.Context, *connect.Request[v1.ListCliTokensRequest]) (*connect.Response[v1.ListCliTokensResponse], error)
+	RevokeCliToken(context.Context, *connect.Request[v1.RevokeCliTokenRequest]) (*connect.Response[v1.RevokeCliTokenResponse], error)
 }
 
 // NewAuthServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -255,6 +342,38 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("AcceptInvite")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceGetDeviceHandler := connect.NewUnaryHandler(
+		AuthServiceGetDeviceProcedure,
+		svc.GetDevice,
+		connect.WithSchema(authServiceMethods.ByName("GetDevice")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceApproveDeviceHandler := connect.NewUnaryHandler(
+		AuthServiceApproveDeviceProcedure,
+		svc.ApproveDevice,
+		connect.WithSchema(authServiceMethods.ByName("ApproveDevice")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceDenyDeviceHandler := connect.NewUnaryHandler(
+		AuthServiceDenyDeviceProcedure,
+		svc.DenyDevice,
+		connect.WithSchema(authServiceMethods.ByName("DenyDevice")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceListCliTokensHandler := connect.NewUnaryHandler(
+		AuthServiceListCliTokensProcedure,
+		svc.ListCliTokens,
+		connect.WithSchema(authServiceMethods.ByName("ListCliTokens")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceRevokeCliTokenHandler := connect.NewUnaryHandler(
+		AuthServiceRevokeCliTokenProcedure,
+		svc.RevokeCliToken,
+		connect.WithSchema(authServiceMethods.ByName("RevokeCliToken")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/stackwright.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AuthServiceGetSetupProcedure:
@@ -273,6 +392,16 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceGetInviteHandler.ServeHTTP(w, r)
 		case AuthServiceAcceptInviteProcedure:
 			authServiceAcceptInviteHandler.ServeHTTP(w, r)
+		case AuthServiceGetDeviceProcedure:
+			authServiceGetDeviceHandler.ServeHTTP(w, r)
+		case AuthServiceApproveDeviceProcedure:
+			authServiceApproveDeviceHandler.ServeHTTP(w, r)
+		case AuthServiceDenyDeviceProcedure:
+			authServiceDenyDeviceHandler.ServeHTTP(w, r)
+		case AuthServiceListCliTokensProcedure:
+			authServiceListCliTokensHandler.ServeHTTP(w, r)
+		case AuthServiceRevokeCliTokenProcedure:
+			authServiceRevokeCliTokenHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -312,4 +441,24 @@ func (UnimplementedAuthServiceHandler) GetInvite(context.Context, *connect.Reque
 
 func (UnimplementedAuthServiceHandler) AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AuthService.AcceptInvite is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) GetDevice(context.Context, *connect.Request[v1.GetDeviceRequest]) (*connect.Response[v1.GetDeviceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AuthService.GetDevice is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ApproveDevice(context.Context, *connect.Request[v1.ApproveDeviceRequest]) (*connect.Response[v1.ApproveDeviceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AuthService.ApproveDevice is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) DenyDevice(context.Context, *connect.Request[v1.DenyDeviceRequest]) (*connect.Response[v1.DenyDeviceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AuthService.DenyDevice is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ListCliTokens(context.Context, *connect.Request[v1.ListCliTokensRequest]) (*connect.Response[v1.ListCliTokensResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AuthService.ListCliTokens is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) RevokeCliToken(context.Context, *connect.Request[v1.RevokeCliTokenRequest]) (*connect.Response[v1.RevokeCliTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.AuthService.RevokeCliToken is not implemented"))
 }

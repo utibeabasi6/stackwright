@@ -344,9 +344,16 @@ type RunEvent struct {
 	Type         string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
 	ResourceAddr string                 `protobuf:"bytes,3,opt,name=resource_addr,json=resourceAddr,proto3" json:"resource_addr,omitempty"`
 	// JSON.
-	Payload       string                 `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
-	At            *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=at,proto3" json:"at,omitempty"`
-	Actor         string                 `protobuf:"bytes,6,opt,name=actor,proto3" json:"actor,omitempty"`
+	Payload string                 `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
+	At      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=at,proto3" json:"at,omitempty"`
+	Actor   string                 `protobuf:"bytes,6,opt,name=actor,proto3" json:"actor,omitempty"`
+	// The timeline's line for the event, the same in the web app and the
+	// CLI (adr/0044). tone is "ok", "warn", "error", "muted" or empty; fix
+	// is what to send the agent about an error.
+	Text          string `protobuf:"bytes,7,opt,name=text,proto3" json:"text,omitempty"`
+	Tone          string `protobuf:"bytes,8,opt,name=tone,proto3" json:"tone,omitempty"`
+	Detail        string `protobuf:"bytes,9,opt,name=detail,proto3" json:"detail,omitempty"`
+	Fix           string `protobuf:"bytes,10,opt,name=fix,proto3" json:"fix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -423,6 +430,34 @@ func (x *RunEvent) GetActor() string {
 	return ""
 }
 
+func (x *RunEvent) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *RunEvent) GetTone() string {
+	if x != nil {
+		return x.Tone
+	}
+	return ""
+}
+
+func (x *RunEvent) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *RunEvent) GetFix() string {
+	if x != nil {
+		return x.Fix
+	}
+	return ""
+}
+
 type CreateRunRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Org       string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
@@ -436,7 +471,10 @@ type CreateRunRequest struct {
 	// Plan the code the workspace last applied, to undo drift (adr/0042).
 	Revert bool `protobuf:"varint,7,opt,name=revert,proto3" json:"revert,omitempty"`
 	// A drift check now: a refresh-only plan of the code last applied.
-	CheckDrift    bool `protobuf:"varint,8,opt,name=check_drift,json=checkDrift,proto3" json:"check_drift,omitempty"`
+	CheckDrift bool `protobuf:"varint,8,opt,name=check_drift,json=checkDrift,proto3" json:"check_drift,omitempty"`
+	// A plan of an upload from the CLI, which never applies, on any project
+	// (adr/0044).
+	Speculative   bool `protobuf:"varint,9,opt,name=speculative,proto3" json:"speculative,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -523,6 +561,13 @@ func (x *CreateRunRequest) GetRevert() bool {
 func (x *CreateRunRequest) GetCheckDrift() bool {
 	if x != nil {
 		return x.CheckDrift
+	}
+	return false
+}
+
+func (x *CreateRunRequest) GetSpeculative() bool {
+	if x != nil {
+		return x.Speculative
 	}
 	return false
 }
@@ -1476,14 +1521,19 @@ const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"commit_sha\x18\x16 \x01(\tR\tcommitSha\x12\x1b\n" +
 	"\tpr_number\x18\x17 \x01(\x05R\bprNumber\x12\x16\n" +
 	"\x06branch\x18\x18 \x01(\tR\x06branch\x12\x12\n" +
-	"\x04repo\x18\x19 \x01(\tR\x04repo\"\xb1\x01\n" +
+	"\x04repo\x18\x19 \x01(\tR\x04repo\"\x83\x02\n" +
 	"\bRunEvent\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12#\n" +
 	"\rresource_addr\x18\x03 \x01(\tR\fresourceAddr\x12\x18\n" +
 	"\apayload\x18\x04 \x01(\tR\apayload\x12*\n" +
 	"\x02at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x14\n" +
-	"\x05actor\x18\x06 \x01(\tR\x05actor\"\xeb\x01\n" +
+	"\x05actor\x18\x06 \x01(\tR\x05actor\x12\x12\n" +
+	"\x04text\x18\a \x01(\tR\x04text\x12\x12\n" +
+	"\x04tone\x18\b \x01(\tR\x04tone\x12\x16\n" +
+	"\x06detail\x18\t \x01(\tR\x06detail\x12\x10\n" +
+	"\x03fix\x18\n" +
+	" \x01(\tR\x03fix\"\x8d\x02\n" +
 	"\x10CreateRunRequest\x12\x10\n" +
 	"\x03org\x18\x01 \x01(\tR\x03org\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x12\x1c\n" +
@@ -1494,7 +1544,8 @@ const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"sourceName\x12\x16\n" +
 	"\x06revert\x18\a \x01(\bR\x06revert\x12\x1f\n" +
 	"\vcheck_drift\x18\b \x01(\bR\n" +
-	"checkDrift\":\n" +
+	"checkDrift\x12 \n" +
+	"\vspeculative\x18\t \x01(\bR\vspeculative\":\n" +
 	"\x11CreateRunResponse\x12%\n" +
 	"\x03run\x18\x01 \x01(\v2\x13.stackwright.v1.RunR\x03run\"[\n" +
 	"\x0fListRunsRequest\x12\x10\n" +

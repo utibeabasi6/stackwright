@@ -295,6 +295,7 @@ export function Shell() {
               />
             </label>
             <span className="muted">{me.user?.name || me.user?.email}</span>
+            <Link to="/cli">CLI</Link>
             <button type="button" onClick={signOut}>
               Sign out
             </button>

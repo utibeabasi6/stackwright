@@ -4,6 +4,8 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Role } from "./orgs_pb";
 import { file_stackwright_v1_orgs } from "./orgs_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stackwright/v1/auth.proto.
  */
 export const file_stackwright_v1_auth: GenFile = /*@__PURE__*/
-  fileDesc("ChlzdGFja3dyaWdodC92MS9hdXRoLnByb3RvEg5zdGFja3dyaWdodC52MSIRCg9HZXRTZXR1cFJlcXVlc3QiIgoQR2V0U2V0dXBSZXNwb25zZRIOCgZuZWVkZWQYASABKAgifQoUQ29tcGxldGVTZXR1cFJlcXVlc3QSEgoKc2V0dXBfY29kZRgBIAEoCRIQCghvcmdfbmFtZRgCIAEoCRIQCghvcmdfc2x1ZxgDIAEoCRINCgVlbWFpbBgEIAEoCRIMCgRuYW1lGAUgASgJEhAKCHBhc3N3b3JkGAYgASgJIikKFUNvbXBsZXRlU2V0dXBSZXNwb25zZRIQCghvcmdfc2x1ZxgBIAEoCSIwCg1TaWduSW5SZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJIhAKDlNpZ25JblJlc3BvbnNlIhAKDlNpZ25PdXRSZXF1ZXN0IhEKD1NpZ25PdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiYAoNR2V0TWVSZXNwb25zZRIiCgR1c2VyGAEgASgLMhQuc3RhY2t3cmlnaHQudjEuVXNlchIrCgRvcmdzGAIgAygLMh0uc3RhY2t3cmlnaHQudjEuT3JnTWVtYmVyc2hpcCJHCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEgwKBG5hbWUYAyABKAkSFgoOaW5zdGFuY2VfYWRtaW4YBCABKAgiTwoNT3JnTWVtYmVyc2hpcBIMCgRzbHVnGAEgASgJEgwKBG5hbWUYAiABKAkSIgoEcm9sZRgDIAEoDjIULnN0YWNrd3JpZ2h0LnYxLlJvbGUiHAoaTGlzdFNpZ25JblByb3ZpZGVyc1JlcXVlc3QiVgobTGlzdFNpZ25JblByb3ZpZGVyc1Jlc3BvbnNlEjcKCXByb3ZpZGVycxgBIAMoCzIkLnN0YWNrd3JpZ2h0LnYxLlNpZ25JblByb3ZpZGVyQnV0dG9uIjAKFFNpZ25JblByb3ZpZGVyQnV0dG9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkiIQoQR2V0SW52aXRlUmVxdWVzdBINCgV0b2tlbhgBIAEoCSJtChFHZXRJbnZpdGVSZXNwb25zZRIQCghvcmdfbmFtZRgBIAEoCRINCgVlbWFpbBgCIAEoCRIiCgRyb2xlGAMgASgOMhQuc3RhY2t3cmlnaHQudjEuUm9sZRITCgtoYXNfYWNjb3VudBgEIAEoCCJEChNBY2NlcHRJbnZpdGVSZXF1ZXN0Eg0KBXRva2VuGAEgASgJEgwKBG5hbWUYAiABKAkSEAoIcGFzc3dvcmQYAyABKAkiKAoUQWNjZXB0SW52aXRlUmVzcG9uc2USEAoIb3JnX3NsdWcYASABKAkyxgUKC0F1dGhTZXJ2aWNlElIKCEdldFNldHVwEh8uc3RhY2t3cmlnaHQudjEuR2V0U2V0dXBSZXF1ZXN0GiAuc3RhY2t3cmlnaHQudjEuR2V0U2V0dXBSZXNwb25zZSIDkAIBElwKDUNvbXBsZXRlU2V0dXASJC5zdGFja3dyaWdodC52MS5Db21wbGV0ZVNldHVwUmVxdWVzdBolLnN0YWNrd3JpZ2h0LnYxLkNvbXBsZXRlU2V0dXBSZXNwb25zZRJHCgZTaWduSW4SHS5zdGFja3dyaWdodC52MS5TaWduSW5SZXF1ZXN0Gh4uc3RhY2t3cmlnaHQudjEuU2lnbkluUmVzcG9uc2USSgoHU2lnbk91dBIeLnN0YWNrd3JpZ2h0LnYxLlNpZ25PdXRSZXF1ZXN0Gh8uc3RhY2t3cmlnaHQudjEuU2lnbk91dFJlc3BvbnNlEkkKBUdldE1lEhwuc3RhY2t3cmlnaHQudjEuR2V0TWVSZXF1ZXN0Gh0uc3RhY2t3cmlnaHQudjEuR2V0TWVSZXNwb25zZSIDkAIBEnMKE0xpc3RTaWduSW5Qcm92aWRlcnMSKi5zdGFja3dyaWdodC52MS5MaXN0U2lnbkluUHJvdmlkZXJzUmVxdWVzdBorLnN0YWNrd3JpZ2h0LnYxLkxpc3RTaWduSW5Qcm92aWRlcnNSZXNwb25zZSIDkAIBElUKCUdldEludml0ZRIgLnN0YWNrd3JpZ2h0LnYxLkdldEludml0ZVJlcXVlc3QaIS5zdGFja3dyaWdodC52MS5HZXRJbnZpdGVSZXNwb25zZSIDkAIBElkKDEFjY2VwdEludml0ZRIjLnN0YWNrd3JpZ2h0LnYxLkFjY2VwdEludml0ZVJlcXVlc3QaJC5zdGFja3dyaWdodC52MS5BY2NlcHRJbnZpdGVSZXNwb25zZUK9AQoSY29tLnN0YWNrd3JpZ2h0LnYxQglBdXRoUHJvdG9QAVpDZ2l0aHViLmNvbS9zdGFja3dyaWdodC9zdGFja3dyaWdodC9nZW4vc3RhY2t3cmlnaHQvdjE7c3RhY2t3cmlnaHR2MaICA1NYWKoCDlN0YWNrd3JpZ2h0LlYxygIOU3RhY2t3cmlnaHRcVjHiAhpTdGFja3dyaWdodFxWMVxHUEJNZXRhZGF0YeoCD1N0YWNrd3JpZ2h0OjpWMWIGcHJvdG8z", [file_stackwright_v1_orgs]);
+  fileDesc("ChlzdGFja3dyaWdodC92MS9hdXRoLnByb3RvEg5zdGFja3dyaWdodC52MSIRCg9HZXRTZXR1cFJlcXVlc3QiIgoQR2V0U2V0dXBSZXNwb25zZRIOCgZuZWVkZWQYASABKAgifQoUQ29tcGxldGVTZXR1cFJlcXVlc3QSEgoKc2V0dXBfY29kZRgBIAEoCRIQCghvcmdfbmFtZRgCIAEoCRIQCghvcmdfc2x1ZxgDIAEoCRINCgVlbWFpbBgEIAEoCRIMCgRuYW1lGAUgASgJEhAKCHBhc3N3b3JkGAYgASgJIikKFUNvbXBsZXRlU2V0dXBSZXNwb25zZRIQCghvcmdfc2x1ZxgBIAEoCSIwCg1TaWduSW5SZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJIhAKDlNpZ25JblJlc3BvbnNlIhAKDlNpZ25PdXRSZXF1ZXN0IhEKD1NpZ25PdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiYAoNR2V0TWVSZXNwb25zZRIiCgR1c2VyGAEgASgLMhQuc3RhY2t3cmlnaHQudjEuVXNlchIrCgRvcmdzGAIgAygLMh0uc3RhY2t3cmlnaHQudjEuT3JnTWVtYmVyc2hpcCJHCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEgwKBG5hbWUYAyABKAkSFgoOaW5zdGFuY2VfYWRtaW4YBCABKAgiTwoNT3JnTWVtYmVyc2hpcBIMCgRzbHVnGAEgASgJEgwKBG5hbWUYAiABKAkSIgoEcm9sZRgDIAEoDjIULnN0YWNrd3JpZ2h0LnYxLlJvbGUiHAoaTGlzdFNpZ25JblByb3ZpZGVyc1JlcXVlc3QiVgobTGlzdFNpZ25JblByb3ZpZGVyc1Jlc3BvbnNlEjcKCXByb3ZpZGVycxgBIAMoCzIkLnN0YWNrd3JpZ2h0LnYxLlNpZ25JblByb3ZpZGVyQnV0dG9uIjAKFFNpZ25JblByb3ZpZGVyQnV0dG9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkiIQoQR2V0SW52aXRlUmVxdWVzdBINCgV0b2tlbhgBIAEoCSJtChFHZXRJbnZpdGVSZXNwb25zZRIQCghvcmdfbmFtZRgBIAEoCRINCgVlbWFpbBgCIAEoCRIiCgRyb2xlGAMgASgOMhQuc3RhY2t3cmlnaHQudjEuUm9sZRITCgtoYXNfYWNjb3VudBgEIAEoCCJEChNBY2NlcHRJbnZpdGVSZXF1ZXN0Eg0KBXRva2VuGAEgASgJEgwKBG5hbWUYAiABKAkSEAoIcGFzc3dvcmQYAyABKAkiKAoUQWNjZXB0SW52aXRlUmVzcG9uc2USEAoIb3JnX3NsdWcYASABKAkiJQoQR2V0RGV2aWNlUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkiUQoRR2V0RGV2aWNlUmVzcG9uc2USDAoEbmFtZRgBIAEoCRIuCgpjcmVhdGVkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIpChRBcHByb3ZlRGV2aWNlUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkiFwoVQXBwcm92ZURldmljZVJlc3BvbnNlIiYKEURlbnlEZXZpY2VSZXF1ZXN0EhEKCXVzZXJfY29kZRgBIAEoCSIUChJEZW55RGV2aWNlUmVzcG9uc2UihgEKCENsaVRva2VuEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSLgoKY3JlYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIWChRMaXN0Q2xpVG9rZW5zUmVxdWVzdCJBChVMaXN0Q2xpVG9rZW5zUmVzcG9uc2USKAoGdG9rZW5zGAEgAygLMhguc3RhY2t3cmlnaHQudjEuQ2xpVG9rZW4iIwoVUmV2b2tlQ2xpVG9rZW5SZXF1ZXN0EgoKAmlkGAEgASgJIhgKFlJldm9rZUNsaVRva2VuUmVzcG9uc2UylAkKC0F1dGhTZXJ2aWNlElIKCEdldFNldHVwEh8uc3RhY2t3cmlnaHQudjEuR2V0U2V0dXBSZXF1ZXN0GiAuc3RhY2t3cmlnaHQudjEuR2V0U2V0dXBSZXNwb25zZSIDkAIBElwKDUNvbXBsZXRlU2V0dXASJC5zdGFja3dyaWdodC52MS5Db21wbGV0ZVNldHVwUmVxdWVzdBolLnN0YWNrd3JpZ2h0LnYxLkNvbXBsZXRlU2V0dXBSZXNwb25zZRJHCgZTaWduSW4SHS5zdGFja3dyaWdodC52MS5TaWduSW5SZXF1ZXN0Gh4uc3RhY2t3cmlnaHQudjEuU2lnbkluUmVzcG9uc2USSgoHU2lnbk91dBIeLnN0YWNrd3JpZ2h0LnYxLlNpZ25PdXRSZXF1ZXN0Gh8uc3RhY2t3cmlnaHQudjEuU2lnbk91dFJlc3BvbnNlEkkKBUdldE1lEhwuc3RhY2t3cmlnaHQudjEuR2V0TWVSZXF1ZXN0Gh0uc3RhY2t3cmlnaHQudjEuR2V0TWVSZXNwb25zZSIDkAIBEnMKE0xpc3RTaWduSW5Qcm92aWRlcnMSKi5zdGFja3dyaWdodC52MS5MaXN0U2lnbkluUHJvdmlkZXJzUmVxdWVzdBorLnN0YWNrd3JpZ2h0LnYxLkxpc3RTaWduSW5Qcm92aWRlcnNSZXNwb25zZSIDkAIBElUKCUdldEludml0ZRIgLnN0YWNrd3JpZ2h0LnYxLkdldEludml0ZVJlcXVlc3QaIS5zdGFja3dyaWdodC52MS5HZXRJbnZpdGVSZXNwb25zZSIDkAIBElkKDEFjY2VwdEludml0ZRIjLnN0YWNrd3JpZ2h0LnYxLkFjY2VwdEludml0ZVJlcXVlc3QaJC5zdGFja3dyaWdodC52MS5BY2NlcHRJbnZpdGVSZXNwb25zZRJVCglHZXREZXZpY2USIC5zdGFja3dyaWdodC52MS5HZXREZXZpY2VSZXF1ZXN0GiEuc3RhY2t3cmlnaHQudjEuR2V0RGV2aWNlUmVzcG9uc2UiA5ACARJcCg1BcHByb3ZlRGV2aWNlEiQuc3RhY2t3cmlnaHQudjEuQXBwcm92ZURldmljZVJlcXVlc3QaJS5zdGFja3dyaWdodC52MS5BcHByb3ZlRGV2aWNlUmVzcG9uc2USUwoKRGVueURldmljZRIhLnN0YWNrd3JpZ2h0LnYxLkRlbnlEZXZpY2VSZXF1ZXN0GiIuc3RhY2t3cmlnaHQudjEuRGVueURldmljZVJlc3BvbnNlEmEKDUxpc3RDbGlUb2tlbnMSJC5zdGFja3dyaWdodC52MS5MaXN0Q2xpVG9rZW5zUmVxdWVzdBolLnN0YWNrd3JpZ2h0LnYxLkxpc3RDbGlUb2tlbnNSZXNwb25zZSIDkAIBEl8KDlJldm9rZUNsaVRva2VuEiUuc3RhY2t3cmlnaHQudjEuUmV2b2tlQ2xpVG9rZW5SZXF1ZXN0GiYuc3RhY2t3cmlnaHQudjEuUmV2b2tlQ2xpVG9rZW5SZXNwb25zZUK9AQoSY29tLnN0YWNrd3JpZ2h0LnYxQglBdXRoUHJvdG9QAVpDZ2l0aHViLmNvbS9zdGFja3dyaWdodC9zdGFja3dyaWdodC9nZW4vc3RhY2t3cmlnaHQvdjE7c3RhY2t3cmlnaHR2MaICA1NYWKoCDlN0YWNrd3JpZ2h0LlYxygIOU3RhY2t3cmlnaHRcVjHiAhpTdGFja3dyaWdodFxWMVxHUEJNZXRhZGF0YeoCD1N0YWNrd3JpZ2h0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stackwright_v1_orgs]);
 
 /**
  * @generated from message stackwright.v1.GetSetupRequest
@@ -404,6 +406,199 @@ export const AcceptInviteResponseSchema: GenMessage<AcceptInviteResponse> = /*@_
   messageDesc(file_stackwright_v1_auth, 18);
 
 /**
+ * @generated from message stackwright.v1.GetDeviceRequest
+ */
+export type GetDeviceRequest = Message<"stackwright.v1.GetDeviceRequest"> & {
+  /**
+   * @generated from field: string user_code = 1;
+   */
+  userCode: string;
+};
+
+/**
+ * Describes the message stackwright.v1.GetDeviceRequest.
+ * Use `create(GetDeviceRequestSchema)` to create a new message.
+ */
+export const GetDeviceRequestSchema: GenMessage<GetDeviceRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 19);
+
+/**
+ * @generated from message stackwright.v1.GetDeviceResponse
+ */
+export type GetDeviceResponse = Message<"stackwright.v1.GetDeviceResponse"> & {
+  /**
+   * The machine name the CLI sent.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 2;
+   */
+  createdAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message stackwright.v1.GetDeviceResponse.
+ * Use `create(GetDeviceResponseSchema)` to create a new message.
+ */
+export const GetDeviceResponseSchema: GenMessage<GetDeviceResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 20);
+
+/**
+ * @generated from message stackwright.v1.ApproveDeviceRequest
+ */
+export type ApproveDeviceRequest = Message<"stackwright.v1.ApproveDeviceRequest"> & {
+  /**
+   * @generated from field: string user_code = 1;
+   */
+  userCode: string;
+};
+
+/**
+ * Describes the message stackwright.v1.ApproveDeviceRequest.
+ * Use `create(ApproveDeviceRequestSchema)` to create a new message.
+ */
+export const ApproveDeviceRequestSchema: GenMessage<ApproveDeviceRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 21);
+
+/**
+ * @generated from message stackwright.v1.ApproveDeviceResponse
+ */
+export type ApproveDeviceResponse = Message<"stackwright.v1.ApproveDeviceResponse"> & {
+};
+
+/**
+ * Describes the message stackwright.v1.ApproveDeviceResponse.
+ * Use `create(ApproveDeviceResponseSchema)` to create a new message.
+ */
+export const ApproveDeviceResponseSchema: GenMessage<ApproveDeviceResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 22);
+
+/**
+ * @generated from message stackwright.v1.DenyDeviceRequest
+ */
+export type DenyDeviceRequest = Message<"stackwright.v1.DenyDeviceRequest"> & {
+  /**
+   * @generated from field: string user_code = 1;
+   */
+  userCode: string;
+};
+
+/**
+ * Describes the message stackwright.v1.DenyDeviceRequest.
+ * Use `create(DenyDeviceRequestSchema)` to create a new message.
+ */
+export const DenyDeviceRequestSchema: GenMessage<DenyDeviceRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 23);
+
+/**
+ * @generated from message stackwright.v1.DenyDeviceResponse
+ */
+export type DenyDeviceResponse = Message<"stackwright.v1.DenyDeviceResponse"> & {
+};
+
+/**
+ * Describes the message stackwright.v1.DenyDeviceResponse.
+ * Use `create(DenyDeviceResponseSchema)` to create a new message.
+ */
+export const DenyDeviceResponseSchema: GenMessage<DenyDeviceResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 24);
+
+/**
+ * @generated from message stackwright.v1.CliToken
+ */
+export type CliToken = Message<"stackwright.v1.CliToken"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 3;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_used_at = 4;
+   */
+  lastUsedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message stackwright.v1.CliToken.
+ * Use `create(CliTokenSchema)` to create a new message.
+ */
+export const CliTokenSchema: GenMessage<CliToken> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 25);
+
+/**
+ * @generated from message stackwright.v1.ListCliTokensRequest
+ */
+export type ListCliTokensRequest = Message<"stackwright.v1.ListCliTokensRequest"> & {
+};
+
+/**
+ * Describes the message stackwright.v1.ListCliTokensRequest.
+ * Use `create(ListCliTokensRequestSchema)` to create a new message.
+ */
+export const ListCliTokensRequestSchema: GenMessage<ListCliTokensRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 26);
+
+/**
+ * @generated from message stackwright.v1.ListCliTokensResponse
+ */
+export type ListCliTokensResponse = Message<"stackwright.v1.ListCliTokensResponse"> & {
+  /**
+   * @generated from field: repeated stackwright.v1.CliToken tokens = 1;
+   */
+  tokens: CliToken[];
+};
+
+/**
+ * Describes the message stackwright.v1.ListCliTokensResponse.
+ * Use `create(ListCliTokensResponseSchema)` to create a new message.
+ */
+export const ListCliTokensResponseSchema: GenMessage<ListCliTokensResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 27);
+
+/**
+ * @generated from message stackwright.v1.RevokeCliTokenRequest
+ */
+export type RevokeCliTokenRequest = Message<"stackwright.v1.RevokeCliTokenRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message stackwright.v1.RevokeCliTokenRequest.
+ * Use `create(RevokeCliTokenRequestSchema)` to create a new message.
+ */
+export const RevokeCliTokenRequestSchema: GenMessage<RevokeCliTokenRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 28);
+
+/**
+ * @generated from message stackwright.v1.RevokeCliTokenResponse
+ */
+export type RevokeCliTokenResponse = Message<"stackwright.v1.RevokeCliTokenResponse"> & {
+};
+
+/**
+ * Describes the message stackwright.v1.RevokeCliTokenResponse.
+ * Use `create(RevokeCliTokenResponseSchema)` to create a new message.
+ */
+export const RevokeCliTokenResponseSchema: GenMessage<RevokeCliTokenResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_auth, 29);
+
+/**
  * @generated from service stackwright.v1.AuthService
  */
 export const AuthService: GenService<{
@@ -470,6 +665,48 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof AcceptInviteRequestSchema;
     output: typeof AcceptInviteResponseSchema;
+  },
+  /**
+   * The device flow of `stackwright login` (adr/0044).
+   *
+   * @generated from rpc stackwright.v1.AuthService.GetDevice
+   */
+  getDevice: {
+    methodKind: "unary";
+    input: typeof GetDeviceRequestSchema;
+    output: typeof GetDeviceResponseSchema;
+  },
+  /**
+   * @generated from rpc stackwright.v1.AuthService.ApproveDevice
+   */
+  approveDevice: {
+    methodKind: "unary";
+    input: typeof ApproveDeviceRequestSchema;
+    output: typeof ApproveDeviceResponseSchema;
+  },
+  /**
+   * @generated from rpc stackwright.v1.AuthService.DenyDevice
+   */
+  denyDevice: {
+    methodKind: "unary";
+    input: typeof DenyDeviceRequestSchema;
+    output: typeof DenyDeviceResponseSchema;
+  },
+  /**
+   * @generated from rpc stackwright.v1.AuthService.ListCliTokens
+   */
+  listCliTokens: {
+    methodKind: "unary";
+    input: typeof ListCliTokensRequestSchema;
+    output: typeof ListCliTokensResponseSchema;
+  },
+  /**
+   * @generated from rpc stackwright.v1.AuthService.RevokeCliToken
+   */
+  revokeCliToken: {
+    methodKind: "unary";
+    input: typeof RevokeCliTokenRequestSchema;
+    output: typeof RevokeCliTokenResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_stackwright_v1_auth, 0);

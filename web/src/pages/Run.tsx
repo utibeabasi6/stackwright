@@ -13,7 +13,7 @@ import { emptyState, statuses, step, timeline } from "../plan/apply";
 import { Graph } from "../plan/Graph";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
-import { changes, describeEvent, finished, origin, runTitle, statusOf } from "../runs";
+import { changes, finished, line as describe, origin, runTitle, statusOf } from "../runs";
 
 function useRun(org: string, project: string, workspace: string, number: number) {
   const [run, setRun] = useState<RunType>();
@@ -161,7 +161,7 @@ export function Run() {
             }}
           >
             {events.map((e) => {
-              const line = describeEvent(e);
+              const line = describe(e);
               if (!line.text.trim()) return null;
               return (
                 <li key={String(e.seq)} className={line.tone}>

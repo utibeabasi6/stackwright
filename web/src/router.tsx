@@ -1,4 +1,5 @@
 import { Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { CliPage, Device } from "./pages/Cli";
 import { ConfirmProvider } from "./Confirm";
 import { Shell } from "./Shell";
 import { EditorPage } from "./editor/EditorPage";
@@ -49,6 +50,8 @@ export const routeTree = root.addChildren([
   app.addChildren([
     createRoute({ getParentRoute: () => app, path: "/", component: Home }),
     createRoute({ getParentRoute: () => app, path: "/new-org", component: NewOrg }),
+    createRoute({ getParentRoute: () => app, path: "/device", component: Device }),
+    createRoute({ getParentRoute: () => app, path: "/cli", component: CliPage }),
     org.addChildren([
       createRoute({ getParentRoute: () => org, path: "/", component: Projects }),
       createRoute({ getParentRoute: () => org, path: "inbox", component: Inbox }),

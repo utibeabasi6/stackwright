@@ -49,3 +49,4 @@ line to the old one that points to the new one.
 | [0041](0041-terragrunt-stacks.md) | A Terragrunt stack is a project; the real Terragrunt runs its units in dependency order; one merged plan with a module for each unit |
 | [0042](0042-deployments-and-drift.md) | Deployments link outputs to variables, plan every step and ask once; drift is a refresh-only plan every 6 hours |
 | [0043](0043-stacks-as-deployments.md) | A Stack's files sync into a workspace for each component instance and a deployment for each Stack deployment; the engine evaluates its expressions |
+| [0044](0044-cli.md) | The CLI signs in with a device code and acts as its user; plans upload what git tracks and never apply; the server writes the timeline |

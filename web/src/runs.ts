@@ -42,6 +42,8 @@ export function origin(r: Pick<Run, "trigger" | "prNumber" | "branch" | "commitS
       return `a deployment step, from ${r.source}`;
     case "drift":
       return `the drift check, of the code last applied`;
+    case "cli":
+      return `a speculative plan, from ${r.source}`;
   }
   return r.source;
 }
@@ -54,97 +56,8 @@ export function changes(r: Pick<Run, "adds" | "changes" | "destroys">) {
   ];
 }
 
-// fix is what to send the agent about an error.
-type Line = { text: string; tone?: Tone; detail?: string; fix?: string };
-
-type Diagnostic = {
-  severity?: string;
-  summary?: string;
-  detail?: string;
-  range?: { filename?: string; start?: { line?: number } };
-};
-
-const engineNames: Record<string, string> = { ENGINE_OPENTOFU: "OpenTofu", ENGINE_TERRAFORM: "Terraform" };
-
-export function describeEvent(e: RunEvent): Line {
-  let p: Record<string, unknown> = {};
-  try {
-    p = JSON.parse(e.payload);
-  } catch {
-    // An event's payload is JSON; show the type when it is not.
-  }
-  const by = e.actor ? ` by ${e.actor}` : "";
-  switch (e.type) {
-    case "run.queued":
-      return { text: `Queued${by}, from ${p.source}${p.plan_only ? ", plan only" : ""}` };
-    case "run.planning":
-      return { text: "The workspace is free; waiting for a build server" };
-    case "run.waiting": {
-      const labels = Object.entries((p.labels as Record<string, string>) ?? {}).map(([k, v]) => `${k}=${v}`);
-      return {
-        text: labels.length
-          ? `Waits for a build server with ${labels.join(", ")} and a free slot`
-          : "Waits for a build server with a free slot",
-        tone: "warn",
-      };
-    }
-    case "run.dispatched":
-      return { text: `Sent the ${p.operation} to build server ${p.build_server}` };
-    case "run.summary":
-      return p.has_changes
-        ? { text: `Plan: +${p.adds} ~${p.changes} −${p.destroys}` }
-        : { text: "Plan: no changes" };
-    case "run.needs_approval":
-      return { text: "Waits for approval", tone: "warn" };
-    case "executor.units":
-      return { text: `Terragrunt units, in order: ${((p.units as string[]) ?? []).join(", ")}` };
-    case "executor.unit_started":
-      return { text: `Unit ${p.unit}` };
-    case "run.blocked":
-      return { text: "! A High or Critical finding blocks the apply", tone: "error" };
-    case "run.unblocked":
-      return { text: "An accepted risk unblocked the apply" };
-    case "run.auto_approved":
-      return { text: "Auto-apply is on, so the apply starts" };
-    case "run.approved":
-      return { text: `Approved${by}` };
-    case "run.planned":
-      return { text: "✓ Planned", tone: "ok" };
-    case "run.applied":
-      return { text: "✓ Applied", tone: "ok" };
-    case "run.failed":
-      return { text: `! Failed: ${p.error}`, tone: "error" };
-    case "run.rejected":
-      return { text: `Rejected${by}` };
-    case "run.canceled":
-      return { text: `Canceled${by}` };
-    case "executor.started":
-      return { text: `Sandbox started: ${engineNames[String(p.engine)] ?? p.engine} ${p.version}` };
-    case "executor.engine_ready":
-      return {
-        text: p.cached
-          ? "The engine binary from the build server's cache matches its signed checksum"
-          : "The engine binary matches its signed checksum",
-      };
-    case "executor.credentials_issued":
-      return { text: `AWS credentials issued for ${p.role_arn}, until ${new Date(String(p.expires_at)).toLocaleTimeString()}` };
-    case "executor.failed":
-      return { text: `! ${p.stage} failed: ${p.error}`, tone: "error" };
-    case "engine.diagnostic": {
-      // https://opentofu.org/docs/internals/machine-readable-ui/#diagnostic
-      const d = (p.diagnostic ?? {}) as Diagnostic;
-      const where = d.range?.filename ? ` (${d.range.filename}${d.range.start?.line ? `:${d.range.start.line}` : ""})` : "";
-      const error = d.severity === "error";
-      return {
-        text: `${error ? "! " : ""}${d.summary ?? "Diagnostic"}${where}`,
-        detail: d.detail || undefined,
-        tone: error ? "error" : "warn",
-        fix: error ? `${d.summary ?? "Error"}${where}${d.detail ? `\n${d.detail}` : ""}` : undefined,
-      };
-    }
-    case "executor.finished":
-      return { text: p.succeeded ? "Sandbox finished" : "Sandbox finished with an error", tone: p.succeeded ? undefined : "error" };
-  }
-  const msg = typeof p["@message"] === "string" ? p["@message"] : e.type;
-  return { text: msg, tone: p["@level"] === "error" ? "error" : undefined };
+// line is an event's line of the timeline, which the server writes so the
+// CLI prints the same (adr/0044).
+export function line(e: RunEvent): { text: string; tone?: Tone; detail?: string; fix?: string } {
+  return { text: e.text || e.type, tone: (e.tone || undefined) as Tone | undefined, detail: e.detail || undefined, fix: e.fix || undefined };
 }

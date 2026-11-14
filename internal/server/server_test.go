@@ -168,7 +168,8 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	go gh.RunWebhooks(ctx, 200*time.Millisecond)
 	go gh.RunChecks(ctx, 200*time.Millisecond)
 	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
-		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries, Issuer: issuer, GitHub: gh, Agent: ag}
+		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries, Issuer: issuer, GitHub: gh, Agent: ag,
+		CLIDir: cliDir(t)}
 	if web != nil {
 		cfg.Web = web
 	}
@@ -592,6 +593,19 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 	})
 	step("OrgService/RemoveMember", func() {
 		owner.must("OrgService/RemoveMember", map[string]any{"org": "a", "userId": w.userID("new@a.test")})
+	})
+	deviceCode := func() (string, string) {
+		c := postDevice(t, w, "/cli/device/code", url.Values{"name": {"laptop"}})
+		return c["device_code"].(string), c["user_code"].(string)
+	}
+	device, user := deviceCode()
+	step("AuthService/ApproveDevice", func() { owner.must("AuthService/ApproveDevice", map[string]any{"userCode": user}) })
+	postDevice(t, w, "/cli/device/token", url.Values{"grant_type": {"urn:ietf:params:oauth:grant-type:device_code"}, "device_code": {device}})
+	_, user = deviceCode()
+	step("AuthService/DenyDevice", func() { owner.must("AuthService/DenyDevice", map[string]any{"userCode": user}) })
+	step("AuthService/RevokeCliToken", func() {
+		id := asList(owner.must("AuthService/ListCliTokens", map[string]any{})["tokens"])[0].(map[string]any)["id"]
+		owner.must("AuthService/RevokeCliToken", map[string]any{"id": id})
 	})
 	out := owner.must("OrgService/CreateInvite", map[string]any{"org": "a", "email": "gone@a.test", "role": "ROLE_VIEWER"})
 	step("OrgService/RevokeInvite", func() {

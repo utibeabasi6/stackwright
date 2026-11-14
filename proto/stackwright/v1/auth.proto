@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package stackwright.v1;
 
+import "google/protobuf/timestamp.proto";
 import "stackwright/v1/orgs.proto";
 
 service AuthService {
@@ -21,6 +22,16 @@ service AuthService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   rpc AcceptInvite(AcceptInviteRequest) returns (AcceptInviteResponse);
+  // The device flow of `stackwright login` (adr/0044).
+  rpc GetDevice(GetDeviceRequest) returns (GetDeviceResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ApproveDevice(ApproveDeviceRequest) returns (ApproveDeviceResponse);
+  rpc DenyDevice(DenyDeviceRequest) returns (DenyDeviceResponse);
+  rpc ListCliTokens(ListCliTokensRequest) returns (ListCliTokensResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc RevokeCliToken(RevokeCliTokenRequest) returns (RevokeCliTokenResponse);
 }
 
 message GetSetupRequest {}
@@ -104,3 +115,44 @@ message AcceptInviteRequest {
 message AcceptInviteResponse {
   string org_slug = 1;
 }
+
+message GetDeviceRequest {
+  string user_code = 1;
+}
+
+message GetDeviceResponse {
+  // The machine name the CLI sent.
+  string name = 1;
+  google.protobuf.Timestamp created_at = 2;
+}
+
+message ApproveDeviceRequest {
+  string user_code = 1;
+}
+
+message ApproveDeviceResponse {}
+
+message DenyDeviceRequest {
+  string user_code = 1;
+}
+
+message DenyDeviceResponse {}
+
+message CliToken {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp last_used_at = 4;
+}
+
+message ListCliTokensRequest {}
+
+message ListCliTokensResponse {
+  repeated CliToken tokens = 1;
+}
+
+message RevokeCliTokenRequest {
+  string id = 1;
+}
+
+message RevokeCliTokenResponse {}

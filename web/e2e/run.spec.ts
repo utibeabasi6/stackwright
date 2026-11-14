@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { golden, mockApi, testdata } from "./mock";
 
-type Event = { seq: string; type: string; resourceAddr?: string; payload: string; at: string };
+type Event = { seq: string; type: string; resourceAddr?: string; payload: string; at: string; text?: string };
 
 const run = (status: string) => ({
   id: "r5",
@@ -163,6 +163,7 @@ test("the timeline follows an apply, and stops following when scrolled up", asyn
     seq: String(i),
     type: "engine.log",
     payload: JSON.stringify({ "@message": `line ${i}` }),
+    text: `line ${i}`,
     at: new Date(Date.UTC(2026, 10, 14, 6, 0, i % 60)).toISOString(),
   });
   let release = () => {};
