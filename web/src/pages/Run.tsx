@@ -65,6 +65,13 @@ export function Run() {
   const [noGraph, setNoGraph] = useState(false);
   const [timelineWidth, setTimelineWidth] = useSavedWidth("stackwright.width.timeline");
   const timelinePane = useRef<HTMLOListElement>(null);
+  // The timeline follows new events while it is scrolled to its end, and
+  // stops when someone scrolls up to read.
+  const follow = useRef(true);
+  useEffect(() => {
+    const pane = timelinePane.current;
+    if (pane && follow.current) pane.scrollTop = pane.scrollHeight;
+  }, [events.length]);
   useEffect(() => {
     if (!full) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFull(false);
@@ -148,6 +155,10 @@ export function Run() {
             aria-label="Timeline"
             aria-live="polite"
             style={showGraph ? paneWidth(timelineWidth) : undefined}
+            onScroll={(e) => {
+              const pane = e.currentTarget;
+              follow.current = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 24;
+            }}
           >
             {events.map((e) => {
               const line = describeEvent(e);

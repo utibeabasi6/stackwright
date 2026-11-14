@@ -1887,3 +1887,9 @@ dialog.confirm p {
   justify-content: flex-end;
   margin-bottom: var(--space-2);
 }
+
+.select-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

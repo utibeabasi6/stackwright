@@ -26,6 +26,7 @@ export function Select({ options, value, defaultValue, onChange, name, disabled,
   const current = value ?? own;
   const [open, setOpen] = useState(false);
   const [up, setUp] = useState(false);
+  const [maxWidth, setMaxWidth] = useState<number>();
   const [active, setActive] = useState(0);
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -52,6 +53,9 @@ export function Select({ options, value, defaultValue, onChange, name, disabled,
   const show = () => {
     const r = button.current?.getBoundingClientRect();
     setUp(r ? window.innerHeight - r.bottom < listHeight && r.top > window.innerHeight - r.bottom : false);
+    // The list may be wider than the button, but never past the window's
+    // right edge; longer labels end in an ellipsis.
+    setMaxWidth(r ? Math.max(r.width, window.innerWidth - r.left - 16) : undefined);
     setActive(Math.max(index, 0));
     setOpen(true);
   };
@@ -132,7 +136,14 @@ export function Select({ options, value, defaultValue, onChange, name, disabled,
       </button>
       {name && <input type="hidden" name={name} value={current} />}
       {open && (
-        <ul role="listbox" id={`${id}-list`} className={up ? "select-list up" : "select-list"} ref={list} aria-labelledby={`${id}-button`}>
+        <ul
+          role="listbox"
+          id={`${id}-list`}
+          className={up ? "select-list up" : "select-list"}
+          ref={list}
+          aria-labelledby={`${id}-button`}
+          style={{ maxWidth }}
+        >
           {options.map((o, i) => (
             <li
               key={o.value}
@@ -140,6 +151,7 @@ export function Select({ options, value, defaultValue, onChange, name, disabled,
               role="option"
               aria-selected={o.value === current}
               className={i === active ? "active" : undefined}
+              title={o.text ?? (typeof o.label === "string" ? o.label : undefined)}
               onMouseDown={(e) => e.preventDefault()}
               onMouseEnter={() => setActive(i)}
               onClick={(e) => {
@@ -148,7 +160,7 @@ export function Select({ options, value, defaultValue, onChange, name, disabled,
                 choose(i);
               }}
             >
-              {o.label}
+              <span className="select-label">{o.label}</span>
             </li>
           ))}
         </ul>

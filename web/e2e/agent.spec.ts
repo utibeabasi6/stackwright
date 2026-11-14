@@ -55,3 +55,26 @@ test("the agent panel resizes from its edge and keeps its width", async ({ page 
   await page.getByRole("separator", { name: "Resize the agent" }).press("Enter");
   expect(await width()).toBe(start);
 });
+
+test("the session menu stays inside the window and cuts long titles", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const long = "The security review found AWS-0131 (Instance with unencrypted block device.) on module.web.aws_instance.this; fix it";
+  const sessions = [
+    { id: "s1", project: "lab", workspace: "default", branch: "agent/a", status: "AGENT_SESSION_STATUS_READY", title: long },
+    { id: "s2", project: "lab", workspace: "default", branch: "agent/b", status: "AGENT_SESSION_STATUS_READY", title: "clone from main" },
+  ];
+  await mockApi(page, "ROLE_WRITER", {
+    GetWorkspace: () => ({ project: { slug: "lab", linkedRepo: "acme/infra" }, workspace: { name: "default" } }),
+    ListProjects: () => ({ projects: [{ slug: "lab", linkedRepo: "acme/infra", workspaces: [{ name: "default" }] }] }),
+    GetAgentSettings: () => ({ settings: { hasKey: true } }),
+    ListSessions: () => ({ sessions }),
+    WatchSession: () => ({ messages: [{ steps: [], session: sessions[0] }] }),
+  });
+  await page.goto("/a/projects/lab/default");
+  await page.getByRole("button", { name: "Agent" }).click();
+  await page.getByRole("combobox", { name: "Session" }).click();
+  const list = page.getByRole("listbox");
+  await expect(list.getByRole("option", { name: long })).toBeVisible();
+  const box = (await list.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(1280);
+});

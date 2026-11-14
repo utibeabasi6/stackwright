@@ -157,3 +157,36 @@ test("the timeline resizes by drag and by keys, keeps its width, and hides with 
   await expect(page.locator("#run-graph")).toBeVisible();
   await expect(timeline).toHaveCount(0);
 });
+
+test("the timeline follows an apply, and stops following when scrolled up", async ({ page }) => {
+  const line = (i: number): Event => ({
+    seq: String(i),
+    type: "engine.log",
+    payload: JSON.stringify({ "@message": `line ${i}` }),
+    at: new Date(Date.UTC(2026, 10, 14, 6, 0, i % 60)).toISOString(),
+  });
+  let release = () => {};
+  const gate = new Promise<void>((r) => (release = r));
+  let calls = 0;
+  await mockApi(page, "ROLE_WRITER", {
+    GetPlanGraph: () => ({ graph: golden("actions"), number: 5 }),
+    WatchRun: async () => {
+      calls++;
+      if (calls === 1) {
+        return { messages: [{ run: run("RUN_STATUS_APPLYING"), events: Array.from({ length: 120 }, (_, i) => line(i + 1)) }], error: "dropped" };
+      }
+      await gate;
+      return { messages: [{ events: Array.from({ length: 120 }, (_, i) => line(i + 121)) }, { run: run("RUN_STATUS_APPLIED") }] };
+    },
+  });
+  await page.goto("/a/projects/lab/default/runs/5");
+  const timeline = page.getByRole("list", { name: "Timeline" });
+  await expect(timeline.getByText("line 120", { exact: true })).toBeVisible();
+  const atEnd = () => timeline.evaluate((el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2);
+  expect(await atEnd()).toBe(true);
+
+  await timeline.evaluate((el) => el.scrollTo({ top: 0 }));
+  release();
+  await expect(timeline.getByText("line 240", { exact: true })).toBeAttached();
+  expect(await timeline.evaluate((el) => el.scrollTop)).toBeLessThan(50);
+});
