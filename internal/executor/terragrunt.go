@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -129,8 +130,17 @@ func (r *runner) terragrunt(ctx context.Context, tofu, dir, root string, env []s
 		// through Terragrunt would read dependencies' outputs again, which a
 		// unit may mock for plan only.
 		work := filepath.Join(dir, u.Path)
-		if found, _ := filepath.Glob(filepath.Join(work, ".terragrunt-cache", "*", "*", ".terraform")); !isDir(filepath.Join(work, ".terraform")) && len(found) > 0 {
-			work = filepath.Dir(found[0])
+		if !isDir(filepath.Join(work, ".terraform")) {
+			err := filepath.WalkDir(filepath.Join(work, ".terragrunt-cache"), func(p string, d fs.DirEntry, err error) error {
+				if err != nil || !d.IsDir() || d.Name() != ".terraform" {
+					return err
+				}
+				work = filepath.Dir(p)
+				return fs.SkipAll
+			})
+			if err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return &stageError{"plan", err}
+			}
 		}
 		js, err := (&cli{bin: tofu, dir: work, env: env, redact: r.redact}).show(ctx, plan)
 		if err != nil {

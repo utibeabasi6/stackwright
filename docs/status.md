@@ -1259,6 +1259,13 @@ SHA-256 sums (1.2.2 was under 14 days old).
   Terragrunt layout on the code's backend. The wizard says how a stack
   runs (Playwright).
 
+**Fixed on 2026-11-14:** a unit whose source has `//`, such as
+`../../modules//kms`, runs in a deeper folder of `.terragrunt-cache`.
+`show` looked two levels down only, so it ran in the unit's folder and
+found no providers. It now looks at any depth. The fixture's vpc unit
+uses `//` and a provider from the registry, and the test failed before
+the fix with the error the dev stack showed.
+
 **Not verified:**
 - That app's apply used vpc's real output and not the mock.
 - A stack on S3 or any remote backend; the fixture uses local state.

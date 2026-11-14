@@ -56,7 +56,7 @@ func TestTerragruntStackPlansInOrderAndApplies(t *testing.T) {
 	slices.Sort(groups)
 	slices.Sort(nodes)
 	if !slices.Equal(groups, []string{"module.app", "module.db", "module.vpc"}) ||
-		!slices.Equal(nodes, []string{"module.app.terraform_data.this", "module.db.terraform_data.this", "module.vpc.terraform_data.this"}) {
+		!slices.Equal(nodes, []string{"module.app.terraform_data.this", "module.db.terraform_data.this", "module.vpc.random_pet.this"}) {
 		t.Errorf("groups %v, nodes %v", groups, nodes)
 	}
 
