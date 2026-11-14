@@ -297,7 +297,10 @@ func (o *Orchestrator) advance(ctx context.Context, tx pgx.Tx, orgID, id string)
 	var deploymentID, status string
 	var destroy bool
 	var decidedBy *string
-	if err := tx.QueryRow(ctx, `SELECT deployment_id, status, destroy, decided_by::text FROM deployment_runs WHERE id = $1 FOR UPDATE`, id).
+	// NO KEY UPDATE: a step's run that updates itself twice in one
+	// transaction re-checks its foreign key with KEY SHARE on this row,
+	// which FOR UPDATE would block while this waits for that run.
+	if err := tx.QueryRow(ctx, `SELECT deployment_id, status, destroy, decided_by::text FROM deployment_runs WHERE id = $1 FOR NO KEY UPDATE`, id).
 		Scan(&deploymentID, &status, &destroy, &decidedBy); err != nil {
 		return err
 	}
@@ -460,7 +463,7 @@ func (o *Orchestrator) endDeployment(ctx context.Context, tx pgx.Tx, id string, 
 // needs every step planned and none blocked. tx needs the org setting.
 func (o *Orchestrator) DecideDeployment(ctx context.Context, tx pgx.Tx, id, userID, decision string) error {
 	var deploymentID, status string
-	if err := tx.QueryRow(ctx, `SELECT deployment_id, status FROM deployment_runs WHERE id = $1 FOR UPDATE`, id).Scan(&deploymentID, &status); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT deployment_id, status FROM deployment_runs WHERE id = $1 FOR NO KEY UPDATE`, id).Scan(&deploymentID, &status); err != nil {
 		return err
 	}
 	steps, err := DeploymentOrder(ctx, tx, deploymentID)
