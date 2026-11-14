@@ -125,6 +125,7 @@ test("the timeline resizes by drag and by keys, keeps its width, and hides with 
   const timeline = page.getByRole("list", { name: "Timeline" });
   const width = async () => (await timeline.boundingBox())!.width;
   const divider = page.getByRole("separator", { name: "Resize the timeline" });
+  await expect(divider).toBeVisible();
   const start = await width();
 
   const box = (await divider.boundingBox())!;
@@ -142,6 +143,7 @@ test("the timeline resizes by drag and by keys, keeps its width, and hides with 
   expect(Math.round(await width())).toBe(200);
 
   await page.reload();
+  await expect(divider).toBeVisible();
   expect(Math.round(await width())).toBe(200);
   await page.getByRole("separator", { name: "Resize the timeline" }).dblclick();
   expect(Math.round(await width())).toBe(Math.round(start));
@@ -190,4 +192,23 @@ test("the timeline follows an apply, and stops following when scrolled up", asyn
   release();
   await expect(timeline.getByText("line 240", { exact: true })).toBeAttached();
   expect(await timeline.evaluate((el) => el.scrollTop)).toBeLessThan(50);
+});
+
+test("a run with nothing to draw shows only its timeline", async ({ page }) => {
+  for (const [status, graph] of [
+    ["RUN_STATUS_FAILED", undefined],
+    ["RUN_STATUS_PLANNED", { nodes: [], edges: [] }],
+  ] as const) {
+    await mockApi(page, "ROLE_WRITER", {
+      GetPlanGraph: () => (graph ? { graph, number: 5 } : {}),
+      WatchRun: () => ({
+        messages: [{ run: run(status), events: [{ seq: "1", type: "run.failed", payload: "{}", text: "! Failed: no plan", at: new Date().toISOString() }] }],
+      }),
+    });
+    await page.goto("/a/projects/lab/default/runs/5");
+    await expect(page.getByRole("list", { name: "Timeline" }).getByText("! Failed: no plan")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Hide graph" })).toHaveCount(0);
+    await expect(page.locator("#run-graph")).toHaveCount(0);
+    await expect(page.getByLabel("Resize the timeline")).toHaveCount(0);
+  }
 });

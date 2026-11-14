@@ -11,6 +11,7 @@ import { RunStatus, type Run as RunType, type RunEvent } from "../gen/stackwrigh
 import { useShell } from "../me";
 import { emptyState, statuses, step, timeline } from "../plan/apply";
 import { Graph } from "../plan/Graph";
+import type { GetPlanGraphResponse } from "../gen/stackwright/v1/graph_pb";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
 import { changes, finished, line as describe, origin, runTitle, statusOf } from "../runs";
@@ -69,10 +70,6 @@ export function Run() {
   // stops when someone scrolls up to read.
   const follow = useRef(true);
   useEffect(() => {
-    const pane = timelinePane.current;
-    if (pane && follow.current) pane.scrollTop = pane.scrollHeight;
-  }, [events.length]);
-  useEffect(() => {
     if (!full) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFull(false);
     window.addEventListener("keydown", onKey);
@@ -94,9 +91,20 @@ export function Run() {
     }
   };
   const target = { org, project, workspace, number };
-  const hasGraph = !!run && run.status !== RunStatus.QUEUED && run.status !== RunStatus.PLANNING;
+  const planned = !!run && run.status !== RunStatus.QUEUED && run.status !== RunStatus.PLANNING;
+  // A plan that failed has no graph, and one with no resources has nothing
+  // to draw: then the timeline takes the page.
+  const graph = useLoad(`plan-graph:${org}/${project}/${workspace}/${number}:${planned}`, () =>
+    planned ? graphApi.getPlanGraph({ org, project, workspace, number }) : Promise.resolve(undefined),
+  );
+  const hasGraph = planned && (graph.data?.graph?.nodes.length ?? 0) > 0;
   const showTimeline = !hasGraph || !full;
   const showGraph = hasGraph && !noGraph;
+  // The graph narrows the timeline when it appears, so it follows then too.
+  useEffect(() => {
+    const pane = timelinePane.current;
+    if (pane && follow.current) pane.scrollTop = pane.scrollHeight;
+  }, [events.length, showGraph]);
 
   return (
     <div className="run-view">
@@ -191,11 +199,12 @@ export function Run() {
           />
         )}
         {!showTimeline && !showGraph && <p className="notice muted">The timeline and the graph are hidden.</p>}
-        {run && showGraph && (
+        {run && showGraph && graph.data && (
           <RunGraph
             org={org}
             project={project}
             workspace={workspace}
+            graph={graph.data}
             run={run}
             events={events}
             writer={role >= Role.WRITER}
@@ -256,6 +265,7 @@ type RunGraphProps = {
   org: string;
   project: string;
   workspace: string;
+  graph: GetPlanGraphResponse;
   run: RunType;
   events: RunEvent[];
   writer: boolean;
@@ -265,10 +275,7 @@ type RunGraphProps = {
 
 // RunGraph shows the run's plan graph. During the apply its nodes follow
 // the events; after the run, the apply can be replayed.
-function RunGraph({ org, project, workspace, run, events, writer, full }: RunGraphProps) {
-  const graph = useLoad(`plan-graph:${org}/${project}/${workspace}/${run.number}`, () =>
-    graphApi.getPlanGraph({ org, project, workspace, number: run.number }),
-  );
+function RunGraph({ org, project, workspace, graph, run, events, writer, full }: RunGraphProps) {
   const applyEvents = useMemo(() => {
     let start = -1;
     events.forEach((e, i) => {
@@ -284,7 +291,7 @@ function RunGraph({ org, project, workspace, run, events, writer, full }: RunGra
   const [speed, setSpeed] = useState("1");
   const shown = at === undefined ? applyEvents.length : times.filter((t) => t <= at).length;
   const state = useMemo(() => applyEvents.slice(0, shown).reduce(step, emptyState()), [applyEvents, shown]);
-  const g = graph.data?.graph;
+  const g = graph.graph;
   const states = useMemo(() => (g && state.started ? statuses(g, state) : undefined), [g, state]);
 
   useEffect(() => {
@@ -304,7 +311,6 @@ function RunGraph({ org, project, workspace, run, events, writer, full }: RunGra
     if (playing && at !== undefined && at >= total) setPlaying(false);
   }, [playing, at, total]);
 
-  if (graph.error || !graph.data) return null;
   const replayable = finished(run.status) && applyEvents.length > 0;
   const progress = replayable ? (
     <span className="replay row">
@@ -342,7 +348,7 @@ function RunGraph({ org, project, workspace, run, events, writer, full }: RunGra
         org={org}
         project={project}
         workspace={workspace}
-        data={graph.data}
+        data={graph}
         writer={writer}
         states={states}
         diagnostics={state.diagnostics}
