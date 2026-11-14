@@ -51,6 +51,9 @@ type Orchestrator struct {
 	Jobs   *jobs.Service
 	Hub    *builders.Hub
 	NATS   *nats.Conn
+	// Head gives a linked workspace's newest commit, for deployments; nil
+	// means no workspace is linked.
+	Head HeadFunc
 
 	once sync.Once
 	wake chan struct{}
@@ -150,15 +153,22 @@ type NewRun struct {
 	SourceName  string
 	SourceSHA   string
 	CreatedBy   string
-	// Trigger is "ui", "pull_request", "push", "agent" or "schedule". Pull
-	// requests and pushes need a commit; an agent run needs AgentSessionID
-	// and is plan-only.
+	// Trigger is "ui", "pull_request", "push", "agent", "schedule",
+	// "deployment" or "drift". Pull requests and pushes need a commit; an
+	// agent run needs AgentSessionID and is plan-only; a drift run is a
+	// plan-only refresh (adr/0042).
 	Trigger        string
 	AgentSessionID string
 	CommitSHA      string
 	Branch         string
 	PRNumber       int
 	RepoID         string
+	RefreshOnly    bool
+	Destroy        bool
+	// Inputs are a deployment step's variables, as JSON JobVariables,
+	// sealed in the run.
+	Inputs          []byte
+	DeploymentRunID string
 }
 
 // Create queues a run. tx needs the org setting.
@@ -190,12 +200,21 @@ func (o *Orchestrator) Create(ctx context.Context, tx pgx.Tx, orgID string, r Ne
 	if trigger == "" {
 		trigger = "ui"
 	}
+	var inputs []byte
+	if r.Inputs != nil {
+		sealed, err := o.KEK.Seal(ctx, tx, orgID, r.Inputs)
+		if err != nil {
+			return "", 0, err
+		}
+		inputs = sealed
+	}
 	if _, err := tx.Exec(ctx, `INSERT INTO runs (id, org_id, workspace_id, number, plan_only, source, source_sha256, created_by,
-		trigger, commit_sha, branch, pr_number, repo_id, source_key, agent_session_id)
+		trigger, commit_sha, branch, pr_number, repo_id, source_key, agent_session_id, refresh_only, destroy, inputs, deployment_run_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, nullif($8, '')::uuid, $9, nullif($10, ''), nullif($11, ''), nullif($12, 0), nullif($13, '')::uuid, nullif($14, ''),
-			nullif($15, '')::uuid)`,
+			nullif($15, '')::uuid, $16, $17, $18, nullif($19, '')::uuid)`,
 		runID, orgID, r.WorkspaceID, number, r.PlanOnly, r.SourceName, r.SourceSHA, r.CreatedBy,
-		trigger, r.CommitSHA, r.Branch, r.PRNumber, r.RepoID, r.SourceKey, r.AgentSessionID); err != nil {
+		trigger, r.CommitSHA, r.Branch, r.PRNumber, r.RepoID, r.SourceKey, r.AgentSessionID, r.RefreshOnly, r.Destroy, inputs,
+		r.DeploymentRunID); err != nil {
 		return "", 0, err
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO run_queue (run_id, org_id) VALUES ($1, $2)`, runID, orgID); err != nil {
@@ -254,7 +273,7 @@ func (o *Orchestrator) dispatch(ctx context.Context) error {
 			slog.Error("advance run", "run", q.run, "err", err)
 		}
 	}
-	return nil
+	return o.advanceDeployments(ctx)
 }
 
 type runRow struct {
@@ -429,10 +448,16 @@ func (o *Orchestrator) JobEnded(ctx context.Context, tx pgx.Tx, jobID, status, m
 	}
 	var runStatus, workspaceID, orgID, trigger string
 	var planOnly, autoApply bool
-	if err := tx.QueryRow(ctx, `SELECT r.status, r.workspace_id, r.plan_only, w.auto_apply, r.org_id, r.trigger FROM runs r
+	var deployment *string
+	if err := tx.QueryRow(ctx, `SELECT r.status, r.workspace_id, r.plan_only, w.auto_apply, r.org_id, r.trigger, r.deployment_run_id FROM runs r
 		JOIN workspaces w ON w.id = r.workspace_id WHERE r.id = $1 FOR UPDATE OF r`, *runID).
-		Scan(&runStatus, &workspaceID, &planOnly, &autoApply, &orgID, &trigger); err != nil {
+		Scan(&runStatus, &workspaceID, &planOnly, &autoApply, &orgID, &trigger, &deployment); err != nil {
 		return err
+	}
+	// A deployment's step applies when the deployment says (adr/0042).
+	if deployment != nil {
+		autoApply = false
+		defer o.Wake()
 	}
 	defer o.afterCommit(ctx, *runID)
 	failure := msg
@@ -444,6 +469,23 @@ func (o *Orchestrator) JobEnded(ctx context.Context, tx pgx.Tx, jobID, status, m
 	case operation == "apply" && runStatus == "applying":
 		if status != "succeeded" {
 			return finish(ctx, tx, *runID, "failed", failure, "")
+		}
+		// The newest outputs, for deployments' later steps (adr/0042). An
+		// executor from before them uploads none.
+		outputs, err := o.Jobs.ReadArtifact(ctx, tx, jobID, "outputs.json")
+		switch {
+		case errors.Is(err, jobs.ErrNoArtifact):
+		case err != nil:
+			return err
+		default:
+			sealed, err := o.KEK.Seal(ctx, tx, orgID, outputs)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO workspace_outputs (workspace_id, org_id, outputs, run_id) VALUES ($1, $2, $3, $4)
+				ON CONFLICT (workspace_id) DO UPDATE SET outputs = $3, run_id = $4, updated_at = now()`, workspaceID, orgID, sealed, *runID); err != nil {
+				return err
+			}
 		}
 		return finish(ctx, tx, *runID, "applied", "", "")
 	case operation == "plan" && runStatus == "planning":
@@ -554,6 +596,13 @@ func (o *Orchestrator) review(ctx context.Context, tx pgx.Tx, orgID, jobID, work
 	if err != nil {
 		return false, err
 	}
+	if trigger == "drift" {
+		drift, err := findings.Drift(plan)
+		if err != nil {
+			return false, err
+		}
+		return false, findings.RecordDrift(ctx, tx, orgID, workspaceID, drift)
+	}
 	if trigger == "ui" || trigger == "push" || trigger == "schedule" {
 		if err := findings.Record(ctx, tx, orgID, workspaceID, results); err != nil {
 			return false, err
@@ -626,6 +675,18 @@ func refuse(code connect.Code, format string, args ...any) error {
 // accepted risk expired since it; then the run fails or is blocked, and
 // Approve returns no error. s.Tx needs the org setting.
 func (o *Orchestrator) Approve(ctx context.Context, s *authz.Scope, runID string) error {
+	var deployment *string
+	if err := s.Tx.QueryRow(ctx, `SELECT deployment_run_id FROM runs WHERE id = $1`, runID).Scan(&deployment); err != nil {
+		return err
+	}
+	if deployment != nil {
+		return refuse(connect.CodeFailedPrecondition, "this run is a step of a deployment; approve the deployment")
+	}
+	return o.approve(ctx, s.Tx, runID, s.UserID)
+}
+
+func (o *Orchestrator) approve(ctx context.Context, tx pgx.Tx, runID, userID string) error {
+	s := &authz.Scope{Tx: tx, UserID: userID}
 	var r runRow
 	var planJob *string
 	if err := s.Tx.QueryRow(ctx, `SELECT id, org_id, status, workspace_id, state_serial, plan_job_id FROM runs WHERE id = $1 FOR UPDATE`, runID).
@@ -679,6 +740,11 @@ func (o *Orchestrator) Reject(ctx context.Context, s *authz.Scope, runID string)
 // Cancel ends a run that is not finished. Its sandbox, if any, gets a
 // graceful stop, so the engine can release its state lock.
 func (o *Orchestrator) Cancel(ctx context.Context, s *authz.Scope, runID string) error {
+	return o.cancel(ctx, s.Tx, runID, s.UserID)
+}
+
+func (o *Orchestrator) cancel(ctx context.Context, tx pgx.Tx, runID, userID string) error {
+	s := &authz.Scope{Tx: tx, UserID: userID}
 	var status string
 	var planJob, applyJob *string
 	if err := s.Tx.QueryRow(ctx, `SELECT status, plan_job_id, apply_job_id FROM runs WHERE id = $1 FOR UPDATE`, runID).

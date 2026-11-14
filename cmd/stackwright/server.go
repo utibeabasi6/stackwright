@@ -155,11 +155,13 @@ func runServer(args []string) error {
 		APIURL: strings.TrimRight(config.Env("STACKWRIGHT_GITHUB_API_URL", "https://api.github.com"), "/"),
 		HTTP:   &http.Client{Timeout: 2 * time.Minute},
 	}
+	orchestrator.Head = gh.BranchHead
 	go gh.RunWebhooks(ctx, 2*time.Second)
 	go gh.RunChecks(ctx, 2*time.Second)
 	go jobService.RunReaper(ctx, 5*time.Second)
 	go orchestrator.Run(ctx)
 	go orchestrator.Nightly(ctx, gh.BranchHead)
+	go orchestrator.Drift(ctx)
 	if err := agentService.Recover(ctx); err != nil {
 		return err
 	}

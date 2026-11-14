@@ -47,3 +47,4 @@ line to the old one that points to the new one.
 | [0039](0039-topology-per-project.md) | One topology for each project; other projects' VPCs and subnets as dimmed context |
 | [0040](0040-unmatched-findings.md) | Findings get plan addresses through Trivy's MD5 of the module address; one that fits none shows and never blocks |
 | [0041](0041-terragrunt-stacks.md) | A Terragrunt stack is a project; the real Terragrunt runs its units in dependency order; one merged plan with a module for each unit |
+| [0042](0042-deployments-and-drift.md) | Deployments link outputs to variables, plan every step and ask once; drift is a refresh-only plan every 6 hours |

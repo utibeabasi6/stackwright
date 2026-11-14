@@ -51,13 +51,13 @@ const canTake = [AgentSessionStatus.READY, AgentSessionStatus.ASLEEP, AgentSessi
 
 // AskAgent sends an error to the agent. It shows only to writers, on
 // projects that the agent can work on.
-export function AskAgent({ org, project, prompt }: { org: string; project: string; prompt: string }) {
+export function AskAgent({ org, project, prompt, label = "Ask agent to fix" }: { org: string; project: string; prompt: string; label?: string }) {
   const { me, projects, askAgent } = useShell();
   const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
   if (!writer || !projects?.find((p) => p.slug === project)?.linkedRepo) return null;
   return (
     <button type="button" className="link ask-agent" onClick={() => askAgent(prompt)}>
-      Ask agent to fix
+      {label}
     </button>
   );
 }

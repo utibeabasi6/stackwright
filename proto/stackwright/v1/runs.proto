@@ -94,6 +94,10 @@ message CreateRunRequest {
   // code, for the sample project only.
   bytes source = 5;
   string source_name = 6;
+  // Plan the code the workspace last applied, to undo drift (adr/0042).
+  bool revert = 7;
+  // A drift check now: a refresh-only plan of the code last applied.
+  bool check_drift = 8;
 }
 
 message CreateRunResponse {
@@ -180,4 +184,14 @@ message ListWaitingResponse {
   // Open High and Critical findings that no one accepted, for those who
   // may accept them.
   repeated Finding findings = 3;
+  // Open drift findings, for writers and above (adr/0042).
+  repeated Finding drift = 4;
+  // Deployment runs that wait for an approval the caller may give.
+  repeated WaitingDeployment deployments = 5;
+}
+
+message WaitingDeployment {
+  string name = 1;
+  int32 number = 2;
+  google.protobuf.Timestamp since = 3;
 }

@@ -4,6 +4,7 @@
 package findings
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" //nolint:gosec // reproduces Trivy's resource names; no security use
 	"encoding/json"
@@ -130,8 +131,77 @@ func Record(ctx context.Context, tx pgx.Tx, orgID, workspaceID string, results [
 		}
 		ids = append(ids, id)
 	}
-	_, err := tx.Exec(ctx, `UPDATE findings SET fixed_at = now() WHERE workspace_id = $1 AND fixed_at IS NULL AND NOT (id = ANY($2::uuid[]))`,
-		workspaceID, ids)
+	_, err := tx.Exec(ctx, `UPDATE findings SET fixed_at = now() WHERE workspace_id = $1 AND fixed_at IS NULL AND check_id <> $3
+		AND NOT (id = ANY($2::uuid[]))`, workspaceID, ids, DriftCheck)
+	return err
+}
+
+// DriftCheck is the check id of a drift finding (adr/0042).
+const DriftCheck = "DRIFT"
+
+// Drift reads a refresh-only plan's resource_drift: each resource that
+// changed outside Stackwright, with the attributes that changed.
+// https://opentofu.org/docs/internals/json-format/#plan-representation
+func Drift(planJSON []byte) ([]Result, error) {
+	var plan struct {
+		ResourceDrift []struct {
+			Address string `json:"address"`
+			Mode    string `json:"mode"`
+			Change  struct {
+				Actions []string                   `json:"actions"`
+				Before  map[string]json.RawMessage `json:"before"`
+				After   map[string]json.RawMessage `json:"after"`
+			} `json:"change"`
+		} `json:"resource_drift"`
+	}
+	if err := json.Unmarshal(planJSON, &plan); err != nil {
+		return nil, fmt.Errorf("the plan is not JSON: %w", err)
+	}
+	var out []Result
+	for _, d := range plan.ResourceDrift {
+		if d.Mode != "managed" {
+			continue
+		}
+		r := Result{CheckID: DriftCheck, Severity: "medium", Title: "Changed outside Stackwright", Resource: d.Address}
+		if slices.Contains(d.Change.Actions, "delete") {
+			r.Message = "Deleted outside Stackwright."
+		} else {
+			var keys []string
+			for k, v := range d.Change.After {
+				if !bytes.Equal(v, d.Change.Before[k]) {
+					keys = append(keys, k)
+				}
+			}
+			for k := range d.Change.Before {
+				if _, ok := d.Change.After[k]; !ok {
+					keys = append(keys, k)
+				}
+			}
+			slices.Sort(keys)
+			r.Message = "Changed: " + strings.Join(keys, ", ") + "."
+		}
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+// RecordDrift opens a drift finding for each drifted resource, and closes
+// the workspace's drift findings that a check no longer sees. A drift
+// finding is Medium, so it never blocks an apply. tx needs the org setting.
+func RecordDrift(ctx context.Context, tx pgx.Tx, orgID, workspaceID string, drift []Result) error {
+	ids := make([]string, 0, len(drift))
+	for _, r := range drift {
+		var id string
+		if err := tx.QueryRow(ctx, `INSERT INTO findings (id, org_id, workspace_id, check_id, resource, severity, title, message)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			ON CONFLICT (workspace_id, check_id, resource) DO UPDATE SET message = $8, last_seen_at = now(), fixed_at = NULL
+			RETURNING id`, uuid.NewString(), orgID, workspaceID, r.CheckID, r.Resource, r.Severity, r.Title, r.Message).Scan(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+	}
+	_, err := tx.Exec(ctx, `UPDATE findings SET fixed_at = now() WHERE workspace_id = $1 AND fixed_at IS NULL AND check_id = $3
+		AND NOT (id = ANY($2::uuid[]))`, workspaceID, ids, DriftCheck)
 	return err
 }
 

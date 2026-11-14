@@ -303,7 +303,7 @@ func methods() []method {
 		v1.File_stackwright_v1_executor_proto, v1.File_stackwright_v1_runs_proto, v1.File_stackwright_v1_builder_proto,
 		v1.File_stackwright_v1_build_servers_proto, v1.File_stackwright_v1_variables_proto, v1.File_stackwright_v1_cloud_proto,
 		v1.File_stackwright_v1_github_proto, v1.File_stackwright_v1_graph_proto, v1.File_stackwright_v1_agent_proto,
-		v1.File_stackwright_v1_imports_proto, v1.File_stackwright_v1_security_proto,
+		v1.File_stackwright_v1_imports_proto, v1.File_stackwright_v1_security_proto, v1.File_stackwright_v1_deployments_proto,
 	} {
 		for i := range f.Services().Len() {
 			s := f.Services().Get(i)
@@ -663,6 +663,28 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 			owner.must(procedure, map[string]any{"org": "a", "project": "sample", "workspace": "dev", "number": i + 1})
 		})
 	}
+	deployment := map[string]any{"org": "a", "name": "audited"}
+	step("DeploymentService/SaveDeployment", func() {
+		owner.must("DeploymentService/SaveDeployment", merge(deployment, map[string]any{"steps": []any{map[string]any{"project": "sample", "workspace": "dev"}}}))
+	})
+	settle := func(number int, status string) {
+		t.Helper()
+		if _, err := w.owner.Exec(context.Background(), `UPDATE runs SET status = 'canceled' WHERE deployment_run_id IS NOT NULL`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.owner.Exec(context.Background(), `UPDATE deployment_runs SET status = $2 WHERE number = $1`, number, status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i, decision := range []string{"DeploymentService/CancelDeploymentRun", "DeploymentService/ApproveDeploymentRun", "DeploymentService/RejectDeploymentRun"} {
+		step("DeploymentService/StartDeploymentRun", func() { owner.must("DeploymentService/StartDeploymentRun", deployment) })
+		if decision != "DeploymentService/CancelDeploymentRun" {
+			settle(i+1, "needs_approval")
+		}
+		step(decision, func() { owner.must(decision, merge(deployment, map[string]any{"number": i + 1})) })
+		settle(i+1, "applied")
+	}
+	step("DeploymentService/ArchiveDeployment", func() { owner.must("DeploymentService/ArchiveDeployment", deployment) })
 	org := map[string]any{"org": "a"}
 	var manifest map[string]any
 	step("GitHubService/StartAppManifest", func() {

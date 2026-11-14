@@ -1273,3 +1273,46 @@ SHA-256 sums (1.2.2 was under 14 days old).
 - The graph has no source links into units.
 - An apply that fails stops at that unit; the units after it do not run.
 
+## Phase 19: Deployments and drift
+
+Decision: [0042](adr/0042-deployments-and-drift.md). The user chose
+deployments defined in the web app by output links, outputs captured
+after each apply, refresh-only drift checks, and one interval of 6 hours.
+
+**Verified on 2026-11-14:**
+- A Go test with real sandboxes deploys `kms` → `secrets` → `eks`, linked
+  by `key_arn` and `secret_arn`. Only kms plans first, since the others'
+  outputs do not exist; the run waits for one approval, which a viewer
+  cannot give. After the approval, each step plans with the outputs of
+  the one before and applies without another approval, each starting
+  after the step before it applied. eks's outputs are stored. Links that
+  loop are refused.
+- In the same test, a second run with secrets set to fail: the run
+  waits for one approval, secrets fails its apply, eks is canceled, the
+  deployment run fails naming secrets, and kms keeps its one apply.
+- A Go test with real sandboxes applies a `local_file`, which the next
+  sandbox does not have: the drift queue plans the code last applied
+  with `-refresh-only`, and the drift run opens one Medium `DRIFT`
+  finding on `local_file.marker`. A drift check before any apply is
+  refused, and Revert drift starts a run of the uploaded code.
+- The audit test covers the six deployment writes. Web tests: a drift
+  finding offers Revert drift and Reconcile with agent and no Accept
+  risk; the Security page has Check drift now; a deployment run shows
+  its steps in order with what each waits for, and one approval
+  approves it (Playwright).
+
+**Not verified:**
+- The 6-hourly loop itself; the test calls the queue directly.
+- A destroy run; it plans with `-destroy` and applies in reverse order,
+  with no test.
+- A step whose inputs change between its plan and its apply, which plans
+  again; the code is there, with no test.
+- Outputs of Terragrunt stacks; a stack takes part as one step with no
+  outputs.
+- The pages on the development stack.
+
+**Known gaps:**
+- A workspace's outputs come from its last apply through Stackwright.
+- A step with a security finding that blocks it stops the approval until
+  it is fixed or its risk accepted.
+

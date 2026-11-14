@@ -431,8 +431,12 @@ type CreateRunRequest struct {
 	PlanOnly  bool                   `protobuf:"varint,4,opt,name=plan_only,json=planOnly,proto3" json:"plan_only,omitempty"`
 	// A .tar.gz of the project's repository. Empty runs the sample project's
 	// code, for the sample project only.
-	Source        []byte `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
-	SourceName    string `protobuf:"bytes,6,opt,name=source_name,json=sourceName,proto3" json:"source_name,omitempty"`
+	Source     []byte `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	SourceName string `protobuf:"bytes,6,opt,name=source_name,json=sourceName,proto3" json:"source_name,omitempty"`
+	// Plan the code the workspace last applied, to undo drift (adr/0042).
+	Revert bool `protobuf:"varint,7,opt,name=revert,proto3" json:"revert,omitempty"`
+	// A drift check now: a refresh-only plan of the code last applied.
+	CheckDrift    bool `protobuf:"varint,8,opt,name=check_drift,json=checkDrift,proto3" json:"check_drift,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -507,6 +511,20 @@ func (x *CreateRunRequest) GetSourceName() string {
 		return x.SourceName
 	}
 	return ""
+}
+
+func (x *CreateRunRequest) GetRevert() bool {
+	if x != nil {
+		return x.Revert
+	}
+	return false
+}
+
+func (x *CreateRunRequest) GetCheckDrift() bool {
+	if x != nil {
+		return x.CheckDrift
+	}
+	return false
 }
 
 type CreateRunResponse struct {
@@ -1286,7 +1304,11 @@ type ListWaitingResponse struct {
 	Failures  []*Run `protobuf:"bytes,2,rep,name=failures,proto3" json:"failures,omitempty"`
 	// Open High and Critical findings that no one accepted, for those who
 	// may accept them.
-	Findings      []*Finding `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
+	Findings []*Finding `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
+	// Open drift findings, for writers and above (adr/0042).
+	Drift []*Finding `protobuf:"bytes,4,rep,name=drift,proto3" json:"drift,omitempty"`
+	// Deployment runs that wait for an approval the caller may give.
+	Deployments   []*WaitingDeployment `protobuf:"bytes,5,rep,name=deployments,proto3" json:"deployments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1342,6 +1364,80 @@ func (x *ListWaitingResponse) GetFindings() []*Finding {
 	return nil
 }
 
+func (x *ListWaitingResponse) GetDrift() []*Finding {
+	if x != nil {
+		return x.Drift
+	}
+	return nil
+}
+
+func (x *ListWaitingResponse) GetDeployments() []*WaitingDeployment {
+	if x != nil {
+		return x.Deployments
+	}
+	return nil
+}
+
+type WaitingDeployment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Number        int32                  `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
+	Since         *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=since,proto3" json:"since,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitingDeployment) Reset() {
+	*x = WaitingDeployment{}
+	mi := &file_stackwright_v1_runs_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitingDeployment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitingDeployment) ProtoMessage() {}
+
+func (x *WaitingDeployment) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_runs_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitingDeployment.ProtoReflect.Descriptor instead.
+func (*WaitingDeployment) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_runs_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *WaitingDeployment) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *WaitingDeployment) GetNumber() int32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+func (x *WaitingDeployment) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
 var File_stackwright_v1_runs_proto protoreflect.FileDescriptor
 
 const file_stackwright_v1_runs_proto_rawDesc = "" +
@@ -1387,7 +1483,7 @@ const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"\rresource_addr\x18\x03 \x01(\tR\fresourceAddr\x12\x18\n" +
 	"\apayload\x18\x04 \x01(\tR\apayload\x12*\n" +
 	"\x02at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x14\n" +
-	"\x05actor\x18\x06 \x01(\tR\x05actor\"\xb2\x01\n" +
+	"\x05actor\x18\x06 \x01(\tR\x05actor\"\xeb\x01\n" +
 	"\x10CreateRunRequest\x12\x10\n" +
 	"\x03org\x18\x01 \x01(\tR\x03org\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x12\x1c\n" +
@@ -1395,7 +1491,10 @@ const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"\tplan_only\x18\x04 \x01(\bR\bplanOnly\x12\x16\n" +
 	"\x06source\x18\x05 \x01(\fR\x06source\x12\x1f\n" +
 	"\vsource_name\x18\x06 \x01(\tR\n" +
-	"sourceName\":\n" +
+	"sourceName\x12\x16\n" +
+	"\x06revert\x18\a \x01(\bR\x06revert\x12\x1f\n" +
+	"\vcheck_drift\x18\b \x01(\bR\n" +
+	"checkDrift\":\n" +
 	"\x11CreateRunResponse\x12%\n" +
 	"\x03run\x18\x01 \x01(\v2\x13.stackwright.v1.RunR\x03run\"[\n" +
 	"\x0fListRunsRequest\x12\x10\n" +
@@ -1442,11 +1541,17 @@ const file_stackwright_v1_runs_proto_rawDesc = "" +
 	"\x11CancelRunResponse\x12%\n" +
 	"\x03run\x18\x01 \x01(\v2\x13.stackwright.v1.RunR\x03run\"&\n" +
 	"\x12ListWaitingRequest\x12\x10\n" +
-	"\x03org\x18\x01 \x01(\tR\x03org\"\xae\x01\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\"\xa2\x02\n" +
 	"\x13ListWaitingResponse\x121\n" +
 	"\tapprovals\x18\x01 \x03(\v2\x13.stackwright.v1.RunR\tapprovals\x12/\n" +
 	"\bfailures\x18\x02 \x03(\v2\x13.stackwright.v1.RunR\bfailures\x123\n" +
-	"\bfindings\x18\x03 \x03(\v2\x17.stackwright.v1.FindingR\bfindings*\xa0\x02\n" +
+	"\bfindings\x18\x03 \x03(\v2\x17.stackwright.v1.FindingR\bfindings\x12-\n" +
+	"\x05drift\x18\x04 \x03(\v2\x17.stackwright.v1.FindingR\x05drift\x12C\n" +
+	"\vdeployments\x18\x05 \x03(\v2!.stackwright.v1.WaitingDeploymentR\vdeployments\"q\n" +
+	"\x11WaitingDeployment\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06number\x18\x02 \x01(\x05R\x06number\x120\n" +
+	"\x05since\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x05since*\xa0\x02\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11RUN_STATUS_QUEUED\x10\x01\x12\x17\n" +
@@ -1486,7 +1591,7 @@ func file_stackwright_v1_runs_proto_rawDescGZIP() []byte {
 }
 
 var file_stackwright_v1_runs_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_stackwright_v1_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_stackwright_v1_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_stackwright_v1_runs_proto_goTypes = []any{
 	(RunStatus)(0),                // 0: stackwright.v1.RunStatus
 	(*Run)(nil),                   // 1: stackwright.v1.Run
@@ -1507,15 +1612,16 @@ var file_stackwright_v1_runs_proto_goTypes = []any{
 	(*CancelRunResponse)(nil),     // 16: stackwright.v1.CancelRunResponse
 	(*ListWaitingRequest)(nil),    // 17: stackwright.v1.ListWaitingRequest
 	(*ListWaitingResponse)(nil),   // 18: stackwright.v1.ListWaitingResponse
-	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
-	(*Finding)(nil),               // 20: stackwright.v1.Finding
+	(*WaitingDeployment)(nil),     // 19: stackwright.v1.WaitingDeployment
+	(*timestamppb.Timestamp)(nil), // 20: google.protobuf.Timestamp
+	(*Finding)(nil),               // 21: stackwright.v1.Finding
 }
 var file_stackwright_v1_runs_proto_depIdxs = []int32{
 	0,  // 0: stackwright.v1.Run.status:type_name -> stackwright.v1.RunStatus
-	19, // 1: stackwright.v1.Run.created_at:type_name -> google.protobuf.Timestamp
-	19, // 2: stackwright.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
-	19, // 3: stackwright.v1.Run.finished_at:type_name -> google.protobuf.Timestamp
-	19, // 4: stackwright.v1.RunEvent.at:type_name -> google.protobuf.Timestamp
+	20, // 1: stackwright.v1.Run.created_at:type_name -> google.protobuf.Timestamp
+	20, // 2: stackwright.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 3: stackwright.v1.Run.finished_at:type_name -> google.protobuf.Timestamp
+	20, // 4: stackwright.v1.RunEvent.at:type_name -> google.protobuf.Timestamp
 	1,  // 5: stackwright.v1.CreateRunResponse.run:type_name -> stackwright.v1.Run
 	1,  // 6: stackwright.v1.ListRunsResponse.runs:type_name -> stackwright.v1.Run
 	1,  // 7: stackwright.v1.GetRunResponse.run:type_name -> stackwright.v1.Run
@@ -1526,28 +1632,31 @@ var file_stackwright_v1_runs_proto_depIdxs = []int32{
 	1,  // 12: stackwright.v1.CancelRunResponse.run:type_name -> stackwright.v1.Run
 	1,  // 13: stackwright.v1.ListWaitingResponse.approvals:type_name -> stackwright.v1.Run
 	1,  // 14: stackwright.v1.ListWaitingResponse.failures:type_name -> stackwright.v1.Run
-	20, // 15: stackwright.v1.ListWaitingResponse.findings:type_name -> stackwright.v1.Finding
-	3,  // 16: stackwright.v1.RunService.CreateRun:input_type -> stackwright.v1.CreateRunRequest
-	5,  // 17: stackwright.v1.RunService.ListRuns:input_type -> stackwright.v1.ListRunsRequest
-	7,  // 18: stackwright.v1.RunService.GetRun:input_type -> stackwright.v1.GetRunRequest
-	9,  // 19: stackwright.v1.RunService.WatchRun:input_type -> stackwright.v1.WatchRunRequest
-	11, // 20: stackwright.v1.RunService.ApproveRun:input_type -> stackwright.v1.ApproveRunRequest
-	13, // 21: stackwright.v1.RunService.RejectRun:input_type -> stackwright.v1.RejectRunRequest
-	15, // 22: stackwright.v1.RunService.CancelRun:input_type -> stackwright.v1.CancelRunRequest
-	17, // 23: stackwright.v1.RunService.ListWaiting:input_type -> stackwright.v1.ListWaitingRequest
-	4,  // 24: stackwright.v1.RunService.CreateRun:output_type -> stackwright.v1.CreateRunResponse
-	6,  // 25: stackwright.v1.RunService.ListRuns:output_type -> stackwright.v1.ListRunsResponse
-	8,  // 26: stackwright.v1.RunService.GetRun:output_type -> stackwright.v1.GetRunResponse
-	10, // 27: stackwright.v1.RunService.WatchRun:output_type -> stackwright.v1.WatchRunResponse
-	12, // 28: stackwright.v1.RunService.ApproveRun:output_type -> stackwright.v1.ApproveRunResponse
-	14, // 29: stackwright.v1.RunService.RejectRun:output_type -> stackwright.v1.RejectRunResponse
-	16, // 30: stackwright.v1.RunService.CancelRun:output_type -> stackwright.v1.CancelRunResponse
-	18, // 31: stackwright.v1.RunService.ListWaiting:output_type -> stackwright.v1.ListWaitingResponse
-	24, // [24:32] is the sub-list for method output_type
-	16, // [16:24] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	21, // 15: stackwright.v1.ListWaitingResponse.findings:type_name -> stackwright.v1.Finding
+	21, // 16: stackwright.v1.ListWaitingResponse.drift:type_name -> stackwright.v1.Finding
+	19, // 17: stackwright.v1.ListWaitingResponse.deployments:type_name -> stackwright.v1.WaitingDeployment
+	20, // 18: stackwright.v1.WaitingDeployment.since:type_name -> google.protobuf.Timestamp
+	3,  // 19: stackwright.v1.RunService.CreateRun:input_type -> stackwright.v1.CreateRunRequest
+	5,  // 20: stackwright.v1.RunService.ListRuns:input_type -> stackwright.v1.ListRunsRequest
+	7,  // 21: stackwright.v1.RunService.GetRun:input_type -> stackwright.v1.GetRunRequest
+	9,  // 22: stackwright.v1.RunService.WatchRun:input_type -> stackwright.v1.WatchRunRequest
+	11, // 23: stackwright.v1.RunService.ApproveRun:input_type -> stackwright.v1.ApproveRunRequest
+	13, // 24: stackwright.v1.RunService.RejectRun:input_type -> stackwright.v1.RejectRunRequest
+	15, // 25: stackwright.v1.RunService.CancelRun:input_type -> stackwright.v1.CancelRunRequest
+	17, // 26: stackwright.v1.RunService.ListWaiting:input_type -> stackwright.v1.ListWaitingRequest
+	4,  // 27: stackwright.v1.RunService.CreateRun:output_type -> stackwright.v1.CreateRunResponse
+	6,  // 28: stackwright.v1.RunService.ListRuns:output_type -> stackwright.v1.ListRunsResponse
+	8,  // 29: stackwright.v1.RunService.GetRun:output_type -> stackwright.v1.GetRunResponse
+	10, // 30: stackwright.v1.RunService.WatchRun:output_type -> stackwright.v1.WatchRunResponse
+	12, // 31: stackwright.v1.RunService.ApproveRun:output_type -> stackwright.v1.ApproveRunResponse
+	14, // 32: stackwright.v1.RunService.RejectRun:output_type -> stackwright.v1.RejectRunResponse
+	16, // 33: stackwright.v1.RunService.CancelRun:output_type -> stackwright.v1.CancelRunResponse
+	18, // 34: stackwright.v1.RunService.ListWaiting:output_type -> stackwright.v1.ListWaitingResponse
+	27, // [27:35] is the sub-list for method output_type
+	19, // [19:27] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_stackwright_v1_runs_proto_init() }
@@ -1562,7 +1671,7 @@ func file_stackwright_v1_runs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stackwright_v1_runs_proto_rawDesc), len(file_stackwright_v1_runs_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -18,6 +18,7 @@ import (
 	"github.com/stackwright/stackwright/fixtures"
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/findings"
 	"github.com/stackwright/stackwright/internal/github"
 	"github.com/stackwright/stackwright/internal/runs"
 )
@@ -107,6 +108,20 @@ func (h Runs) CreateRun(ctx context.Context, req *connect.Request[v1.CreateRunRe
 	ws, err := workspaceID(ctx, s.Tx, m.Project, m.Workspace)
 	if err != nil {
 		return nil, err
+	}
+	if m.Revert || m.CheckDrift {
+		r, err := h.Orchestrator.LastApplied(ctx, s.Tx, s.OrgID, ws)
+		if errors.Is(err, runs.ErrNeverApplied) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		if err != nil {
+			return nil, authz.Internal(err)
+		}
+		r.CreatedBy = s.UserID
+		if m.CheckDrift {
+			r.PlanOnly, r.RefreshOnly, r.Trigger = true, true, "drift"
+		}
+		return h.created(ctx, s, m, r)
 	}
 	head, linked, err := h.GitHub.BranchHead(ctx, s.Tx, s.OrgID, ws)
 	switch {
@@ -337,6 +352,28 @@ func (Runs) ListWaiting(ctx context.Context, _ *connect.Request[v1.ListWaitingRe
 		if out.Findings, err = queryFindings(ctx, s.Tx, `f.fixed_at IS NULL AND f.severity IN ('high', 'critical') AND a.reason IS NULL
 			AND w.archived_at IS NULL AND p.archived_at IS NULL ORDER BY f.first_seen_at DESC`); err != nil {
 			return nil, err
+		}
+	}
+	if authz.AtLeast(s.Role, v1.Role_ROLE_WRITER) {
+		if out.Drift, err = queryFindings(ctx, s.Tx, `f.fixed_at IS NULL AND f.check_id = $1
+			AND w.archived_at IS NULL AND p.archived_at IS NULL ORDER BY f.first_seen_at DESC`, findings.DriftCheck); err != nil {
+			return nil, err
+		}
+	}
+	if authz.AtLeast(s.Role, v1.Role_ROLE_REVIEWER) {
+		rows, err := s.Tx.Query(ctx, `SELECT d.name, r.number, r.updated_at FROM deployment_runs r JOIN deployments d ON d.id = r.deployment_id
+			WHERE r.status = 'needs_approval' AND d.archived_at IS NULL ORDER BY r.updated_at`)
+		if err != nil {
+			return nil, authz.Internal(err)
+		}
+		if out.Deployments, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (*v1.WaitingDeployment, error) {
+			d := &v1.WaitingDeployment{}
+			var since time.Time
+			err := r.Scan(&d.Name, &d.Number, &since)
+			d.Since = timestamppb.New(since)
+			return d, err
+		}); err != nil {
+			return nil, authz.Internal(err)
 		}
 	}
 	if out.Failures, err = queryRuns(ctx, s.Tx, `r.status = 'failed' AND w.archived_at IS NULL

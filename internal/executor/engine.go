@@ -24,6 +24,8 @@ type cli struct {
 	dir      string
 	env      []string
 	initJSON bool
+	// planFlags go on every plan, as -refresh-only or -destroy.
+	planFlags []string
 	// line gets every output line, already redacted.
 	line func(event)
 	// redact hides secrets before a line goes anywhere.
@@ -51,7 +53,7 @@ func (c *cli) init(ctx context.Context) error {
 
 // plan reports whether the plan has changes.
 func (c *cli) plan(ctx context.Context, out string) (bool, error) {
-	code, err := c.stream(ctx, "plan", "-json", "-input=false", lockTimeout, "-detailed-exitcode", "-out="+out)
+	code, err := c.stream(ctx, append([]string{"plan", "-json", "-input=false", lockTimeout, "-detailed-exitcode", "-out=" + out}, c.planFlags...)...)
 	return code == 2, err
 }
 
@@ -63,6 +65,18 @@ func (c *cli) show(ctx context.Context, plan string) ([]byte, error) {
 		return nil, fmt.Errorf("show: %w: %s", err, c.redact(stderr.Bytes()))
 	}
 	return c.redact(stdout.Bytes()), nil
+}
+
+// outputs returns `output -json`, unredacted: a deployment passes the
+// values on, sealed (adr/0042).
+func (c *cli) outputs(ctx context.Context) ([]byte, error) {
+	var stdout, stderr bytes.Buffer
+	cmd := c.command(ctx, "output", "-json")
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("output: %w: %s", err, c.redact(stderr.Bytes()))
+	}
+	return stdout.Bytes(), nil
 }
 
 func (c *cli) apply(ctx context.Context, plan string) error {

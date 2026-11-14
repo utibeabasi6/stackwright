@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { Submit, useAction } from "../Action";
-import { securityApi } from "../api";
+import { useNavigate } from "@tanstack/react-router";
+import { Action, Submit, useAction } from "../Action";
+import { runApi, securityApi } from "../api";
 import { AskAgent } from "../agent/AgentPanel";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus } from "../gen/stackwright/v1/runs_pb";
@@ -32,6 +33,8 @@ type TableProps = {
 export function FindingsTable({ org, findings, reload, where }: TableProps) {
   const { me } = useShell();
   const decides = decidesRisk(me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED);
+  const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
+  const navigate = useNavigate();
   const [accepting, setAccepting] = useState<string>();
   return (
     <div className="table-box">
@@ -83,12 +86,33 @@ export function FindingsTable({ org, findings, reload, where }: TableProps) {
               <td className="finding-status">
                 <FindingStatus finding={f} />
                 <div className="finding-actions">
-                  {!f.fixed && !f.acceptance && f.id && decides && accepting !== f.id && (
+                  {f.checkId === "DRIFT" && !f.fixed && writer && (
+                    <Action
+                      className="link"
+                      run={async () => {
+                        const { run } = await runApi.createRun({ org, project: f.project, workspace: f.workspace, revert: true });
+                        if (run) void navigate({ to: "/$org/projects/$project/$workspace/runs/$number", params: { org, project: f.project, workspace: f.workspace, number: String(run.number) } });
+                      }}
+                      busy="Starting…"
+                      done="Started"
+                    >
+                      Revert drift
+                    </Action>
+                  )}
+                  {f.checkId === "DRIFT" && !f.fixed && (
+                    <AskAgent
+                      org={org}
+                      project={f.project}
+                      label="Reconcile with agent"
+                      prompt={`${f.resource} changed outside Stackwright (${f.message}). Change the code so it matches what is deployed now.`}
+                    />
+                  )}
+                  {f.checkId !== "DRIFT" && !f.fixed && !f.acceptance && f.id && decides && accepting !== f.id && (
                     <button type="button" className="link" onClick={() => setAccepting(f.id)}>
                       Accept risk
                     </button>
                   )}
-                  {!f.fixed && (
+                  {f.checkId !== "DRIFT" && !f.fixed && (
                     <AskAgent
                       org={org}
                       project={f.project}
@@ -158,6 +182,9 @@ function AcceptForm({ org, finding, done, cancel }: { org: string; finding: Find
 
 export function WorkspaceSecurity({ org, project, workspace }: { org: string; project: string; workspace: string }) {
   const [fixed, setFixed] = useState(false);
+  const { me } = useShell();
+  const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
+  const navigate = useNavigate();
   const list = useLoad(`findings:${org}/${project}/${workspace}:${fixed}`, () =>
     securityApi.listFindings({ org, project, workspace, includeFixed: fixed }).then((r) => r.findings),
   );
@@ -166,11 +193,26 @@ export function WorkspaceSecurity({ org, project, workspace }: { org: string; pr
       <p className="muted">
         Each plan of this workspace's own code is checked for security misconfigurations. A High or Critical finding on a resource that a
         plan creates or changes blocks its apply, until the code is fixed or someone accepts the risk. A plan runs every night at 02:00
-        UTC, so findings follow new checks.
+        UTC, so findings follow new checks. Every 6 hours, a drift check plans the code last applied with -refresh-only, and each
+        resource changed outside Stackwright opens a drift finding, which never blocks.
       </p>
-      <label className="check">
-        <input type="checkbox" checked={fixed} onChange={(e) => setFixed(e.target.checked)} /> Show fixed findings
-      </label>
+      <div className="row">
+        <label className="check grow">
+          <input type="checkbox" checked={fixed} onChange={(e) => setFixed(e.target.checked)} /> Show fixed findings
+        </label>
+        {writer && (
+          <Action
+            run={async () => {
+              const { run } = await runApi.createRun({ org, project, workspace, checkDrift: true });
+              if (run) void navigate({ to: "/$org/projects/$project/$workspace/runs/$number", params: { org, project, workspace, number: String(run.number) } });
+            }}
+            busy="Starting…"
+            done="Started"
+          >
+            Check drift now
+          </Action>
+        )}
+      </div>
       {list.error && <p className="error">{list.error}</p>}
       {list.data?.length === 0 && <p className="muted">No {fixed ? "" : "open "}findings.</p>}
       {!!list.data?.length && <FindingsTable org={org} findings={list.data} reload={list.reload} />}

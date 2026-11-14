@@ -107,7 +107,7 @@ vi.mock("./api", () => ({
   },
   runApi: {
     listRuns: async () => ({ runs: api.runs }),
-    listWaiting: async () => ({ approvals: api.runs.filter((r) => (r as { status: number }).status === 3), failures: [], findings: api.findings }),
+    listWaiting: async () => ({ approvals: api.runs.filter((r) => (r as { status: number }).status === 3), failures: [], findings: api.findings, drift: [], deployments: [] }),
     createRun: async (req: unknown) => {
       api.created.push(req);
       return { run: { number: 7 } };
@@ -313,6 +313,7 @@ test("every page is in the command palette", async () => {
   for (const page of [
     "Projects",
     "Waiting on you",
+    "Deployments",
     "Settings: General",
     "Settings: Members",
     "Settings: Variables",
@@ -494,6 +495,19 @@ test("a finding that matches no plan address says so and never blocks", async ()
   at("/a/projects/network/prod/security");
   expect(await screen.findByText(/Not matched to an address in the plan/)).toBeInTheDocument();
   expect(screen.getByText("Open, never blocks")).toBeInTheDocument();
+});
+
+test("a drift finding offers Revert drift and Reconcile with agent, and no Accept risk", async () => {
+  signedInAs(Role.OWNER);
+  api.projects = [network];
+  api.findings = [
+    { ...sshOpen, id: "d1", checkId: "DRIFT", severity: Severity.MEDIUM, title: "Changed outside Stackwright", message: "Changed: tags.", blocking: false },
+  ];
+  at("/a/projects/network/prod/security");
+  expect(await screen.findByText("Changed outside Stackwright")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Revert drift" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Accept risk" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Check drift now" })).toBeInTheDocument();
 });
 
 test("a writer sees findings but cannot accept a risk", async () => {

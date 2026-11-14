@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -296,7 +297,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		"scan.json"}
 	if operation == "apply" {
 		job.Operation = v1.JobOperation_JOB_OPERATION_APPLY
-		sourceJob, inputs, outputs = *planJobID, []string{"source.tar.gz", "workdir.tar.gz", "plan.bin", "lock.hcl"}, []string{"log.jsonl"}
+		sourceJob, inputs, outputs = *planJobID, []string{"source.tar.gz", "workdir.tar.gz", "plan.bin", "lock.hcl"}, []string{"log.jsonl", "outputs.json"}
 	}
 	for _, name := range inputs {
 		u, err := get(objectKey(orgID, sourceJob, name))
@@ -336,6 +337,26 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 			jv.Value = string(plain)
 		}
 		job.Variables = append(job.Variables, jv)
+	}
+	// A deployment step's inputs come last, so they win over the
+	// workspace's own variables (adr/0042).
+	if runID != nil {
+		var sealedInputs []byte
+		if err := tx.QueryRow(ctx, `SELECT refresh_only, destroy, inputs FROM runs WHERE id = $1`, *runID).
+			Scan(&job.RefreshOnly, &job.Destroy, &sealedInputs); err != nil {
+			return nil, err
+		}
+		if sealedInputs != nil {
+			plain, err := s.KEK.Open(ctx, tx, orgID, sealedInputs)
+			if err != nil {
+				return nil, fmt.Errorf("open the run's inputs: %w", err)
+			}
+			var inputs []*v1.JobVariable
+			if err := json.Unmarshal(plain, &inputs); err != nil {
+				return nil, fmt.Errorf("read the run's inputs: %w", err)
+			}
+			job.Variables = append(job.Variables, inputs...)
+		}
 	}
 
 	var planRole, applyRole, region *string

@@ -250,8 +250,15 @@ func (r *runner) run(ctx context.Context) (err error) {
 		help, _ := exec.CommandContext(ctx, binPath, "init", "-help").CombinedOutput() //nolint:gosec // the engine binary, checked against its SHA-256
 		initJSON = bytes.Contains(help, []byte("-json"))
 	}
+	var planFlags []string
+	if job.GetRefreshOnly() {
+		planFlags = append(planFlags, "-refresh-only")
+	}
+	if job.GetDestroy() {
+		planFlags = append(planFlags, "-destroy")
+	}
 	engine := &cli{
-		bin: binPath, dir: dir, initJSON: initJSON, redact: r.redact, env: env,
+		bin: binPath, dir: dir, initJSON: initJSON, redact: r.redact, env: env, planFlags: planFlags,
 		line: func(e event) {
 			r.log.Write(e.payload)
 			r.log.WriteByte('\n')
@@ -265,6 +272,13 @@ func (r *runner) run(ctx context.Context) (err error) {
 	if job.GetOperation() == v1.JobOperation_JOB_OPERATION_APPLY {
 		if err := engine.apply(ctx, plan); err != nil {
 			return &stageError{"apply", err}
+		}
+		outputs, err := engine.outputs(ctx)
+		if err != nil {
+			return &stageError{"outputs", err}
+		}
+		if err := r.upload(ctx, "outputs.json", outputs); err != nil {
+			return &stageError{"artifacts", err}
 		}
 		return nil
 	}

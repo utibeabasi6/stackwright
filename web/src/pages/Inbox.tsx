@@ -12,6 +12,9 @@ export function Inbox() {
   const { waitingVersion } = useShell();
   const waiting = useLoad(`waiting:${org}`, () => runApi.listWaiting({ org }), waitingVersion);
   const findings = waiting.data?.findings ?? [];
+  const drift = waiting.data?.drift ?? [];
+  const deployments = waiting.data?.deployments ?? [];
+  const extra = findings.length + drift.length + deployments.length;
   const items = [
     ...(waiting.data?.approvals ?? []).map((run) => ({ kind: "Approval", run })),
     ...(waiting.data?.failures ?? []).map((run) => ({ kind: "Failure", run })),
@@ -22,9 +25,9 @@ export function Inbox() {
       <div>
         <h1>Waiting on you</h1>
         <p className="muted">
-          {items.length + findings.length === 0
+          {items.length + extra === 0
             ? "Nothing waits on you or your team."
-            : `${items.length + findings.length} ${items.length + findings.length === 1 ? "thing needs" : "things need"} you or your team. Each one leaves this list when someone acts on it.`}
+            : `${items.length + extra} ${items.length + extra === 1 ? "thing needs" : "things need"} you or your team. Each one leaves this list when someone acts on it.`}
         </p>
       </div>
       {waiting.error && <p className="error">{waiting.error}</p>}
@@ -58,6 +61,32 @@ export function Inbox() {
           </li>
         ))}
       </ul>
+      {deployments.length > 0 && (
+        <ul className="inbox" aria-label="Deployments">
+          {deployments.map((d) => (
+            <li key={`${d.name}#${d.number}`} className="card row">
+              <div className="grow stack">
+                <span className="hint">
+                  Deployment · <span className="mono">{d.name}</span>
+                  {d.since && ` · ${timestampDate(d.since).toLocaleString()}`}
+                </span>
+                <strong>
+                  Run #{d.number} of {d.name} waits for approval
+                </strong>
+              </div>
+              <Link className="button primary" to="/$org/deployments/$name" params={{ org, name: d.name }}>
+                Review deployment
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {drift.length > 0 && (
+        <section className="stack" aria-labelledby="drift-h">
+          <h2 id="drift-h">Changed outside Stackwright</h2>
+          <FindingsTable org={org} findings={drift} reload={waiting.reload} where />
+        </section>
+      )}
       {findings.length > 0 && (
         <section className="stack" aria-labelledby="findings-h">
           <h2 id="findings-h">Open High and Critical findings</h2>

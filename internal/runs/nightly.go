@@ -57,26 +57,9 @@ func (o *Orchestrator) QueueNightly(ctx context.Context, slot time.Time, head He
 	var errs []error
 	for _, d := range all {
 		err := o.inOrg(ctx, d.org, func(tx pgx.Tx) error {
-			r, linked, err := head(ctx, tx, d.org, d.workspace)
-			if err != nil {
+			r, ok, err := codeOf(ctx, tx, d.org, d.workspace, head)
+			if err != nil || !ok {
 				return err
-			}
-			if !linked {
-				var runID string
-				var key *string
-				err := tx.QueryRow(ctx, `SELECT id, source_key, source, source_sha256 FROM runs WHERE workspace_id = $1
-					AND trigger IN ('ui', 'push', 'schedule') ORDER BY number DESC LIMIT 1`, d.workspace).
-					Scan(&runID, &key, &r.SourceName, &r.SourceSHA)
-				if errors.Is(err, pgx.ErrNoRows) {
-					return nil
-				}
-				if err != nil {
-					return err
-				}
-				r.WorkspaceID, r.SourceKey = d.workspace, sourceKey(d.org, runID)
-				if key != nil {
-					r.SourceKey = *key
-				}
 			}
 			r.PlanOnly, r.Trigger = true, "schedule"
 			_, _, err = o.Create(ctx, tx, d.org, r)
@@ -90,4 +73,33 @@ func (o *Orchestrator) QueueNightly(ctx context.Context, slot time.Time, head He
 		o.Wake()
 	}
 	return errors.Join(errs...)
+}
+
+// codeOf returns a run of a workspace's code: a linked workspace's newest
+// commit on its branch, else the code of its last own run. It reports
+// false for a workspace that never ran its own code. head may be nil.
+func codeOf(ctx context.Context, tx pgx.Tx, orgID, workspaceID string, head HeadFunc) (NewRun, bool, error) {
+	if head != nil {
+		r, linked, err := head(ctx, tx, orgID, workspaceID)
+		if err != nil || linked {
+			return r, linked, err
+		}
+	}
+	r := NewRun{WorkspaceID: workspaceID}
+	var runID string
+	var key *string
+	err := tx.QueryRow(ctx, `SELECT id, source_key, source, source_sha256 FROM runs WHERE workspace_id = $1
+		AND trigger IN ('ui', 'push', 'schedule', 'deployment') ORDER BY number DESC LIMIT 1`, workspaceID).
+		Scan(&runID, &key, &r.SourceName, &r.SourceSHA)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return r, false, nil
+	}
+	if err != nil {
+		return r, false, err
+	}
+	r.SourceKey = sourceKey(orgID, runID)
+	if key != nil {
+		r.SourceKey = *key
+	}
+	return r, true, nil
 }

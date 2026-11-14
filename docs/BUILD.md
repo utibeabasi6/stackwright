@@ -51,6 +51,7 @@ Each decision has a record in [adr/](adr/).
 | Security review | Trivy scans each plan in the sandbox, offline; Rego policy sets are Trivy custom checks; findings by workspace, check and resource; High on what the plan changes blocks; the security role or an admin accepts a risk for up to 90 days; a nightly plan | [0037](adr/0037-security-review-with-trivy.md) |
 | Topology | Each workspace's latest own-code plan, joined by AWS id, or by configuration reference inside a workspace; one topology for each project, with other projects as dimmed context; zones as columns, laid out by the web app | [0038](adr/0038-topology-from-plans.md), [0039](adr/0039-topology-per-project.md) |
 | Terragrunt | A stack is a project; the real Terragrunt runs units in dependency order with the checked OpenTofu; one merged plan with a module for each unit; state where the code puts it | [0041](adr/0041-terragrunt-stacks.md) |
+| Deployments and drift | Steps and output links defined in the web app; outputs captured after each apply, sealed; plan every step, one approval, apply in order; a refresh-only plan of the code last applied every 6 hours, drift as a Medium finding | [0042](adr/0042-deployments-and-drift.md) |
 | The agent's limit | It edits code and runs speculative plans. It never commits, pushes or opens a PR without a person's approval, and it never applies. | [0011](adr/0011-agent-session-sandboxes.md) |
 
 **Not in this build:**
@@ -677,9 +678,9 @@ schedule.
 - Drift in "Waiting on you".
 
 **Done when.**
-- [ ] A `kms` → `secrets` → `eks` fixture deploys in order with one approval
-- [ ] A failure in `secrets` stops `eks` and leaves `kms` applied
-- [ ] A change made outside Stackwright is reported within one schedule
+- [x] A `kms` → `secrets` → `eks` fixture deploys in order with one approval
+- [x] A failure in `secrets` stops `eks` and leaves `kms` applied
+- [x] A change made outside Stackwright is reported within one schedule
       interval
 
 **Depends on:** 5, 18.

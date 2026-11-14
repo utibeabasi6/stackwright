@@ -38,6 +38,10 @@ export function origin(r: Pick<Run, "trigger" | "prNumber" | "branch" | "commitS
       return `the agent, on ${r.branch}`;
     case "schedule":
       return `the nightly review, from ${r.source}`;
+    case "deployment":
+      return `a deployment step, from ${r.source}`;
+    case "drift":
+      return `the drift check, of the code last applied`;
   }
   return r.source;
 }
@@ -92,6 +96,10 @@ export function describeEvent(e: RunEvent): Line {
         : { text: "Plan: no changes" };
     case "run.needs_approval":
       return { text: "Waits for approval", tone: "warn" };
+    case "executor.units":
+      return { text: `Terragrunt units, in order: ${((p.units as string[]) ?? []).join(", ")}` };
+    case "executor.unit_started":
+      return { text: `Unit ${p.unit}` };
     case "run.blocked":
       return { text: "! A High or Critical finding blocks the apply", tone: "error" };
     case "run.unblocked":

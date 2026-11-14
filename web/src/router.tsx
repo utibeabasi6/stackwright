@@ -8,6 +8,7 @@ import { Import } from "./pages/Import";
 import { ImportProgress } from "./pages/ImportProgress";
 import { Inbox } from "./pages/Inbox";
 import { TopologyPage } from "./topology/TopologyPage";
+import { DeploymentPage, Deployments } from "./pages/Deployments";
 import { Run } from "./pages/Run";
 import { Runs } from "./pages/Runs";
 import { NewProject } from "./pages/NewProject";
@@ -51,6 +52,8 @@ export const routeTree = root.addChildren([
     org.addChildren([
       createRoute({ getParentRoute: () => org, path: "/", component: Projects }),
       createRoute({ getParentRoute: () => org, path: "inbox", component: Inbox }),
+      createRoute({ getParentRoute: () => org, path: "deployments", component: Deployments }),
+      createRoute({ getParentRoute: () => org, path: "deployments/$name", component: DeploymentPage }),
       createRoute({ getParentRoute: () => org, path: "projects/new", component: NewProject }),
       createRoute({ getParentRoute: () => org, path: "import", component: Import }),
       createRoute({ getParentRoute: () => org, path: "imports/$id", component: ImportProgress }),

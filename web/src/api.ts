@@ -14,6 +14,7 @@ import { OrgService } from "./gen/stackwright/v1/orgs_pb";
 import { ProjectService } from "./gen/stackwright/v1/projects_pb";
 import { RunService } from "./gen/stackwright/v1/runs_pb";
 import { SecurityService } from "./gen/stackwright/v1/security_pb";
+import { DeploymentService } from "./gen/stackwright/v1/deployments_pb";
 import { StateService, TokenService } from "./gen/stackwright/v1/state_pb";
 
 const csrf: Interceptor = (next) => (req) => {
@@ -40,6 +41,7 @@ export const githubApi = createClient(GitHubService, transport);
 export const graphApi = createClient(GraphService, transport);
 export const agentApi = createClient(AgentService, transport);
 export const securityApi = createClient(SecurityService, transport);
+export const deploymentApi = createClient(DeploymentService, transport);
 
 export function message(err: unknown): string {
   return err instanceof ConnectError ? err.rawMessage : "Something went wrong. Try again.";

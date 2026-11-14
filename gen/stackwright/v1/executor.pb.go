@@ -170,7 +170,11 @@ type Job struct {
 	SkippedChecks []string      `protobuf:"bytes,18,rep,name=skipped_checks,json=skippedChecks,proto3" json:"skipped_checks,omitempty"`
 	// The project path is a Terragrunt stack: its units run in dependency
 	// order (adr/0041).
-	Terragrunt    bool `protobuf:"varint,19,opt,name=terragrunt,proto3" json:"terragrunt,omitempty"`
+	Terragrunt bool `protobuf:"varint,19,opt,name=terragrunt,proto3" json:"terragrunt,omitempty"`
+	// A drift check: plan -refresh-only (adr/0042).
+	RefreshOnly bool `protobuf:"varint,20,opt,name=refresh_only,json=refreshOnly,proto3" json:"refresh_only,omitempty"`
+	// Plan -destroy.
+	Destroy       bool `protobuf:"varint,21,opt,name=destroy,proto3" json:"destroy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -334,6 +338,20 @@ func (x *Job) GetSkippedChecks() []string {
 func (x *Job) GetTerragrunt() bool {
 	if x != nil {
 		return x.Terragrunt
+	}
+	return false
+}
+
+func (x *Job) GetRefreshOnly() bool {
+	if x != nil {
+		return x.RefreshOnly
+	}
+	return false
+}
+
+func (x *Job) GetDestroy() bool {
+	if x != nil {
+		return x.Destroy
 	}
 	return false
 }
@@ -870,7 +888,7 @@ const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x16\n" +
 	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x15\n" +
-	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xf1\x06\n" +
+	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xae\a\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12:\n" +
@@ -894,7 +912,9 @@ const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"\x0eskipped_checks\x18\x12 \x03(\tR\rskippedChecks\x12\x1e\n" +
 	"\n" +
 	"terragrunt\x18\x13 \x01(\bR\n" +
-	"terragrunt\x1a:\n" +
+	"terragrunt\x12!\n" +
+	"\frefresh_only\x18\x14 \x01(\bR\vrefreshOnly\x12\x18\n" +
+	"\adestroy\x18\x15 \x01(\bR\adestroy\x1a:\n" +
 	"\fUploadsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"4\n" +

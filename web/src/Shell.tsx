@@ -106,7 +106,7 @@ export function Shell() {
   const reloadWaiting = useCallback(() => setWaitingVersion((v) => v + 1), []);
   const waiting = useLoad(
     `waiting:${org}`,
-    () => (org ? runApi.listWaiting({ org }).then((r) => r.approvals.length + r.failures.length + r.findings.length) : Promise.resolve(0)),
+    () => (org ? runApi.listWaiting({ org }).then((r) => r.approvals.length + r.failures.length + r.findings.length + r.drift.length + r.deployments.length) : Promise.resolve(0)),
     waitingVersion,
   );
   useEffect(() => {
@@ -139,6 +139,7 @@ export function Shell() {
     const list: Command[] = [
       { id: "projects", label: "Projects", group: "Page", run: go("/$org") },
       { id: "inbox", label: "Waiting on you", group: "Page", run: go("/$org/inbox") },
+      { id: "deployments", label: "Deployments", group: "Page", run: go("/$org/deployments") },
       { id: "settings", label: "Settings: General", group: "Page", run: go("/$org/settings") },
       { id: "members", label: "Settings: Members", group: "Page", run: go("/$org/settings/members") },
       { id: "tokens", label: "Settings: API tokens", group: "Page", run: go("/$org/settings/tokens") },
@@ -264,6 +265,9 @@ export function Shell() {
                     {waiting.data}
                   </span>
                 )}
+              </Link>
+              <Link to="/$org/deployments" params={{ org }}>
+                Deployments
               </Link>
               {!ws && (
                 <>

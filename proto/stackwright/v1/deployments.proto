@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package stackwright.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stackwright/v1/runs.proto";
+
+// DeploymentService applies several workspaces in order with one approval
+// (adr/0042).
+service DeploymentService {
+  rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // SaveDeployment creates a deployment or replaces its steps and links.
+  rpc SaveDeployment(SaveDeploymentRequest) returns (SaveDeploymentResponse);
+  rpc ArchiveDeployment(ArchiveDeploymentRequest) returns (ArchiveDeploymentResponse);
+  rpc StartDeploymentRun(StartDeploymentRunRequest) returns (StartDeploymentRunResponse);
+  rpc GetDeploymentRun(GetDeploymentRunRequest) returns (GetDeploymentRunResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ApproveDeploymentRun(DecideDeploymentRunRequest) returns (DecideDeploymentRunResponse);
+  rpc RejectDeploymentRun(DecideDeploymentRunRequest) returns (DecideDeploymentRunResponse);
+  rpc CancelDeploymentRun(DecideDeploymentRunRequest) returns (DecideDeploymentRunResponse);
+}
+
+message WorkspaceRef {
+  string project = 1;
+  string workspace = 2;
+}
+
+// DeploymentLink orders two steps. With an output, the later step gets the
+// earlier one's output as the variable.
+message DeploymentLink {
+  WorkspaceRef from = 1;
+  WorkspaceRef to = 2;
+  string output = 3;
+  string variable = 4;
+}
+
+enum DeploymentRunStatus {
+  DEPLOYMENT_RUN_STATUS_UNSPECIFIED = 0;
+  DEPLOYMENT_RUN_STATUS_PLANNING = 1;
+  DEPLOYMENT_RUN_STATUS_NEEDS_APPROVAL = 2;
+  DEPLOYMENT_RUN_STATUS_APPLYING = 3;
+  DEPLOYMENT_RUN_STATUS_APPLIED = 4;
+  // Every step planned with no changes.
+  DEPLOYMENT_RUN_STATUS_PLANNED = 5;
+  DEPLOYMENT_RUN_STATUS_FAILED = 6;
+  DEPLOYMENT_RUN_STATUS_REJECTED = 7;
+  DEPLOYMENT_RUN_STATUS_CANCELED = 8;
+}
+
+message DeploymentStep {
+  WorkspaceRef workspace = 1;
+  // The step's newest run in this deployment run, 0 while it waits.
+  int32 run_number = 2;
+  RunStatus run_status = 3;
+  bool has_changes = 4;
+  // The steps it waits for that are not done.
+  repeated WorkspaceRef waiting_for = 5;
+}
+
+message DeploymentRun {
+  int32 number = 1;
+  DeploymentRunStatus status = 2;
+  bool destroy = 3;
+  string error = 4;
+  string created_by = 5;
+  string decided_by = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp finished_at = 8;
+  // In the order they apply.
+  repeated DeploymentStep steps = 9;
+}
+
+message Deployment {
+  string name = 1;
+  // In the order they apply.
+  repeated WorkspaceRef steps = 2;
+  repeated DeploymentLink links = 3;
+  DeploymentRun last_run = 4;
+}
+
+message ListDeploymentsRequest {
+  string org = 1;
+}
+
+message ListDeploymentsResponse {
+  repeated Deployment deployments = 1;
+}
+
+message GetDeploymentRequest {
+  string org = 1;
+  string name = 2;
+}
+
+message GetDeploymentResponse {
+  Deployment deployment = 1;
+  // Newest first.
+  repeated DeploymentRun runs = 2;
+}
+
+message SaveDeploymentRequest {
+  string org = 1;
+  string name = 2;
+  repeated WorkspaceRef steps = 3;
+  repeated DeploymentLink links = 4;
+}
+
+message SaveDeploymentResponse {
+  Deployment deployment = 1;
+}
+
+message ArchiveDeploymentRequest {
+  string org = 1;
+  string name = 2;
+}
+
+message ArchiveDeploymentResponse {}
+
+message StartDeploymentRunRequest {
+  string org = 1;
+  string name = 2;
+  // Destroy every step, in reverse order.
+  bool destroy = 3;
+}
+
+message StartDeploymentRunResponse {
+  DeploymentRun run = 1;
+}
+
+message GetDeploymentRunRequest {
+  string org = 1;
+  string name = 2;
+  int32 number = 3;
+}
+
+message GetDeploymentRunResponse {
+  DeploymentRun run = 1;
+}
+
+message DecideDeploymentRunRequest {
+  string org = 1;
+  string name = 2;
+  int32 number = 3;
+}
+
+message DecideDeploymentRunResponse {
+  DeploymentRun run = 1;
+}

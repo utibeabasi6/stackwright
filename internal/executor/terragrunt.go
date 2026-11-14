@@ -83,8 +83,12 @@ func (r *runner) terragrunt(ctx context.Context, tofu, dir, root string, env []s
 	if err := os.MkdirAll(plans, 0o700); err != nil {
 		return &stageError{"source", err}
 	}
+	var planFlags []string
+	if r.job.GetRefreshOnly() {
+		planFlags = append(planFlags, "-refresh-only")
+	}
 	engine := func(u unit) *cli {
-		return &cli{bin: terragruntBin, prefix: []string{"run", "--tf-path", tofu, "--"}, dir: filepath.Join(dir, u.Path), env: env,
+		return &cli{bin: terragruntBin, prefix: []string{"run", "--tf-path", tofu, "--"}, dir: filepath.Join(dir, u.Path), env: env, planFlags: planFlags,
 			redact: r.redact, line: func(e event) {
 				if e.resourceAddr != "" {
 					e.resourceAddr = "module." + u.slug + "." + e.resourceAddr

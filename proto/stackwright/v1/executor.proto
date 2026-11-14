@@ -59,6 +59,10 @@ message Job {
   // The project path is a Terragrunt stack: its units run in dependency
   // order (adr/0041).
   bool terragrunt = 19;
+  // A drift check: plan -refresh-only (adr/0042).
+  bool refresh_only = 20;
+  // Plan -destroy.
+  bool destroy = 21;
 }
 
 message PolicyFile {
