@@ -21,6 +21,7 @@ import (
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	"github.com/stackwright/stackwright/internal/egress"
 	"github.com/stackwright/stackwright/internal/executor"
 )
 
@@ -51,7 +52,10 @@ func Run(ctx context.Context, serverURL, token, work, cache string) error {
 	protocols := new(http.Protocols)
 	protocols.SetHTTP2(true)
 	protocols.SetUnencryptedHTTP2(true)
-	client := stackwrightv1connect.NewToolboxServiceClient(&http.Client{Transport: &http.Transport{Protocols: protocols}}, serverURL)
+	// HTTP/2 without TLS cannot pass a forward proxy, so the stream goes
+	// through a CONNECT tunnel (adr/0046).
+	client := stackwrightv1connect.NewToolboxServiceClient(&http.Client{Transport: &http.Transport{Protocols: protocols,
+		DialContext: egress.Dial}}, serverURL)
 	b := &box{token: token, work: work, cache: cache, repo: filepath.Join(work, "repo")}
 	for {
 		err := b.serve(ctx, client)
@@ -256,6 +260,7 @@ func (b *box) git(ctx context.Context, dir string, args ...string) (string, erro
 		"GIT_CONFIG_KEY_1=safe.directory",
 		"GIT_CONFIG_VALUE_1=*",
 	}
+	cmd.Env = append(cmd.Env, egress.Env()...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git %s: %w: %s", args[0], err, strings.ReplaceAll(string(out), b.token, "[token]"))

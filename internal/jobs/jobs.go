@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"path"
 	"strings"
@@ -52,8 +53,11 @@ type Service struct {
 	// reach, which can differ from S3's.
 	Presign       *minio.Client
 	PresignRemote *minio.Client
-	Bucket        string
-	Engines       *engine.Mirror
+	// Relay puts presigned URLs under the server's /s3/, which forwards them
+	// to S3, so sandboxes never reach the object store (adr/0046).
+	Relay   bool
+	Bucket  string
+	Engines *engine.Mirror
 	// Issuer signs the web identity token of a job whose workspace has a
 	// cloud account. STSEndpoint is where the executor trades it.
 	Issuer      *oidc.Issuer
@@ -89,11 +93,27 @@ type Created struct {
 	Engine *v1.Download
 }
 
-func (s *Service) presigner(remote bool) *minio.Client {
+// presign signs a GET or PUT for remote or built-in builders' sandboxes.
+func (s *Service) presign(ctx context.Context, remote bool, method, key string, expires time.Duration) (string, error) {
+	c := s.Presign
 	if remote {
-		return s.PresignRemote
+		c = s.PresignRemote
 	}
-	return s.Presign
+	var u *url.URL
+	var err error
+	if method == http.MethodPut {
+		u, err = c.PresignedPutObject(ctx, s.Bucket, key, expires)
+	} else {
+		u, err = c.PresignedGetObject(ctx, s.Bucket, key, expires, url.Values{})
+	}
+	if err != nil {
+		return "", err
+	}
+	if s.Relay {
+		u.Path = "/s3" + u.Path
+		u.RawPath = ""
+	}
+	return u.String(), nil
 }
 
 func objectKey(orgID, jobID, name string) string {
@@ -192,11 +212,11 @@ func (s *Service) EngineDownload(ctx context.Context, eng, version, platform str
 	if err != nil {
 		return nil, fmt.Errorf("engine %s %s: %w", eng, version, err)
 	}
-	u, err := s.presigner(remote).PresignedGetObject(ctx, s.Bucket, bin.ObjectKey, time.Hour, url.Values{})
+	u, err := s.presign(ctx, remote, http.MethodGet, bin.ObjectKey, time.Hour)
 	if err != nil {
 		return nil, err
 	}
-	return &v1.Download{Name: bin.Name, Url: u.String(), Sha256: bin.SHA256}, nil
+	return &v1.Download{Name: bin.Name, Url: u, Sha256: bin.SHA256}, nil
 }
 
 // Claim starts a job whose ticket the caller spent, and returns everything
@@ -239,13 +259,8 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	}
 
 	expires := time.Until(deadline)
-	presign := s.presigner(remote)
 	get := func(objKey string) (string, error) {
-		u, err := presign.PresignedGetObject(ctx, s.Bucket, objKey, expires, url.Values{})
-		if err != nil {
-			return "", err
-		}
-		return u.String(), nil
+		return s.presign(ctx, remote, http.MethodGet, objKey, expires)
 	}
 	binURL, err := get(binKey)
 	if err != nil {
@@ -311,11 +326,11 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		job.Inputs = append(job.Inputs, d)
 	}
 	for _, name := range outputs {
-		u, err := presign.PresignedPutObject(ctx, s.Bucket, objectKey(orgID, jobID, name), expires)
+		u, err := s.presign(ctx, remote, http.MethodPut, objectKey(orgID, jobID, name), expires)
 		if err != nil {
 			return nil, err
 		}
-		job.Uploads[name] = u.String()
+		job.Uploads[name] = u
 	}
 
 	vars, err := variables.Effective(ctx, tx, workspaceID)

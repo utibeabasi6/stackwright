@@ -35,7 +35,8 @@ Each decision has a record in [adr/](adr/).
 | GitHub | One App per instance from a manifest; an installation links after the installer authorizes; forks never plan | [0023](adr/0023-github-app.md) |
 | Sandbox image | Alpine with git, for modules; linked projects run from their branch, with no upload | [0024](adr/0024-git-in-sandboxes-and-linked-runs.md) |
 | Agent sandboxes | A fresh sandbox for each session, with the repo cloned in it; pushes through the server's Git proxy | [0011](adr/0011-agent-session-sandboxes.md) |
-| Blobs from sandboxes | Presigned URLs, one per object and method | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md) |
+| Blobs from sandboxes | Presigned URLs, one per object and method, relayed by the server under `/s3/` | [0010](adr/0010-sandboxes-reach-s3-by-presigned-url.md), [0046](adr/0046-running-in-production.md) |
+| Sandbox network | Internal; out only through an egress proxy that refuses private addresses | [0046](adr/0046-running-in-production.md) |
 | Default engine | OpenTofu; every Terraform from 1.0.0, downloaded from HashiCorp at run time | [0025](adr/0025-newer-terraform.md) |
 | Applies | Start from the working tree their plan left | [0026](adr/0026-applies-start-from-the-plan-tree.md) |
 | Plan graph | A node for each resource; edges from the configuration and the executor's HCL map; ELK in the browser, under EPL-2.0; layouts kept per workspace | [0027](adr/0027-plan-graph.md) |
@@ -346,8 +347,8 @@ typed events.
 - `stackwright-builder`, built in: one container in compose, the only one
   with the Docker socket. It holds an outbound Connect stream to the server
   ([0008](adr/0008-build-server-channel.md)), authenticated with a join token
-  from `.env`, and starts sandboxes when told. It joins the server and RustFS
-  to each sandbox's network ([0020](adr/0020-runs-postgres-queue.md)).
+  from `.env`, and starts sandboxes when told. Sandboxes reach out only
+  through its egress proxy ([0046](adr/0046-running-in-production.md)).
 - Code for a run: an uploaded `.tar.gz`, or the sample project's own code.
 - The orchestrator: the run state machine in `runs`, every change an event.
 - One active run per workspace; others wait in Queued.
@@ -766,9 +767,11 @@ questions they will have.
 - The threat model, the escape test suite for sandboxes, and rate limits.
 
 **Done when.**
-- [ ] A restore from backup on a new host opens the same state
-- [ ] An upgrade by one minor version keeps every run and build server working
-- [ ] The escape tests pass: a sandbox cannot reach another sandbox, the
+- [x] A restore from backup on a new host opens the same state (tested on
+      a new database in the same Postgres, not a new host)
+- [x] An upgrade by one minor version keeps every run and build server
+      working (tested from the commit before phase 22; there is no tag)
+- [x] The escape tests pass: a sandbox cannot reach another sandbox, the
       host's metadata service, the server's internal ports, or Postgres,
       NATS and RustFS
 
@@ -793,10 +796,9 @@ flowchart LR
     Remote[remote build server] -->|gRPC, mTLS, outbound| Server
     Builtin --> Sandboxes1[sandboxes]
     Remote --> Sandboxes2[sandboxes]
-    Sandboxes1 -->|presigned URL| S3
-    Sandboxes2 -->|presigned URL| S3
-    Sandboxes1 -->|job API, state backend| Server
-    Sandboxes2 -->|job API, state backend| Server
+    Sandboxes1 -->|egress proxy| Server
+    Sandboxes2 -->|egress proxy| Server
+    Server -->|relays presigned URLs| S3
     Server -->|agent turns| OpenRouter
 ```
 

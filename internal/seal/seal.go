@@ -21,9 +21,12 @@ var (
 	ErrMalformed = errors.New("sealed value is malformed")
 )
 
+// KEK wraps data keys. During a rotation it also opens the data keys that
+// the previous KEK wrapped.
 type KEK struct {
-	aead cipher.AEAD
-	id   []byte
+	aead     cipher.AEAD
+	id       []byte
+	previous *KEK
 }
 
 func ParseKEK(b64 string) (KEK, error) {
@@ -37,6 +40,68 @@ func ParseKEK(b64 string) (KEK, error) {
 	}
 	sum := sha256.Sum256(key)
 	return KEK{aead: aead, id: sum[:8]}, nil
+}
+
+// WithPrevious returns k, which also opens data keys that previous wrapped.
+func (k KEK) WithPrevious(previous string) (KEK, error) {
+	p, err := ParseKEK(previous)
+	if err != nil {
+		return KEK{}, err
+	}
+	k.previous = &p
+	return k, nil
+}
+
+// unwrap opens a data key with whichever KEK wrapped it.
+func (k KEK) unwrap(id uuid.UUID, kekID, wrapped []byte) ([]byte, error) {
+	aead := k.aead
+	switch {
+	case bytes.Equal(kekID, k.id):
+	case k.previous != nil && bytes.Equal(kekID, k.previous.id):
+		aead = k.previous.aead
+	default:
+		return nil, ErrWrongKEK
+	}
+	raw, err := decrypt(aead, wrapped, id[:])
+	if err != nil {
+		return nil, fmt.Errorf("unwrap data key: %w", err)
+	}
+	return raw, nil
+}
+
+// Rotate wraps every data key that the previous KEK wrapped with k
+// instead, and returns how many it changed. tx must see every org's key.
+func (k KEK) Rotate(ctx context.Context, tx pgx.Tx) (int, error) {
+	rows, err := tx.Query(ctx, `SELECT id, kek_id, wrapped FROM data_keys WHERE kek_id <> $1 FOR UPDATE`, k.id)
+	if err != nil {
+		return 0, err
+	}
+	type key struct {
+		id             uuid.UUID
+		kekID, wrapped []byte
+	}
+	var keys []key
+	for rows.Next() {
+		var c key
+		if err := rows.Scan(&c.id, &c.kekID, &c.wrapped); err != nil {
+			return 0, err
+		}
+		keys = append(keys, c)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	for _, c := range keys {
+		raw, err := k.unwrap(c.id, c.kekID, c.wrapped)
+		if err != nil {
+			return 0, fmt.Errorf("data key %s: %w", c.id, err)
+		}
+		if _, err := tx.Exec(ctx, `UPDATE data_keys SET kek_id = $2, wrapped = $3 WHERE id = $1`, c.id, k.id,
+			encrypt(k.aead, raw, c.id[:])); err != nil {
+			return 0, err
+		}
+	}
+	return len(keys), nil
 }
 
 func newAEAD(key []byte) (cipher.AEAD, error) {
@@ -85,12 +150,9 @@ func (k KEK) dataKey(ctx context.Context, tx pgx.Tx, orgID string) (uuid.UUID, c
 	if err != nil {
 		return uuid.Nil, nil, fmt.Errorf("load data key: %w", err)
 	}
-	if !bytes.Equal(kekID, k.id) {
-		return uuid.Nil, nil, ErrWrongKEK
-	}
-	raw, err := decrypt(k.aead, wrapped, id[:])
+	raw, err := k.unwrap(id, kekID, wrapped)
 	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf("unwrap data key: %w", err)
+		return uuid.Nil, nil, err
 	}
 	aead, err := newAEAD(raw)
 	return id, aead, err

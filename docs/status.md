@@ -342,7 +342,7 @@ On the compose stack, in the browser pane (OrbStack), with a Lima VM
 - The cache has no size limit and no eviction.
 - Providers are cached one job late (adr/0021).
 - `ScanHostKey` lets an org admin make the server connect to any host and
-  port. Phase 22 decides on a limit.
+  port. Phase 22 did not limit it; see docs/threat-model.md.
 - One server process holds the connected builders, as with the dispatcher.
 - Removing a build server does not uninstall the builder from the machine.
 
@@ -1514,3 +1514,62 @@ is used instead.
 - A finding that opens again after a fix sends no notification.
 - SAML sign-in does not change the role of an existing member; SCIM does.
 
+## Phase 22: Running it in production
+
+Decision: [0046](adr/0046-running-in-production.md). The user chose an
+egress proxy, rate limits by user and by IP, online KEK rotation with two
+keys, and an upgrade test from the last release. The proxy runs in its
+own container from the executor image, because a remote builder is not
+in a container and cannot join a sandbox's network. New docs:
+[operations.md](operations.md) and [threat-model.md](threat-model.md).
+
+**Verified on 2026-11-14:**
+- `TestSandboxesCannotEscape`, with real sandboxes: another sandbox, the
+  metadata address, the bridge gateway, the builder port, Postgres, NATS
+  and RustFS are closed directly, and the proxy answers 403 for each. The
+  server's job API and a public host are reachable.
+- Runs, Terragrunt stacks, cloud credentials through the fake STS, and the
+  agent's toolbox (HTTP/2 over CONNECT) pass with sandboxes behind the
+  proxy and object storage through the relay.
+- Rate limits: 40 failed sign-ins from one address get
+  `resource_exhausted`. 480 calls at once from one user get it too, and
+  another user is still answered. `X-Forwarded-For` counts only from a
+  trusted proxy, and only its rightmost untrusted address.
+- KEK rotation in Go against Postgres: the server with both KEKs opens a
+  key that the old one wrapped, `Rotate` wraps it again, the new KEK
+  alone then opens it, and the old one does not. A KEK without the
+  previous one refuses to rotate. The built-in builder enrols with the
+  current token and the previous one.
+- Restore: `pg_dump`, then a migrated new database, `pg_restore --clean`,
+  and a bucket copy. A server on the copies serves the same state through
+  the state backend, after the first database lost it.
+- Upgrade: `TestUpgradeWhileARunWaits` from `a5432b9` with Compose. The
+  sample run waited for approval on the old release. Only the server
+  moved to the working tree, and the run applied on the old builder and
+  executor. It took 156 s with a warm Docker cache.
+- The full Go suite with `-race`, lint and the web unit tests pass.
+  `TestEveryWriteMakesOneAuditRow` failed 2 times in 28 before a fix to
+  the test: it cancelled a waiting deployment's step run, which the
+  orchestrator may fail at its next tick. It now passes 30 times in 30.
+
+**Not verified:**
+- A restore on a second host. The test used a new database in the same
+  Postgres.
+- `stackwright rotate-kek` and the restore commands in operations.md, as
+  an operator runs them through Compose. The tests call the same code.
+- The Caddy example.
+- An object store set by `STACKWRIGHT_S3_PUBLIC_URL`, such as AWS S3,
+  through the proxy.
+- The remote build server in Lima with the new executor image.
+
+**Known gaps:**
+- The repo has no release tag. The upgrade test skips without one, unless
+  `STACKWRIGHT_UPGRADE_FROM` names a commit.
+- A provider that speaks something other than HTTP cannot reach its
+  target from a sandbox. One that needs a private address needs it in the
+  builder's `STACKWRIGHT_EGRESS_ALLOW`.
+- Code in a sandbox can send the run's credentials to any public host.
+- `ScanHostKey` and notification destinations still let an org admin make
+  the server connect to private addresses.
+- Rate limits count in each server process.
+- No pen test has run.

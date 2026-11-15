@@ -3,8 +3,11 @@ package sandbox
 import (
 	"archive/tar"
 	"bytes"
+	"cmp"
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,11 +17,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/stackwright/stackwright/internal/egress"
 )
 
 // apiVersion is the oldest Docker Engine API that Docker 29 accepts.
@@ -34,27 +41,35 @@ const (
 
 var ErrNoSuchImage = errors.New("the sandbox image is not on the Docker host")
 
+// sandboxNetwork is the name of a sandbox's network, as Start makes it.
+var sandboxNetwork = regexp.MustCompile(`^stackwright-[0-9a-f]{12}$`)
+
 // Docker runs each sandbox as one container on a bridge network of its own,
 // through the Docker Engine API on a Unix socket.
 type Docker struct {
 	client *http.Client
 	c      DockerConfig
+	// egressMu serialises creating the egress proxy.
+	egressMu sync.Mutex
 }
 
 type DockerConfig struct {
 	// Host is a unix:// address. Empty means DOCKER_HOST, then
 	// /var/run/docker.sock.
 	Host string
-	// ExtraHosts are added to each sandbox's /etc/hosts, such as
+	// ExtraHosts are added to the egress proxy's /etc/hosts, such as
 	// host.docker.internal:host-gateway.
 	ExtraHosts []string
-	// Join names services of the compose project that the caller runs in.
-	// Each one joins every sandbox's network, and the sandbox reaches it by
-	// its service name.
-	Join []string
+	// Allow are host:port pairs that sandboxes may reach through the egress
+	// proxy although their addresses are private, besides the server URLs
+	// their specs name (adr/0046).
+	Allow []string
 	// Cache is the builder's cache as Docker mounts it: a host path, or a
 	// volume name.
 	Cache string
+	// EgressImage runs the egress proxy. It must hold the executor. Empty
+	// means the sandbox's own image, which is the executor's for every job.
+	EgressImage string
 }
 
 func NewDocker(c DockerConfig) (*Docker, error) {
@@ -159,17 +174,29 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 	}()
 
 	var network struct{ ID string }
+	// An internal network has no route out: the egress proxy is the
+	// sandbox's only way out (adr/0046).
 	if err := d.call(ctx, http.MethodPost, "/networks/create", nil, map[string]any{
-		"Name": name, "Driver": "bridge", "Labels": labels,
+		"Name": name, "Driver": "bridge", "Internal": true, "Labels": labels,
 	}, &network); err != nil {
 		return nil, fmt.Errorf("create sandbox network: %w", err)
 	}
 	s.networkID = network.ID
-	if err := s.join(ctx); err != nil {
+	if err := d.call(ctx, http.MethodGet, "/images/"+spec.Image+"/json", nil, nil, nil); isNotFound(err) {
+		if err := d.pull(ctx, spec.Image); err != nil {
+			return nil, err
+		}
+	} else if err != nil {
 		return nil, err
 	}
+	proxy, err := d.egress(ctx, spec, s.networkID)
+	if err != nil {
+		return nil, fmt.Errorf("start the egress proxy: %w", err)
+	}
+	s.joined = append(s.joined, proxy)
 
-	env := make([]string, 0, len(spec.Env))
+	proxyURL := "http://" + egress.Host + ":" + egress.Port
+	env := []string{"HTTPS_PROXY=" + proxyURL, "HTTP_PROXY=" + proxyURL, "https_proxy=" + proxyURL, "http_proxy=" + proxyURL}
 	for k, v := range spec.Env {
 		env = append(env, k+"="+v)
 	}
@@ -206,18 +233,10 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 			"Memory":      memory,
 			"MemorySwap":  memory,
 			"PidsLimit":   pids,
-			"ExtraHosts":  d.c.ExtraHosts,
 		},
 	}
 	var container struct{ ID string }
-	err := d.call(ctx, http.MethodPost, "/containers/create", url.Values{"name": {name}}, create, &container)
-	if isNotFound(err) {
-		if err := d.pull(ctx, spec.Image); err != nil {
-			return nil, err
-		}
-		err = d.call(ctx, http.MethodPost, "/containers/create", url.Values{"name": {name}}, create, &container)
-	}
-	if err != nil {
+	if err := d.call(ctx, http.MethodPost, "/containers/create", url.Values{"name": {name}}, create, &container); err != nil {
 		return nil, fmt.Errorf("create sandbox container: %w", err)
 	}
 	s.containerID = container.ID
@@ -284,45 +303,6 @@ type dockerSandbox struct {
 
 func (s *dockerSandbox) ID() string { return s.name }
 
-// join finds each of the caller's compose services by its labels, so
-// recreated containers are found too.
-func (s *dockerSandbox) join(ctx context.Context) error {
-	if len(s.d.c.Join) == 0 {
-		return nil
-	}
-	var self struct {
-		Config struct{ Labels map[string]string }
-	}
-	if err := s.d.call(ctx, http.MethodGet, "/containers/"+os.Getenv("HOSTNAME")+"/json", nil, nil, &self); err != nil {
-		return fmt.Errorf("find this container's compose project: %w", err)
-	}
-	project := self.Config.Labels["com.docker.compose.project"]
-	if project == "" {
-		return errors.New("joining services needs the builder to run in compose")
-	}
-	for _, service := range s.d.c.Join {
-		filters, _ := json.Marshal(map[string][]string{"label": {
-			"com.docker.compose.project=" + project, "com.docker.compose.service=" + service,
-		}})
-		var found []struct{ ID string }
-		if err := s.d.call(ctx, http.MethodGet, "/containers/json", url.Values{"filters": {string(filters)}}, nil, &found); err != nil {
-			return err
-		}
-		if len(found) == 0 {
-			return fmt.Errorf("no running %s container in compose project %s", service, project)
-		}
-		for _, c := range found {
-			if err := s.d.call(ctx, http.MethodPost, "/networks/"+s.networkID+"/connect", nil, map[string]any{
-				"Container": c.ID, "EndpointConfig": map[string]any{"Aliases": []string{service}},
-			}, nil); err != nil {
-				return fmt.Errorf("join %s to the sandbox network: %w", service, err)
-			}
-			s.joined = append(s.joined, c.ID)
-		}
-	}
-	return nil
-}
-
 // Stop asks the sandbox to stop and kills it after grace.
 func (s *dockerSandbox) Stop(ctx context.Context, grace time.Duration) error {
 	err := s.d.call(ctx, http.MethodPost, "/containers/"+s.containerID+"/stop", url.Values{"t": {fmt.Sprint(int(grace.Seconds()))}}, nil, nil)
@@ -371,10 +351,30 @@ func (s *dockerSandbox) Remove(ctx context.Context) error {
 			errs = append(errs, err)
 		}
 	}
+	s.d.egressMu.Lock()
+	defer s.d.egressMu.Unlock()
 	for _, c := range s.joined {
 		err := s.d.call(ctx, http.MethodPost, "/networks/"+s.networkID+"/disconnect", nil, map[string]any{"Container": c, "Force": true}, nil)
 		if err != nil && !isNotFound(err) {
 			errs = append(errs, err)
+		}
+		// A proxy that serves no sandbox goes, so one does not stay for each
+		// allow list that ever ran.
+		var proxy struct {
+			NetworkSettings struct{ Networks map[string]any }
+		}
+		if err := s.d.call(ctx, http.MethodGet, "/containers/"+c+"/json", nil, nil, &proxy); err == nil {
+			sandboxes := 0
+			for n := range proxy.NetworkSettings.Networks {
+				if sandboxNetwork.MatchString(n) {
+					sandboxes++
+				}
+			}
+			if sandboxes == 0 {
+				if err := s.d.call(ctx, http.MethodDelete, "/containers/"+c, url.Values{"force": {"1"}}, nil, nil); err != nil && !isNotFound(err) {
+					errs = append(errs, err)
+				}
+			}
 		}
 	}
 	if s.networkID != "" {
@@ -384,4 +384,79 @@ func (s *dockerSandbox) Remove(ctx context.Context) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// egress returns the egress proxy container for an image and allow
+// list, and starts it if it is not running. One proxy serves every
+// sandbox with the same image and list; it joins each one's network. It
+// sits on this builder's own networks when the builder runs in a
+// container, so it reaches the server as the builder does, else on the
+// default bridge.
+func (d *Docker) egress(ctx context.Context, spec Spec, network string) (string, error) {
+	allow := append(slices.Clone(spec.Allow), d.c.Allow...)
+	slices.Sort(allow)
+	allow = slices.Compact(allow)
+	image := cmp.Or(d.c.EgressImage, spec.Image)
+	sum := sha256.Sum256([]byte(image + "\n" + strings.Join(allow, ",")))
+	name := "stackwright-egress-" + hex.EncodeToString(sum[:6])
+	d.egressMu.Lock()
+	defer d.egressMu.Unlock()
+	var proxy struct {
+		ID    string
+		State struct{ Running bool }
+	}
+	err := d.call(ctx, http.MethodGet, "/containers/"+name+"/json", nil, nil, &proxy)
+	switch {
+	case err == nil && proxy.State.Running:
+	case err == nil:
+		if err := d.call(ctx, http.MethodPost, "/containers/"+proxy.ID+"/start", nil, nil, nil); err != nil {
+			return "", err
+		}
+	case !isNotFound(err):
+		return "", err
+	default:
+		networks := []string{"bridge"}
+		var self struct {
+			NetworkSettings struct{ Networks map[string]any }
+		}
+		if host := os.Getenv("HOSTNAME"); host != "" {
+			if err := d.call(ctx, http.MethodGet, "/containers/"+host+"/json", nil, nil, &self); err == nil && len(self.NetworkSettings.Networks) > 0 {
+				networks = slices.Sorted(maps.Keys(self.NetworkSettings.Networks))
+			}
+		}
+		if err := d.call(ctx, http.MethodPost, "/containers/create", url.Values{"name": {name}}, map[string]any{
+			"Image":      image,
+			"Entrypoint": []string{"/stackwright-executor"},
+			"Cmd":        []string{"egress-proxy"},
+			"Env":        []string{"STACKWRIGHT_EGRESS_ALLOW=" + strings.Join(allow, ",")},
+			"User":       fmt.Sprintf("%d:%d", UID, UID),
+			"Labels":     map[string]string{"dev.stackwright.egress": "1"},
+			"HostConfig": map[string]any{
+				"NetworkMode":    networks[0],
+				"ReadonlyRootfs": true,
+				"CapDrop":        []string{"ALL"},
+				"SecurityOpt":    []string{"no-new-privileges"},
+				"Memory":         256 << 20,
+				"PidsLimit":      256,
+				"ExtraHosts":     d.c.ExtraHosts,
+				"RestartPolicy":  map[string]string{"Name": "unless-stopped"},
+			},
+		}, &proxy); err != nil {
+			return "", err
+		}
+		for _, n := range networks[1:] {
+			if err := d.call(ctx, http.MethodPost, "/networks/"+n+"/connect", nil, map[string]any{"Container": proxy.ID}, nil); err != nil {
+				return "", err
+			}
+		}
+		if err := d.call(ctx, http.MethodPost, "/containers/"+proxy.ID+"/start", nil, nil, nil); err != nil {
+			return "", err
+		}
+	}
+	if err := d.call(ctx, http.MethodPost, "/networks/"+network+"/connect", nil, map[string]any{
+		"Container": proxy.ID, "EndpointConfig": map[string]any{"Aliases": []string{egress.Host}},
+	}, nil); err != nil {
+		return "", fmt.Errorf("join the egress proxy to the sandbox network: %w", err)
+	}
+	return proxy.ID, nil
 }

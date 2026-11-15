@@ -18,6 +18,8 @@ import (
 	"strings"
 
 	"github.com/stackwright/stackwright/internal/toolbox/guard"
+
+	"github.com/stackwright/stackwright/internal/egress"
 )
 
 const (
@@ -221,7 +223,8 @@ func (b *box) diff(ctx context.Context) (string, error) {
 func (b *box) engineCmd(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, b.engine, args...) //nolint:gosec // the engine binary, checked against its SHA-256
 	cmd.Dir = b.dir
-	cmd.Env = []string{"HOME=" + filepath.Join(b.work, "home"), "PATH=/usr/local/bin:/usr/bin:/bin", "TF_IN_AUTOMATION=1", "TF_INPUT=0"}
+	cmd.Env = append([]string{"HOME=" + filepath.Join(b.work, "home"), "PATH=/usr/local/bin:/usr/bin:/bin", "TF_IN_AUTOMATION=1", "TF_INPUT=0"},
+		egress.Env()...)
 	return cmd
 }
 

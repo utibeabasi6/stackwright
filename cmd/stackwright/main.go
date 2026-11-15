@@ -12,6 +12,7 @@ commands:
   migrate      apply database migrations and set the app login
   server       run the control plane
   user         reset-password -email <address>
+  rotate-kek   wrap every data key with STACKWRIGHT_KEK instead of STACKWRIGHT_KEK_PREVIOUS
   healthcheck  exit 0 if the server answers /healthz
 
   login        sign in to a Stackwright server with a code you approve in the browser
@@ -35,6 +36,8 @@ func main() {
 		err = runMigrate(os.Args[2:])
 	case "server":
 		err = runServer(os.Args[2:])
+	case "rotate-kek":
+		err = runRotateKEK(os.Args[2:])
 	case "user":
 		err = runUser(os.Args[2:])
 	case "healthcheck":

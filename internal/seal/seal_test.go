@@ -98,3 +98,65 @@ func TestFirstUseFromManyRequests(t *testing.T) {
 		t.Fatalf("%d data keys (err %v), want 1", n, err)
 	}
 }
+
+func TestRotateWithoutAnOutage(t *testing.T) {
+	ctx := context.Background()
+	d := testenv.New(t)
+	text := func() string {
+		b := make([]byte, 32)
+		_, _ = rand.Read(b)
+		return base64.StdEncoding.EncodeToString(b)
+	}
+	oldText, nextText := text(), text()
+	old, _ := seal.ParseKEK(oldText)
+	next, _ := seal.ParseKEK(nextText)
+	during, err := next.WithPrevious(oldText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	open := func(k seal.KEK, sealed []byte) error {
+		return pgx.BeginFunc(ctx, d.App, func(tx pgx.Tx) error {
+			got, err := k.Open(ctx, tx, "", sealed)
+			if err == nil && string(got) != "secret" {
+				t.Errorf("opened %q", got)
+			}
+			return err
+		})
+	}
+	rotate := func(k seal.KEK) (n int, err error) {
+		err = pgx.BeginFunc(ctx, d.Owner, func(tx pgx.Tx) error {
+			n, err = k.Rotate(ctx, tx)
+			return err
+		})
+		return n, err
+	}
+
+	var sealed []byte
+	if err := pgx.BeginFunc(ctx, d.App, func(tx pgx.Tx) error {
+		sealed, err = old.Seal(ctx, tx, "", []byte("secret"))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := open(during, sealed); err != nil {
+		t.Fatalf("the server with both KEKs: %v", err)
+	}
+	if err := open(next, sealed); !errors.Is(err, seal.ErrWrongKEK) {
+		t.Errorf("the new KEK alone before the rotation: %v", err)
+	}
+	if n, err := rotate(during); n != 1 || err != nil {
+		t.Fatalf("rotate: %d %v", n, err)
+	}
+	if err := open(next, sealed); err != nil {
+		t.Errorf("the new KEK alone after the rotation: %v", err)
+	}
+	if err := open(old, sealed); !errors.Is(err, seal.ErrWrongKEK) {
+		t.Errorf("the old KEK after the rotation: %v", err)
+	}
+	if n, err := rotate(during); n != 0 || err != nil {
+		t.Errorf("rotate again: %d %v", n, err)
+	}
+	if _, err := rotate(newKEK(t)); !errors.Is(err, seal.ErrWrongKEK) {
+		t.Errorf("rotate to a KEK without the previous one: %v", err)
+	}
+}

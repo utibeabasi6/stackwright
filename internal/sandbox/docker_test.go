@@ -12,7 +12,10 @@ import (
 	"github.com/stackwright/stackwright/internal/sandbox"
 )
 
-const busybox = "busybox:1.37.0"
+const (
+	busybox  = "busybox:1.37.0"
+	executor = "stackwright/executor:test"
+)
 
 func docker(t *testing.T) *sandbox.Docker {
 	t.Helper()
@@ -22,7 +25,10 @@ func docker(t *testing.T) *sandbox.Docker {
 	if out, err := exec.Command("docker", "pull", "-q", busybox).CombinedOutput(); err != nil {
 		t.Fatalf("pull %s: %v: %s", busybox, err, out)
 	}
-	d, err := sandbox.NewDocker(sandbox.DockerConfig{})
+	if out, err := exec.Command("docker", "build", "-q", "--target", "executor", "-t", executor, "../..").CombinedOutput(); err != nil {
+		t.Fatalf("build the executor image: %v: %s", err, out)
+	}
+	d, err := sandbox.NewDocker(sandbox.DockerConfig{EgressImage: executor})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +123,7 @@ func TestDockerSandboxCacheIsReadOnly(t *testing.T) {
 	volume = strings.ReplaceAll(volume, ".", "")
 	t.Cleanup(func() { _ = exec.Command("docker", "volume", "rm", "-f", volume).Run() })
 	d := docker(t)
-	cached, err := sandbox.NewDocker(sandbox.DockerConfig{Cache: volume})
+	cached, err := sandbox.NewDocker(sandbox.DockerConfig{Cache: volume, EgressImage: executor})
 	if err != nil {
 		t.Fatal(err)
 	}

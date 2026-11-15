@@ -15,12 +15,21 @@ services:
       STACKWRIGHT_NATS_PASSWORD_FILE: /run/secrets/nats_password
       STACKWRIGHT_BUILDER_TOKEN_FILE: /run/secrets/builder_token
       STACKWRIGHT_PUBLIC_URL: ${STACKWRIGHT_PUBLIC_URL:-http://127.0.0.1:8080}
+      # Addresses or CIDRs of a TLS proxy in front, whose X-Forwarded-For
+      # names the client for rate limits.
+      STACKWRIGHT_TRUSTED_PROXIES: ${STACKWRIGHT_TRUSTED_PROXIES:-}
+      # Set only while a key rotates (docs/operations.md).
+      STACKWRIGHT_KEK_PREVIOUS: ${STACKWRIGHT_KEK_PREVIOUS:-}
+      STACKWRIGHT_BUILDER_TOKEN_PREVIOUS: ${STACKWRIGHT_BUILDER_TOKEN_PREVIOUS:-}
       # Where remote build servers reach the builder port, and the server and
       # S3 for their sandboxes (adr/0021).
       STACKWRIGHT_BUILDER_URL: ${STACKWRIGHT_BUILDER_URL:-https://127.0.0.1:8443}
       STACKWRIGHT_BUILDER_HOSTS: stackwright
       STACKWRIGHT_SANDBOX_URL: ${STACKWRIGHT_SANDBOX_URL:-http://127.0.0.1:8080}
-      STACKWRIGHT_S3_PUBLIC_URL: ${STACKWRIGHT_S3_PUBLIC_URL:-http://127.0.0.1:9000}
+      # Empty relays object storage through the server, under /s3/. Set it
+      # for an object store that sandboxes reach directly, such as AWS S3
+      # (adr/0046).
+      STACKWRIGHT_S3_PUBLIC_URL: ${STACKWRIGHT_S3_PUBLIC_URL:-}
       STACKWRIGHT_EXECUTOR_IMAGE: ${STACKWRIGHT_EXECUTOR_IMAGE:-stackwright/executor:dev}
       # AWS fetches the token issuer's keys from here; it must be public
       # https. Empty uses STACKWRIGHT_PUBLIC_URL (adr/0022).
@@ -51,8 +60,8 @@ services:
     restart: unless-stopped
 
   # The built-in build server. It is the only container with the Docker
-  # socket, which is root on this host. It joins the server and RustFS to
-  # each sandbox's network (adr/0018).
+  # socket, which is root on this host. Sandboxes reach out only through
+  # the egress proxy that it starts (adr/0046).
   builder:
     build:
       context: .
@@ -60,10 +69,12 @@ services:
     image: stackwright/builder:dev
     environment:
       STACKWRIGHT_BUILDER_TOKEN_FILE: /run/secrets/builder_token
-      STACKWRIGHT_SANDBOX_JOIN: stackwright,rustfs
       STACKWRIGHT_BUILDER_CACHE: /cache
       STACKWRIGHT_SANDBOX_CACHE: stackwright-builder-cache
       STACKWRIGHT_BUILDER_LABELS: ${STACKWRIGHT_BUILDER_LABELS:-}
+      # host:port pairs on private addresses that sandboxes may reach
+      # (docs/operations.md).
+      STACKWRIGHT_EGRESS_ALLOW: ${STACKWRIGHT_EGRESS_ALLOW:-}
     secrets: [builder_token]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -90,7 +101,10 @@ services:
     environment:
       STACKWRIGHT_POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       STACKWRIGHT_APP_DB_PASSWORD_FILE: /run/secrets/app_db_password
-    secrets: [postgres_password, app_db_password]
+      # For "docker compose run --rm migrate rotate-kek".
+      STACKWRIGHT_KEK_FILE: /run/secrets/kek
+      STACKWRIGHT_KEK_PREVIOUS: ${STACKWRIGHT_KEK_PREVIOUS:-}
+    secrets: [postgres_password, app_db_password, kek]
     depends_on:
       postgres:
         condition: service_healthy
@@ -135,9 +149,6 @@ services:
       RUSTFS_VOLUMES: /data
       RUSTFS_ADDRESS: 0.0.0.0:9000
       RUSTFS_CONSOLE_ENABLE: "false"
-    ports:
-      # Remote build servers' sandboxes fetch and upload here by presigned URL.
-      - 127.0.0.1:9000:9000
     volumes:
       - rustfs:/data
     healthcheck:

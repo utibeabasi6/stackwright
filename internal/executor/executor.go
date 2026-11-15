@@ -28,6 +28,7 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/artifact"
+	"github.com/stackwright/stackwright/internal/egress"
 	"github.com/stackwright/stackwright/internal/graph"
 	"github.com/stackwright/stackwright/internal/redact"
 	"github.com/stackwright/stackwright/internal/sts"
@@ -231,6 +232,7 @@ func (r *runner) run(ctx context.Context) (err error) {
 	// Stackwright's own entries come last: with a key twice, the last one
 	// wins, so a variable cannot replace them.
 	env = append(env, "HOME="+home, "PATH=/usr/local/bin:/usr/bin:/bin", "TF_IN_AUTOMATION=1", "TF_INPUT=0")
+	env = append(env, egress.Env()...)
 	if job.GetCodeBackend() {
 		if job.GetWorkspace() != "" {
 			env = append(env, "TF_WORKSPACE="+job.GetWorkspace())

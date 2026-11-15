@@ -124,12 +124,12 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	var join []string
-	if j := config.Env("STACKWRIGHT_SANDBOX_JOIN", ""); j != "" {
-		join = strings.Split(j, ",")
+	var allow []string
+	if a := config.Env("STACKWRIGHT_EGRESS_ALLOW", ""); a != "" {
+		allow = strings.Split(a, ",")
 	}
 	cache := config.Env("STACKWRIGHT_BUILDER_CACHE", cacheDir)
-	docker, err := sandbox.NewDocker(sandbox.DockerConfig{Join: join, Cache: config.Env("STACKWRIGHT_SANDBOX_CACHE", cache)})
+	docker, err := sandbox.NewDocker(sandbox.DockerConfig{Allow: allow, Cache: config.Env("STACKWRIGHT_SANDBOX_CACHE", cache)})
 	if err != nil {
 		return err
 	}

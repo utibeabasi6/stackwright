@@ -134,6 +134,7 @@ func (w *jobWorld) start(ticket string) sandbox.Sandbox {
 		Image: executorImage,
 		Env:   map[string]string{"STACKWRIGHT_SERVER_URL": w.public},
 		Files: map[string][]byte{"ticket": []byte(ticket)},
+		Allow: []string{strings.TrimPrefix(w.public, "http://")},
 	})
 	if err != nil {
 		w.t.Fatal(err)
@@ -306,10 +307,13 @@ func TestJobAppliesAPlanMadeAtAnotherAddress(t *testing.T) {
 		t.Run(project, func(t *testing.T) {
 			orgID, ws := w.workspaceID(project, workspace)
 			planID, ticket := w.create(jobs.Request{OrgID: orgID, WorkspaceID: ws, Operation: v1.JobOperation_JOB_OPERATION_PLAN, Source: source(t, "ok")})
+			other := strings.Replace(w.public, "host.docker.internal", "plan-only.internal", 1)
+			// The presigned URLs still name the server's usual address.
 			s, err := planOnly.Start(context.Background(), sandbox.Spec{
 				Image: executorImage,
-				Env:   map[string]string{"STACKWRIGHT_SERVER_URL": strings.Replace(w.public, "host.docker.internal", "plan-only.internal", 1)},
+				Env:   map[string]string{"STACKWRIGHT_SERVER_URL": other},
 				Files: map[string][]byte{"ticket": []byte(ticket)},
+				Allow: []string{strings.TrimPrefix(other, "http://"), strings.TrimPrefix(w.public, "http://")},
 			})
 			if err != nil {
 				t.Fatal(err)

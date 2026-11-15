@@ -51,6 +51,7 @@ const (
 	issuer    = "http://127.0.0.1:18071/default"
 
 	builderToken  = "builder-test-token"
+	previousToken = "builder-previous-token"
 	testIssuer    = "https://stackwright.test"
 	serverVersion = "v0.6.0"
 )
@@ -120,7 +121,9 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	if public == "" {
 		public = srv.URL
 	}
-	presign, err := minio.New("host.docker.internal:19000", &minio.Options{
+	// Sandboxes reach S3 through the server's relay, at the address they
+	// call the server by (adr/0046).
+	presign, err := minio.New(strings.TrimPrefix(public, "http://"), &minio.Options{
 		Creds:  credentials.NewStaticV4(os.Getenv("STACKWRIGHT_S3_ACCESS_KEY"), os.Getenv("STACKWRIGHT_S3_SECRET_KEY"), ""),
 		Region: "us-east-1",
 	})
@@ -132,7 +135,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 		t.Fatal(err)
 	}
 	sts := newFakeSTS(t, srv)
-	js := &jobs.Service{Pool: d.App, KEK: kek, S3: s3, Presign: presign, PresignRemote: presign, Bucket: bucket,
+	js := &jobs.Service{Pool: d.App, KEK: kek, S3: s3, Presign: presign, PresignRemote: presign, Relay: true, Bucket: bucket,
 		Engines: &engine.Mirror{Pool: d.App, S3: s3, Bucket: bucket, HTTP: http.DefaultClient}, Issuer: issuer, STSEndpoint: sts.url}
 	ca, err := builders.LoadCA(context.Background(), d.App, kek)
 	if err != nil {
@@ -143,7 +146,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 		t.Fatal(err)
 	}
 	builderPort := bl.Addr().(*net.TCPAddr).Port
-	hub := &builders.Hub{Pool: d.App, CA: ca, BuiltInToken: builderToken, Version: serverVersion,
+	hub := &builders.Hub{Pool: d.App, CA: ca, BuiltInTokens: []string{builderToken, previousToken}, Version: serverVersion,
 		BuilderURL: fmt.Sprintf("https://host.docker.internal:%d", builderPort),
 		Images:     map[string]string{"docker": executorImage}, ServerURL: public, BuiltInServerURL: public}
 	orch := &runs.Orchestrator{Pool: d.App, KEK: kek, S3: s3, Bucket: bucket, Jobs: js, Hub: hub, NATS: testenv.NATS(t)}
@@ -169,7 +172,7 @@ func startWith(t *testing.T, web fstest.MapFS, engines bool, binaries map[string
 	go gh.RunChecks(ctx, 200*time.Millisecond)
 	cfg := server.Config{Pool: d.App, KEK: kek, PublicURL: public, SetupCode: setupCode,
 		State: state.Store{S3: s3, Bucket: bucket, KEK: kek}, Jobs: js, Runs: orch, Builders: hub, Binaries: binaries, Issuer: issuer, GitHub: gh, Agent: ag,
-		CLIDir: cliDir(t), AllowHTTPTargets: true}
+		CLIDir: cliDir(t), AllowHTTPTargets: true, S3Relay: &url.URL{Scheme: "http", Host: "127.0.0.1:19000"}, Bucket: bucket}
 	if web != nil {
 		cfg.Web = web
 	}
@@ -682,9 +685,15 @@ func TestEveryWriteMakesOneAuditRow(t *testing.T) {
 	step("DeploymentService/SaveDeployment", func() {
 		owner.must("DeploymentService/SaveDeployment", merge(deployment, map[string]any{"steps": []any{map[string]any{"project": "sample", "workspace": "dev"}}}))
 	})
+	// A waiting deployment run's steps are planned; the orchestrator fails
+	// one whose step was canceled.
 	settle := func(number int, status string) {
 		t.Helper()
-		if _, err := w.owner.Exec(context.Background(), `UPDATE runs SET status = 'canceled' WHERE deployment_run_id IS NOT NULL`); err != nil {
+		step := "canceled"
+		if status == "needs_approval" {
+			step = "planned"
+		}
+		if _, err := w.owner.Exec(context.Background(), `UPDATE runs SET status = $1 WHERE deployment_run_id IS NOT NULL`, step); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := w.owner.Exec(context.Background(), `UPDATE deployment_runs SET status = $2 WHERE number = $1`, number, status); err != nil {

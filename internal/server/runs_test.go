@@ -33,7 +33,11 @@ func (w *world) startBuilder(slots int32) {
 // it is connected.
 func (w *world) runBuilder(id *builder.Identity) {
 	w.t.Helper()
-	d, err := sandbox.NewDocker(sandbox.DockerConfig{ExtraHosts: []string{"host.docker.internal:host-gateway"}})
+	// The fake STS and the test object store, which code in some tests
+	// names as its S3 backend, are on this host; the egress proxy allows
+	// them by name.
+	d, err := sandbox.NewDocker(sandbox.DockerConfig{ExtraHosts: []string{"host.docker.internal:host-gateway"},
+		Allow: []string{strings.TrimPrefix(w.sts.url, "http://"), "host.docker.internal:19000"}})
 	if err != nil {
 		w.t.Fatal(err)
 	}

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/stackwright/stackwright/internal/egress"
 	"github.com/stackwright/stackwright/internal/executor"
 	"github.com/stackwright/stackwright/internal/sandbox"
 	"github.com/stackwright/stackwright/internal/toolbox"
@@ -30,6 +31,13 @@ func main() {
 	cache := ""
 	if fi, err := os.Stat(sandbox.CacheDir); err == nil && fi.IsDir() {
 		cache = sandbox.CacheDir
+	}
+	if len(os.Args) == 2 && os.Args[1] == "egress-proxy" {
+		if err := egress.Serve(ctx, os.Getenv("STACKWRIGHT_EGRESS_ALLOW")); err != nil {
+			slog.Error("egress proxy", "err", err)
+			os.Exit(1)
+		}
+		return
 	}
 	if len(os.Args) == 2 && os.Args[1] == "mirror" {
 		if err := mirror(ctx, cache); err != nil {

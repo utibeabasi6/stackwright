@@ -12,7 +12,9 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -167,6 +169,16 @@ func (b *Builder) report(st *v1.SandboxStatus) {
 func (b *Builder) start(ctx context.Context, order *v1.StartSandbox) {
 	jobID := order.GetJobId()
 	spec := sandbox.Spec{Image: order.GetImage(), Labels: map[string]string{"dev.stackwright.job": jobID}}
+	if u, err := url.Parse(order.GetServerUrl()); err == nil && u.Host != "" {
+		port := u.Port()
+		if port == "" {
+			port = map[string]string{"https": "443"}[u.Scheme]
+			if port == "" {
+				port = "80"
+			}
+		}
+		spec.Allow = []string{net.JoinHostPort(u.Hostname(), port)}
+	}
 	if order.GetTest() {
 		spec.Command = []string{"version"}
 	} else {

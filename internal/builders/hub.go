@@ -41,8 +41,9 @@ const BuiltInName = "built-in"
 type Hub struct {
 	Pool *pgxpool.Pool
 	CA   *CA
-	// BuiltInToken enrols the built-in builder, which serves every org.
-	BuiltInToken string
+	// BuiltInTokens enrol the built-in builder, which serves every org.
+	// There are two while the token rotates.
+	BuiltInTokens []string
 	// BuilderURL is where remote builders reach the builder port.
 	BuilderURL string
 	Version    string
@@ -357,7 +358,11 @@ func (h *Hub) Enrol(ctx context.Context, req *connect.Request[v1.EnrolRequest]) 
 	s := authz.ScopeFrom(ctx)
 	resp := &v1.EnrolResponse{CaCertificate: h.CA.Certificate(), BuilderUrl: h.BuilderURL}
 	var orgID string
-	if h.BuiltInToken != "" && subtle.ConstantTimeCompare([]byte(req.Msg.GetToken()), []byte(h.BuiltInToken)) == 1 {
+	builtIn := false
+	for _, t := range h.BuiltInTokens {
+		builtIn = builtIn || t != "" && subtle.ConstantTimeCompare([]byte(req.Msg.GetToken()), []byte(t)) == 1
+	}
+	if builtIn {
 		if err := CheckServer(BuiltInName, req.Msg.GetSlots(), req.Msg.GetLabels()); err != nil {
 			return nil, err
 		}

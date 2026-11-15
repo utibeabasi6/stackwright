@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/stackwright/stackwright/internal/egress"
 )
 
 // A provider line is "source version", such as
@@ -43,7 +45,7 @@ func Mirror(ctx context.Context, engine, engineSHA string, providers []string, c
 	}
 	cmd := exec.CommandContext(ctx, engine, "providers", "mirror", "-platform="+runtime.GOOS+"_"+runtime.GOARCH, filepath.Join(cacheDir, "providers")) //nolint:gosec // the engine binary, checked against its SHA-256
 	cmd.Dir = workDir
-	cmd.Env = []string{"HOME=" + workDir, "TF_IN_AUTOMATION=1"}
+	cmd.Env = append([]string{"HOME=" + workDir, "TF_IN_AUTOMATION=1"}, egress.Env()...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("providers mirror: %w: %s", err, out)
 	}

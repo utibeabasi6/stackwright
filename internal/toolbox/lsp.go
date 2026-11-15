@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	"github.com/stackwright/stackwright/internal/egress"
 )
 
 const maxFrame = 8 << 20
@@ -61,7 +62,8 @@ func (b *box) lsp(ctx context.Context, f *v1.LspFrame, send func(*v1.ToolboxMess
 func (b *box) startServer(ctx context.Context, conn string, send func(*v1.ToolboxMessage) error) (*languageServer, error) {
 	cmd := exec.CommandContext(ctx, "tofu-ls", "serve")
 	cmd.Dir = b.repo
-	cmd.Env = []string{"HOME=" + filepath.Join(b.work, "home"), "PATH=" + filepath.Dir(b.engine) + ":/usr/local/bin:/usr/bin:/bin", "TF_IN_AUTOMATION=1"}
+	cmd.Env = append([]string{"HOME=" + filepath.Join(b.work, "home"), "PATH=" + filepath.Dir(b.engine) + ":/usr/local/bin:/usr/bin:/bin",
+		"TF_IN_AUTOMATION=1"}, egress.Env()...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

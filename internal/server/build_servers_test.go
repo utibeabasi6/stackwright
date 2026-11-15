@@ -79,6 +79,11 @@ func TestBuilderEnrolNeedsAToken(t *testing.T) {
 	if _, err := builder.Enrol(context.Background(), builder.PlainClient(w.srv.URL), "swe_wrong", 0, nil, "", ""); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Errorf("wrong token: %v", err)
 	}
+	for _, token := range []string{builderToken, previousToken} {
+		if _, err := builder.Enrol(context.Background(), builder.PlainClient(w.srv.URL), token, 1, nil, "", ""); err != nil {
+			t.Errorf("the built-in builder's token during a rotation: %v", err)
+		}
+	}
 	cmd := owner.must("BuildServerService/CreateJoinCommand", map[string]any{"org": "a", "name": "once", "slots": 1})["command"].(string)
 	token := joinToken.FindStringSubmatch(cmd)[1]
 	if _, err := builder.Enrol(context.Background(), builder.PlainClient(w.srv.URL), token, 0, nil, "", ""); err != nil {

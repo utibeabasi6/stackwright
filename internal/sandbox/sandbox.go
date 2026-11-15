@@ -37,6 +37,9 @@ type Spec struct {
 	Files  map[string][]byte
 	Labels map[string]string
 	Cache  CacheMode
+	// Allow are host:port pairs the sandbox may reach although their
+	// addresses are private: the server URL it calls (adr/0046).
+	Allow []string
 }
 
 type Backend interface {

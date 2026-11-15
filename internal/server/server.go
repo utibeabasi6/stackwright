@@ -7,6 +7,9 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/http/httputil"
+	"net/netip"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -51,6 +54,12 @@ type Config struct {
 	CLIDir string
 	// AllowHTTPTargets lets webhooks and SAML metadata use http://.
 	AllowHTTPTargets bool
+	// S3Relay is S3 as the server reaches it, when sandboxes reach it only
+	// through /s3/; Bucket is the one bucket the relay serves (adr/0046).
+	S3Relay *url.URL
+	Bucket  string
+	// TrustedProxies may say who the client is, in X-Forwarded-For.
+	TrustedProxies []netip.Prefix
 }
 
 var cliBinary = regexp.MustCompile(`^stackwright-(darwin|linux)-(arm64|amd64)$`)
@@ -115,6 +124,9 @@ func New(c Config) http.Handler {
 		}
 		_, _ = w.Write([]byte("ok\n"))
 	})
+	if c.S3Relay != nil {
+		mux.Handle("/s3/", s3Relay(c.S3Relay, c.Bucket))
+	}
 	mux.Handle("/scim/v2/", (&scim.Server{Pool: c.Pool, PublicURL: c.PublicURL}).Handler())
 	mux.Handle("/auth/saml/", (&auth.SAML{Pool: c.Pool, PublicURL: c.PublicURL, Cookies: cookies}).Handler())
 	mux.Handle("/auth/", signIn.Handler())
@@ -169,7 +181,7 @@ func New(c Config) http.Handler {
 			files.ServeHTTP(w, r)
 		})
 	}
-	return secure(mux, c.GitHub.WebURL)
+	return trustProxies(c.TrustedProxies, rateLimit(secure(mux, c.GitHub.WebURL)))
 }
 
 // secure sets the headers of every page. formTargets are the origins a
@@ -211,4 +223,25 @@ func NewBuilderPort(c Config) http.Handler {
 		http.ServeFile(w, r, bin.Path)
 	})
 	return secure(mux)
+}
+
+// s3Relay forwards a presigned GET, HEAD or PUT on the bucket to S3, with
+// the Host header that the URL was signed for (adr/0046).
+func s3Relay(target *url.URL, bucket string) http.Handler {
+	rp := &httputil.ReverseProxy{Rewrite: func(pr *httputil.ProxyRequest) {
+		pr.Out.URL.Scheme, pr.Out.URL.Host = target.Scheme, target.Host
+		pr.Out.URL.Path = strings.TrimPrefix(pr.In.URL.Path, "/s3")
+		pr.Out.URL.RawPath = strings.TrimPrefix(pr.In.URL.RawPath, "/s3")
+		pr.Out.Host = pr.In.Host
+	}}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodPut:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		case !strings.HasPrefix(r.URL.Path, "/s3/"+bucket+"/") || r.URL.Query().Get("X-Amz-Signature") == "":
+			http.Error(w, "only presigned URLs of the bucket", http.StatusForbidden)
+		default:
+			rp.ServeHTTP(w, r)
+		}
+	})
 }
