@@ -12,13 +12,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
-	"github.com/stackwright/stackwright/internal/authz"
-	"github.com/stackwright/stackwright/internal/github"
-	"github.com/stackwright/stackwright/internal/importer"
-	"github.com/stackwright/stackwright/internal/runs"
-	"github.com/stackwright/stackwright/internal/stacks"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	"github.com/utibeabasi6/stackwright/internal/authz"
+	"github.com/utibeabasi6/stackwright/internal/github"
+	"github.com/utibeabasi6/stackwright/internal/importer"
+	"github.com/utibeabasi6/stackwright/internal/runs"
+	"github.com/utibeabasi6/stackwright/internal/stacks"
 )
 
 // Imports imports a linked repository's root modules as projects on the

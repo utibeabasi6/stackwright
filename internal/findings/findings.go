@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/stackwright/stackwright/internal/notify"
+	"github.com/utibeabasi6/stackwright/internal/notify"
 )
 
 // Result is one failed check on one resource.

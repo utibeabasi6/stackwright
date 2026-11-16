@@ -19,19 +19,19 @@ COPY fixtures fixtures
 COPY tools tools
 # The licences, notices and, for MPL-2.0, the source of the Go modules that
 # the binaries hold.
-RUN go tool -modfile=tools/go.mod go-licenses save ./cmd/... --save_path=/out/licenses/go --ignore github.com/stackwright/stackwright
+RUN go tool -modfile=tools/go.mod go-licenses save ./cmd/... --save_path=/out/licenses/go --ignore github.com/utibeabasi6/stackwright
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" -o /out/ ./cmd/stackwright ./cmd/stackwright-executor ./cmd/stackwright-builder
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/utibeabasi6/stackwright/internal/version.Version=${VERSION}" -o /out/ ./cmd/stackwright ./cmd/stackwright-executor ./cmd/stackwright-builder
 # Remote build servers download these from the builder port (adr/0021).
 RUN for arch in amd64 arm64; do \
-      CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" \
+      CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags="-s -w -X github.com/utibeabasi6/stackwright/internal/version.Version=${VERSION}" \
         -o /out/downloads/stackwright-builder-linux_$arch ./cmd/stackwright-builder; \
     done
 # The CLI for engineers' machines, gzipped, with the SHA-256 of each
 # binary (adr/0044).
 RUN mkdir -p /out/cli && cd /out/cli && for t in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do \
       name=stackwright-${t%/*}-${t#*/}; \
-      CGO_ENABLED=0 GOOS=${t%/*} GOARCH=${t#*/} go build -C /src -trimpath -ldflags="-s -w -X github.com/stackwright/stackwright/internal/version.Version=${VERSION}" \
+      CGO_ENABLED=0 GOOS=${t%/*} GOARCH=${t#*/} go build -C /src -trimpath -ldflags="-s -w -X github.com/utibeabasi6/stackwright/internal/version.Version=${VERSION}" \
         -o /out/cli/$name ./cmd/stackwright && \
       sha256sum $name >> SHA256SUMS && gzip -9 $name; \
     done

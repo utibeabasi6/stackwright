@@ -24,14 +24,14 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/nats-io/nats.go"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/internal/authz"
-	"github.com/stackwright/stackwright/internal/builders"
-	"github.com/stackwright/stackwright/internal/db"
-	"github.com/stackwright/stackwright/internal/findings"
-	"github.com/stackwright/stackwright/internal/jobs"
-	"github.com/stackwright/stackwright/internal/notify"
-	"github.com/stackwright/stackwright/internal/seal"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/internal/authz"
+	"github.com/utibeabasi6/stackwright/internal/builders"
+	"github.com/utibeabasi6/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/findings"
+	"github.com/utibeabasi6/stackwright/internal/jobs"
+	"github.com/utibeabasi6/stackwright/internal/notify"
+	"github.com/utibeabasi6/stackwright/internal/seal"
 )
 
 var lockEntry = regexp.MustCompile(`provider "([a-z0-9.-]+/[a-z0-9_-]+/[a-z0-9_-]+)" \{\s+version\s+=\s+"([0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z.+-]*)"`)

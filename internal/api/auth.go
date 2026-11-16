@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
-	"github.com/stackwright/stackwright/internal/auth"
-	"github.com/stackwright/stackwright/internal/authz"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	"github.com/utibeabasi6/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/authz"
 )
 
 type Auth struct {

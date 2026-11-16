@@ -23,9 +23,9 @@ import (
 	"sync"
 	"time"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/internal/builders"
-	"github.com/stackwright/stackwright/internal/sandbox"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/internal/builders"
+	"github.com/utibeabasi6/stackwright/internal/sandbox"
 )
 
 const (

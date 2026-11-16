@@ -1,4 +1,4 @@
-module github.com/stackwright/stackwright/tools
+module github.com/utibeabasi6/stackwright/tools
 
 go 1.26.0
 

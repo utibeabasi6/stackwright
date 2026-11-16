@@ -20,8 +20,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/gen/stackwright/v1/stackwrightv1connect"
 )
 
 var errCAPin = errors.New("the server's CA does not match the pinned SHA-256")

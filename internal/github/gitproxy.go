@@ -13,8 +13,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/stackwright/stackwright/internal/authz"
-	"github.com/stackwright/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/authz"
+	"github.com/utibeabasi6/stackwright/internal/db"
 )
 
 const maxPush = 256 << 20

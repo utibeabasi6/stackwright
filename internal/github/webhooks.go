@@ -18,9 +18,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/stackwright/stackwright/internal/db"
-	"github.com/stackwright/stackwright/internal/runs"
-	"github.com/stackwright/stackwright/internal/stacks"
+	"github.com/utibeabasi6/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/runs"
+	"github.com/utibeabasi6/stackwright/internal/stacks"
 )
 
 const (

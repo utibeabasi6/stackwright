@@ -20,8 +20,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/stackwright/stackwright/internal/jws"
-	"github.com/stackwright/stackwright/internal/seal"
+	"github.com/utibeabasi6/stackwright/internal/jws"
+	"github.com/utibeabasi6/stackwright/internal/seal"
 )
 
 // AWSAudience is the audience AWS STS expects.

@@ -2870,7 +2870,7 @@ const file_stackwright_v1_agent_proto_rawDesc = "" +
 	"\x0eToolboxService\x12K\n" +
 	"\aConnect\x12\x1e.stackwright.v1.ToolboxMessage\x1a\x1c.stackwright.v1.ToolboxOrder(\x010\x01B\xbe\x01\n" +
 	"\x12com.stackwright.v1B\n" +
-	"AgentProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
+	"AgentProtoP\x01ZCgithub.com/utibeabasi6/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
 var (
 	file_stackwright_v1_agent_proto_rawDescOnce sync.Once

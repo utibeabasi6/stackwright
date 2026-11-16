@@ -4,8 +4,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/stackwright/stackwright/internal/importer"
-	"github.com/stackwright/stackwright/internal/stacks"
+	"github.com/utibeabasi6/stackwright/internal/importer"
+	"github.com/utibeabasi6/stackwright/internal/stacks"
 )
 
 // affected returns the projects, by id, that a change touches: a changed

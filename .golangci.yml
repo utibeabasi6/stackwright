@@ -27,4 +27,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/stackwright/stackwright
+        - github.com/utibeabasi6/stackwright

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
 )
 
 // newCheckout clones a bare repository whose main branch has main.tf, onto

@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
 )
 
 // ErrNoNode is returned for a node id that the plan does not have.

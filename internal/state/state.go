@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/minio/minio-go/v7"
 
-	"github.com/stackwright/stackwright/internal/seal"
+	"github.com/utibeabasi6/stackwright/internal/seal"
 )
 
 const MaxSize = 64 << 20

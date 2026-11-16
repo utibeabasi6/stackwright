@@ -21,10 +21,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/stackwright/stackwright/internal/builder"
-	"github.com/stackwright/stackwright/internal/config"
-	"github.com/stackwright/stackwright/internal/sandbox"
-	"github.com/stackwright/stackwright/internal/version"
+	"github.com/utibeabasi6/stackwright/internal/builder"
+	"github.com/utibeabasi6/stackwright/internal/config"
+	"github.com/utibeabasi6/stackwright/internal/sandbox"
+	"github.com/utibeabasi6/stackwright/internal/version"
 )
 
 const (

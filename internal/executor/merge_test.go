@@ -6,9 +6,9 @@ import (
 	"slices"
 	"testing"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/internal/findings"
-	"github.com/stackwright/stackwright/internal/graph"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/internal/findings"
+	"github.com/utibeabasi6/stackwright/internal/graph"
 )
 
 // The units' plans are Terragrunt 1.2.1 and OpenTofu 1.10.7 output for a

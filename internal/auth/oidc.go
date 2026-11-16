@@ -22,7 +22,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 
-	"github.com/stackwright/stackwright/internal/seal"
+	"github.com/utibeabasi6/stackwright/internal/seal"
 )
 
 var (

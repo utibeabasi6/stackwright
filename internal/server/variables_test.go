@@ -22,7 +22,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/stackwright/stackwright/internal/oidc"
+	"github.com/utibeabasi6/stackwright/internal/oidc"
 )
 
 // fakeSTS answers AssumeRoleWithWebIdentity as AWS does: it fetches the

@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/internal/stacks"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/internal/stacks"
 )
 
 // stackComponents is the job variable that holds the outputs of the

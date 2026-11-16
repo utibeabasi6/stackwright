@@ -12,11 +12,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/stackwright/stackwright/internal/db"
-	"github.com/stackwright/stackwright/internal/github"
-	"github.com/stackwright/stackwright/internal/graph"
-	"github.com/stackwright/stackwright/internal/jobs"
-	"github.com/stackwright/stackwright/internal/runs"
+	"github.com/utibeabasi6/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/github"
+	"github.com/utibeabasi6/stackwright/internal/graph"
+	"github.com/utibeabasi6/stackwright/internal/jobs"
+	"github.com/utibeabasi6/stackwright/internal/runs"
 )
 
 const (

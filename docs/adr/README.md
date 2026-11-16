@@ -53,3 +53,4 @@ line to the old one that points to the new one.
 | [0045](0045-sso-scim-notifications-audit-export.md) | SAML and SCIM per org, SSO for all but owners, sessions scoped to their IdP's org; notifications and audit export through an outbox |
 | [0046](0046-running-in-production.md) | Sandboxes on internal networks reach out only through an egress proxy; the server relays object storage; rate limits per user and IP; online KEK rotation; an upgrade test |
 | [0047](0047-review-fixes.md) | Fixes from the full review: plan jobs cannot write state; owners configure SSO and SAML never signs in owners; SCIM acts only in its org; job artifacts stay 30 days; no default executor image |
+| [0048](0048-public-repository.md) | The public repository and the Go module path are github.com/utibeabasi6/stackwright |

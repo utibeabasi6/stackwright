@@ -14,9 +14,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/internal/db"
-	"github.com/stackwright/stackwright/internal/notify"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/notify"
 )
 
 // ErrCycle is a deployment whose links loop.

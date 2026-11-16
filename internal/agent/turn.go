@@ -13,9 +13,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/internal/db"
-	"github.com/stackwright/stackwright/internal/toolbox/guard"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/toolbox/guard"
 )
 
 // Limits for each turn (adr/0031).

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/stackwright/stackwright/internal/config"
-	"github.com/stackwright/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/config"
+	"github.com/utibeabasi6/stackwright/internal/db"
 )
 
 func dbConfig(user, passwordVar string) (db.Config, error) {

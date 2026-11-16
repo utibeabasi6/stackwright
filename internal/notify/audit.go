@@ -18,9 +18,9 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
-	"github.com/stackwright/stackwright/internal/oidc"
-	"github.com/stackwright/stackwright/internal/seal"
-	"github.com/stackwright/stackwright/internal/sts"
+	"github.com/utibeabasi6/stackwright/internal/oidc"
+	"github.com/utibeabasi6/stackwright/internal/seal"
+	"github.com/utibeabasi6/stackwright/internal/sts"
 )
 
 // AuditPhase is the phase in the subject of an audit export's token: a

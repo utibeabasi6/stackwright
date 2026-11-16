@@ -17,7 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/minio/minio-go/v7"
 
-	"github.com/stackwright/stackwright/internal/importer"
+	"github.com/utibeabasi6/stackwright/internal/importer"
 )
 
 const (

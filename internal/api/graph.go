@@ -12,12 +12,12 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/internal/authz"
-	"github.com/stackwright/stackwright/internal/graph"
-	"github.com/stackwright/stackwright/internal/jobs"
-	"github.com/stackwright/stackwright/internal/runs"
-	"github.com/stackwright/stackwright/internal/topology"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/internal/authz"
+	"github.com/utibeabasi6/stackwright/internal/graph"
+	"github.com/utibeabasi6/stackwright/internal/jobs"
+	"github.com/utibeabasi6/stackwright/internal/runs"
+	"github.com/utibeabasi6/stackwright/internal/topology"
 )
 
 const (

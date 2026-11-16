@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/stackwright/stackwright/internal/egress"
+	"github.com/utibeabasi6/stackwright/internal/egress"
 )
 
 // A provider line is "source version", such as

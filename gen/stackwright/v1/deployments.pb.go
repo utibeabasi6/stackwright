@@ -1419,7 +1419,7 @@ const file_stackwright_v1_deployments_proto_rawDesc = "" +
 	"\x14ApproveDeploymentRun\x12+.stackwright.v1.ApproveDeploymentRunRequest\x1a,.stackwright.v1.ApproveDeploymentRunResponse\x12n\n" +
 	"\x13RejectDeploymentRun\x12*.stackwright.v1.RejectDeploymentRunRequest\x1a+.stackwright.v1.RejectDeploymentRunResponse\x12n\n" +
 	"\x13CancelDeploymentRun\x12*.stackwright.v1.CancelDeploymentRunRequest\x1a+.stackwright.v1.CancelDeploymentRunResponseB\xc4\x01\n" +
-	"\x12com.stackwright.v1B\x10DeploymentsProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
+	"\x12com.stackwright.v1B\x10DeploymentsProtoP\x01ZCgithub.com/utibeabasi6/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
 var (
 	file_stackwright_v1_deployments_proto_rawDescOnce sync.Once

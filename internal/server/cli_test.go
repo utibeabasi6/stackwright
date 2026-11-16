@@ -22,7 +22,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/minio/minio-go/v7"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
 )
 
 // cliBinary stands in for the CLI that the image serves.

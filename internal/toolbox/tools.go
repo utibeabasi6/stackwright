@@ -17,9 +17,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/stackwright/stackwright/internal/toolbox/guard"
+	"github.com/utibeabasi6/stackwright/internal/toolbox/guard"
 
-	"github.com/stackwright/stackwright/internal/egress"
+	"github.com/utibeabasi6/stackwright/internal/egress"
 )
 
 const (

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stackwright/stackwright/internal/sandbox"
+	"github.com/utibeabasi6/stackwright/internal/sandbox"
 )
 
 const probeImage = "stackwright/escape-probe:test"

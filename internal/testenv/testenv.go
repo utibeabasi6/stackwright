@@ -13,7 +13,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/nats-io/nats.go"
 
-	"github.com/stackwright/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/db"
 )
 
 func Require(t *testing.T) {

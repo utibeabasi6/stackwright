@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stackwright/stackwright/internal/agent"
-	"github.com/stackwright/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/agent"
+	"github.com/utibeabasi6/stackwright/internal/auth"
 )
 
 // scriptedModel answers each model call with the next scripted message, and

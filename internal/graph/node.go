@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
 )
 
 const (

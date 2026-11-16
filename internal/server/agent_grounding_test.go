@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stackwright/stackwright/internal/agent"
+	"github.com/utibeabasi6/stackwright/internal/agent"
 )
 
 func TestAgentReadsSchemasAndTheRepositorysRules(t *testing.T) {

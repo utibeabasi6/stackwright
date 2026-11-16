@@ -29,13 +29,13 @@ import (
 
 	"connectrpc.com/connect"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
-	"github.com/stackwright/stackwright/internal/artifact"
-	"github.com/stackwright/stackwright/internal/egress"
-	"github.com/stackwright/stackwright/internal/graph"
-	"github.com/stackwright/stackwright/internal/redact"
-	"github.com/stackwright/stackwright/internal/sts"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	"github.com/utibeabasi6/stackwright/internal/artifact"
+	"github.com/utibeabasi6/stackwright/internal/egress"
+	"github.com/utibeabasi6/stackwright/internal/graph"
+	"github.com/utibeabasi6/stackwright/internal/redact"
+	"github.com/utibeabasi6/stackwright/internal/sts"
 )
 
 var (

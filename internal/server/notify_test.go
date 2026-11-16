@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stackwright/stackwright/internal/notify"
-	"github.com/stackwright/stackwright/internal/oidc"
+	"github.com/utibeabasi6/stackwright/internal/notify"
+	"github.com/utibeabasi6/stackwright/internal/oidc"
 )
 
 // hook records the requests a fake receiver gets.

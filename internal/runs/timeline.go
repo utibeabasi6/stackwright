@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
 )
 
 var engineNames = map[string]string{"ENGINE_OPENTOFU": "OpenTofu", "ENGINE_TERRAFORM": "Terraform"}

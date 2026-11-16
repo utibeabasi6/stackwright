@@ -15,11 +15,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/internal/auth"
-	"github.com/stackwright/stackwright/internal/authz"
-	"github.com/stackwright/stackwright/internal/db"
-	"github.com/stackwright/stackwright/internal/toolbox/guard"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/authz"
+	"github.com/utibeabasi6/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/toolbox/guard"
 )
 
 const (

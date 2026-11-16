@@ -18,7 +18,7 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/minio/minio-go/v7"
 
-	"github.com/stackwright/stackwright/internal/testenv"
+	"github.com/utibeabasi6/stackwright/internal/testenv"
 )
 
 type fakeRelease struct {

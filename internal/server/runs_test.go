@@ -12,11 +12,11 @@ import (
 
 	"connectrpc.com/connect"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
-	"github.com/stackwright/stackwright/internal/auth"
-	"github.com/stackwright/stackwright/internal/builder"
-	"github.com/stackwright/stackwright/internal/sandbox"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	"github.com/utibeabasi6/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/builder"
+	"github.com/utibeabasi6/stackwright/internal/sandbox"
 )
 
 // startBuilder starts the built-in builder in the test process.

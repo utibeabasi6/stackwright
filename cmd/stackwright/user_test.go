@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stackwright/stackwright/internal/auth"
-	"github.com/stackwright/stackwright/internal/testenv"
+	"github.com/utibeabasi6/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/testenv"
 )
 
 func TestResetPassword(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/stackwright/stackwright/internal/db"
-	"github.com/stackwright/stackwright/internal/testenv"
+	"github.com/utibeabasi6/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/testenv"
 )
 
 func TestOpenRefusesAnEmptyPassword(t *testing.T) {

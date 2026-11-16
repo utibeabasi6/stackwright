@@ -18,8 +18,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/gen/stackwright/v1/stackwrightv1connect"
 )
 
 // cliConfig is what `stackwright login` keeps, in configPath, mode 0600

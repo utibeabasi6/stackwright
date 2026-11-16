@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/stackwright/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/auth"
 )
 
 var (

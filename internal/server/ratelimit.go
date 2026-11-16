@@ -13,8 +13,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/stackwright/stackwright/internal/auth"
-	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/utibeabasi6/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/authz"
 )
 
 // limiter is a token bucket for each key: rate tokens a second, up to

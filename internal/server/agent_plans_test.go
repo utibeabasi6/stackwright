@@ -15,7 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/stackwright/stackwright/internal/agent"
+	"github.com/utibeabasi6/stackwright/internal/agent"
 )
 
 const randomProvider = `terraform {
@@ -132,13 +132,13 @@ func checkViolation(t *testing.T, what string, err error) {
 // TestAgentPackageHasNoPathToApply checks the agent's imports: it reaches
 // runs, jobs, state and GitHub only through hooks (adr/0031).
 func TestAgentPackageHasNoPathToApply(t *testing.T) {
-	out, err := exec.Command("go", "list", "-deps", "github.com/stackwright/stackwright/internal/agent").Output()
+	out, err := exec.Command("go", "list", "-deps", "github.com/utibeabasi6/stackwright/internal/agent").Output()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, dep := range strings.Fields(string(out)) {
 		for _, banned := range []string{"api", "server", "runs", "jobs", "state", "github", "executor", "toolbox"} {
-			if dep == "github.com/stackwright/stackwright/internal/"+banned {
+			if dep == "github.com/utibeabasi6/stackwright/internal/"+banned {
 				t.Errorf("the agent package imports %s", dep)
 			}
 		}

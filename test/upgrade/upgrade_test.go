@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stackwright/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/auth"
 )
 
 const (

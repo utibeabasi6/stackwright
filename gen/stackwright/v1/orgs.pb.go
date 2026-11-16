@@ -1147,7 +1147,7 @@ const file_stackwright_v1_orgs_proto_rawDesc = "" +
 	"\vListInvites\x12\".stackwright.v1.ListInvitesRequest\x1a#.stackwright.v1.ListInvitesResponse\"\x03\x90\x02\x01\x12Y\n" +
 	"\fRevokeInvite\x12#.stackwright.v1.RevokeInviteRequest\x1a$.stackwright.v1.RevokeInviteResponse\x12g\n" +
 	"\x0fListAuditEvents\x12&.stackwright.v1.ListAuditEventsRequest\x1a'.stackwright.v1.ListAuditEventsResponse\"\x03\x90\x02\x01B\xbd\x01\n" +
-	"\x12com.stackwright.v1B\tOrgsProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
+	"\x12com.stackwright.v1B\tOrgsProtoP\x01ZCgithub.com/utibeabasi6/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
 var (
 	file_stackwright_v1_orgs_proto_rawDescOnce sync.Once

@@ -26,7 +26,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/stackwright/stackwright/internal/egress"
+	"github.com/utibeabasi6/stackwright/internal/egress"
 )
 
 // apiVersion is the oldest Docker Engine API that Docker 29 accepts.

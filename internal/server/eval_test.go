@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stackwright/stackwright/internal/agent"
+	"github.com/utibeabasi6/stackwright/internal/agent"
 )
 
 // The eval runs each task in evals/tasks against a real model and scores

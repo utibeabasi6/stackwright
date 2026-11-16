@@ -12,11 +12,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/stackwright/stackwright/internal/egress"
-	"github.com/stackwright/stackwright/internal/executor"
-	"github.com/stackwright/stackwright/internal/sandbox"
-	"github.com/stackwright/stackwright/internal/toolbox"
-	"github.com/stackwright/stackwright/internal/version"
+	"github.com/utibeabasi6/stackwright/internal/egress"
+	"github.com/utibeabasi6/stackwright/internal/executor"
+	"github.com/utibeabasi6/stackwright/internal/sandbox"
+	"github.com/utibeabasi6/stackwright/internal/toolbox"
+	"github.com/utibeabasi6/stackwright/internal/version"
 )
 
 func main() {

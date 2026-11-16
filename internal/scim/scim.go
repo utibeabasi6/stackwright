@@ -20,7 +20,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/stackwright/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/auth"
 )
 
 // TokenPrefix starts an org's SCIM token.

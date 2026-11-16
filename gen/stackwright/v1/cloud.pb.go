@@ -730,7 +730,7 @@ const file_stackwright_v1_cloud_proto_rawDesc = "" +
 	"\vGetAwsSetup\x12\".stackwright.v1.GetAwsSetupRequest\x1a#.stackwright.v1.GetAwsSetupResponse\"\x03\x90\x02\x01\x12}\n" +
 	"\x18SetWorkspaceCloudAccount\x12/.stackwright.v1.SetWorkspaceCloudAccountRequest\x1a0.stackwright.v1.SetWorkspaceCloudAccountResponseB\xbe\x01\n" +
 	"\x12com.stackwright.v1B\n" +
-	"CloudProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
+	"CloudProtoP\x01ZCgithub.com/utibeabasi6/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
 var (
 	file_stackwright_v1_cloud_proto_rawDescOnce sync.Once

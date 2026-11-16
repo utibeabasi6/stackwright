@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/stackwright/stackwright/internal/auth"
+	"github.com/utibeabasi6/stackwright/internal/auth"
 )
 
 // Callbacks serves the pages GitHub sends the browser back to. Each holds a

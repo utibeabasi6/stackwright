@@ -15,7 +15,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
 )
 
 // runLogin signs the CLI in with the OAuth device flow (adr/0044).

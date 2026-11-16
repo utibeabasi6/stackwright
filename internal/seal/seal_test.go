@@ -11,8 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/stackwright/stackwright/internal/seal"
-	"github.com/stackwright/stackwright/internal/testenv"
+	"github.com/utibeabasi6/stackwright/internal/seal"
+	"github.com/utibeabasi6/stackwright/internal/testenv"
 )
 
 func newKEK(t *testing.T) seal.KEK {

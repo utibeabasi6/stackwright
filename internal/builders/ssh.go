@@ -21,7 +21,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/stackwright/stackwright/internal/seal"
+	"github.com/utibeabasi6/stackwright/internal/seal"
 )
 
 var (

@@ -1177,7 +1177,7 @@ const file_stackwright_v1_security_proto_rawDesc = "" +
 	"\fSetPolicySet\x12#.stackwright.v1.SetPolicySetRequest\x1a$.stackwright.v1.SetPolicySetResponse\x12b\n" +
 	"\x0fDeletePolicySet\x12&.stackwright.v1.DeletePolicySetRequest\x1a'.stackwright.v1.DeletePolicySetResponse\x12e\n" +
 	"\x10SetSkippedChecks\x12'.stackwright.v1.SetSkippedChecksRequest\x1a(.stackwright.v1.SetSkippedChecksResponseB\xc1\x01\n" +
-	"\x12com.stackwright.v1B\rSecurityProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
+	"\x12com.stackwright.v1B\rSecurityProtoP\x01ZCgithub.com/utibeabasi6/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
 var (
 	file_stackwright_v1_security_proto_rawDescOnce sync.Once

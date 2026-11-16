@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/stackwright/stackwright/internal/config"
-	"github.com/stackwright/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/config"
+	"github.com/utibeabasi6/stackwright/internal/db"
 )
 
 func runMigrate(args []string) error {

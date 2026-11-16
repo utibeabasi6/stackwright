@@ -1139,7 +1139,7 @@ const file_stackwright_v1_notifications_proto_rawDesc = "" +
 	"\x0fTestDestination\x12&.stackwright.v1.TestDestinationRequest\x1a'.stackwright.v1.TestDestinationResponse\x12d\n" +
 	"\x0eGetAuditExport\x12%.stackwright.v1.GetAuditExportRequest\x1a&.stackwright.v1.GetAuditExportResponse\"\x03\x90\x02\x01\x12b\n" +
 	"\x0fSaveAuditExport\x12&.stackwright.v1.SaveAuditExportRequest\x1a'.stackwright.v1.SaveAuditExportResponseB\xc6\x01\n" +
-	"\x12com.stackwright.v1B\x12NotificationsProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
+	"\x12com.stackwright.v1B\x12NotificationsProtoP\x01ZCgithub.com/utibeabasi6/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
 var (
 	file_stackwright_v1_notifications_proto_rawDescOnce sync.Once

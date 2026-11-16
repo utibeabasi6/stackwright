@@ -15,13 +15,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/stackwright/stackwright/fixtures"
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
-	"github.com/stackwright/stackwright/internal/authz"
-	"github.com/stackwright/stackwright/internal/findings"
-	"github.com/stackwright/stackwright/internal/github"
-	"github.com/stackwright/stackwright/internal/runs"
+	"github.com/utibeabasi6/stackwright/fixtures"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/gen/stackwright/v1/stackwrightv1connect"
+	"github.com/utibeabasi6/stackwright/internal/authz"
+	"github.com/utibeabasi6/stackwright/internal/findings"
+	"github.com/utibeabasi6/stackwright/internal/github"
+	"github.com/utibeabasi6/stackwright/internal/runs"
 )
 
 const (

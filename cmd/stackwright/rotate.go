@@ -8,9 +8,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/stackwright/stackwright/internal/config"
-	"github.com/stackwright/stackwright/internal/db"
-	"github.com/stackwright/stackwright/internal/seal"
+	"github.com/utibeabasi6/stackwright/internal/config"
+	"github.com/utibeabasi6/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/seal"
 )
 
 // loadKEK reads STACKWRIGHT_KEK and, while a rotation runs,

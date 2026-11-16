@@ -14,7 +14,7 @@ import (
 	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/stackwright/stackwright/internal/stacks"
+	"github.com/utibeabasi6/stackwright/internal/stacks"
 )
 
 // Root is a folder that the engine runs in.

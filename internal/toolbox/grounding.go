@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/stackwright/stackwright/internal/toolbox/guard"
+	"github.com/utibeabasi6/stackwright/internal/toolbox/guard"
 )
 
 const (

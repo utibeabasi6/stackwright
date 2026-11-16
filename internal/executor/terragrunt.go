@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"strings"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
 )
 
 // terragruntBin is the Terragrunt in the executor image (adr/0041).

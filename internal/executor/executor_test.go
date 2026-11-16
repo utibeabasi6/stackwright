@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/internal/redact"
+	v1 "github.com/utibeabasi6/stackwright/gen/stackwright/v1"
+	"github.com/utibeabasi6/stackwright/internal/redact"
 )
 
 func TestUntarStaysInsideItsFolder(t *testing.T) {

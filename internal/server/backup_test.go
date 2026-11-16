@@ -12,10 +12,10 @@ import (
 
 	"github.com/minio/minio-go/v7"
 
-	"github.com/stackwright/stackwright/internal/db"
-	"github.com/stackwright/stackwright/internal/server"
-	"github.com/stackwright/stackwright/internal/state"
-	"github.com/stackwright/stackwright/internal/testenv"
+	"github.com/utibeabasi6/stackwright/internal/db"
+	"github.com/utibeabasi6/stackwright/internal/server"
+	"github.com/utibeabasi6/stackwright/internal/state"
+	"github.com/utibeabasi6/stackwright/internal/testenv"
 )
 
 // The backup is the one in docs/operations.md.
