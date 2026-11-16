@@ -6,6 +6,7 @@ package executor
 import (
 	"archive/tar"
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -19,8 +20,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
@@ -69,7 +73,7 @@ func Run(ctx context.Context, serverURL, ticket, workDir, cacheDir string) error
 	go rep.run(reportCtx)
 
 	r := &runner{job: job, rep: rep, serverURL: serverURL, work: workDir, cache: cacheDir,
-		secrets: redact.New(job.GetToken(), job.GetAws().GetWebIdentityToken())}
+		secrets: redact.New(job.GetToken(), job.GetStateToken(), job.GetAws().GetWebIdentityToken())}
 	for _, v := range job.GetVariables() {
 		if v.GetSensitive() {
 			r.secrets.Add(v.GetValue())
@@ -81,9 +85,6 @@ func Run(ctx context.Context, serverURL, ticket, workDir, cacheDir string) error
 	runErr := r.run(ctx)
 	if runErr != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		runErr = fmt.Errorf("the job ran past its time limit: %w", runErr)
-	}
-	if err := r.upload(context.WithoutCancel(ctx), "log.jsonl", r.log.Bytes()); err != nil {
-		slog.Error("upload log", "err", err)
 	}
 	msg := ""
 	if runErr != nil {
@@ -125,7 +126,6 @@ type runner struct {
 	work       string
 	cache      string
 	secrets    *redact.Redactor
-	log        bytes.Buffer
 	hasChanges bool
 }
 
@@ -238,7 +238,7 @@ func (r *runner) run(ctx context.Context) (err error) {
 			env = append(env, "TF_WORKSPACE="+job.GetWorkspace())
 		}
 	} else {
-		env = append(env, "TF_HTTP_PASSWORD="+job.GetToken(), "TF_HTTP_ADDRESS="+address, "TF_HTTP_LOCK_ADDRESS="+address, "TF_HTTP_UNLOCK_ADDRESS="+address)
+		env = append(env, "TF_HTTP_PASSWORD="+cmp.Or(job.GetStateToken(), job.GetToken()), "TF_HTTP_ADDRESS="+address, "TF_HTTP_LOCK_ADDRESS="+address, "TF_HTTP_UNLOCK_ADDRESS="+address)
 	}
 	if providers := filepath.Join(r.cache, "providers"); r.cache != "" && isDir(providers) {
 		config := filepath.Join(home, "cli.tfrc")
@@ -274,8 +274,6 @@ func (r *runner) run(ctx context.Context) (err error) {
 	engine := &cli{
 		bin: binPath, dir: dir, initJSON: initJSON, redact: r.redact, env: env, planFlags: planFlags,
 		line: func(e event) {
-			r.log.Write(e.payload)
-			r.log.WriteByte('\n')
 			r.rep.emit(e.typ, e.resourceAddr, e.payload)
 		},
 	}
@@ -299,11 +297,17 @@ func (r *runner) run(ctx context.Context) (err error) {
 	if r.hasChanges, err = engine.plan(ctx, plan); err != nil {
 		return &stageError{"plan", err}
 	}
+	// Code the plan ran, such as an external data source, can leave a process
+	// behind that swaps plan.bin after show reads it.
+	killStrays()
 	planJSON, err := engine.show(ctx, plan)
 	if err != nil {
 		return &stageError{"plan", err}
 	}
 	outputs := map[string]string{"plan.bin": plan, "lock.hcl": lock}
+	if job.GetPlanOnly() {
+		delete(outputs, "plan.bin")
+	}
 	for name, path := range outputs {
 		b, err := os.ReadFile(path) //nolint:gosec // a path this function built
 		if name == "lock.hcl" && errors.Is(err, os.ErrNotExist) {
@@ -344,6 +348,9 @@ func (r *runner) finishPlan(ctx context.Context, planJSON []byte, root, dir, ski
 	b, _ := json.Marshal(sources)
 	if err := r.upload(ctx, "sources.json", b); err != nil {
 		return &stageError{"artifacts", err}
+	}
+	if job.GetPlanOnly() {
+		return nil
 	}
 	workdir, err := tarTree(root, skip)
 	if err != nil {
@@ -470,6 +477,9 @@ func (r *runner) upload(ctx context.Context, name string, data []byte) error {
 	if err != nil {
 		return err
 	}
+	if len(sealed) > artifact.MaxSize {
+		return fmt.Errorf("%s: %w", name, artifact.ErrTooLarge)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(sealed))
 	if err != nil {
 		return err
@@ -554,6 +564,19 @@ func untar(archive []byte, dir string) error {
 			if err != nil {
 				return err
 			}
+		case tar.TypeSymlink:
+			// A link stands for configuration, which must not go missing
+			// from the plan; one that leaves the source is refused.
+			target := path.Clean(path.Join(path.Dir(filepath.ToSlash(name)), h.Linkname)) //nolint:gosec // checked on the next line, and os.Root keeps the link in dir
+			if path.IsAbs(h.Linkname) || target == ".." || strings.HasPrefix(target, "../") {
+				return fmt.Errorf("the link %s points outside the source, to %s", h.Name, h.Linkname)
+			}
+			if err := root.MkdirAll(filepath.Dir(name), 0o700); err != nil {
+				return err
+			}
+			if err := root.Symlink(h.Linkname, name); err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -613,4 +636,30 @@ func within(root, rel string) (string, error) {
 		return "", fmt.Errorf("path %q leaves the source folder", rel)
 	}
 	return path, nil
+}
+
+// killStrays kills every other process in the sandbox. It acts only as the
+// container's init, where every other process belongs to the job.
+func killStrays() {
+	if os.Getpid() != 1 {
+		return
+	}
+	for range 10 {
+		entries, _ := os.ReadDir("/proc")
+		killed := false
+		for _, e := range entries {
+			if pid, err := strconv.Atoi(e.Name()); err == nil && pid != 1 {
+				killed = syscall.Kill(pid, syscall.SIGKILL) == nil || killed
+			}
+		}
+		if !killed {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+		for {
+			if pid, err := syscall.Wait4(-1, nil, syscall.WNOHANG, nil); pid <= 0 || err != nil {
+				break
+			}
+		}
+	}
 }

@@ -51,7 +51,7 @@ export function Shell() {
   const [collapsed, setCollapsed] = useState(savedCollapsed);
   const [theme, setTheme] = useState<Theme>(savedTheme);
   const [agentShown, setAgentShown] = useState(savedAgent);
-  const [ask, setAsk] = useState<string>();
+  const [ask, setAsk] = useState<WorkspaceParams & { text: string }>();
   const [agentWidth, setAgentWidth] = useSavedWidth("stackwright.width.agent");
   const agentPane = useRef<HTMLElement>(null);
   const showAgent = useCallback((show: (shown: boolean) => boolean) => {
@@ -67,13 +67,6 @@ export function Shell() {
     });
   }, []);
   const toggleAgent = useCallback(() => showAgent((shown) => !shown), [showAgent]);
-  const askAgent = useCallback(
-    (text: string) => {
-      setAsk(text);
-      showAgent(() => true);
-    },
-    [showAgent],
-  );
   const toggleSidebar = useCallback(() => {
     setCollapsed((c) => {
       try {
@@ -101,6 +94,19 @@ export function Shell() {
   const current = params.org ? me?.orgs.find((o) => o.slug === params.org) : undefined;
   const location = useRouterState({ select: (st) => st.location.href });
   const ws = params.project && params.workspace ? { org, project: params.project, workspace: params.workspace } : undefined;
+  const here = ws && wsKey(ws);
+  const askAgent = useCallback(
+    (to: WorkspaceParams, text: string) => {
+      setAsk({ ...to, text });
+      showAgent(() => true);
+      if (here !== wsKey(to)) void navigate({ to: "/$org/projects/$project/$workspace", params: to });
+    },
+    [here, showAgent, navigate],
+  );
+  // An ask waits for its own workspace; opening another one drops it.
+  useEffect(() => {
+    setAsk((a) => (a && here && here !== wsKey(a) ? undefined : a));
+  }, [here]);
   const projects = useLoad(`projects:${org}`, () =>
     org ? projectApi.listProjects({ org }).then((r) => r.projects) : Promise.resolve([]),
   );
@@ -112,8 +118,18 @@ export function Shell() {
     waitingVersion,
   );
   useEffect(() => {
-    const id = window.setInterval(reloadWaiting, 15000);
-    return () => window.clearInterval(id);
+    let id = document.hidden ? 0 : window.setInterval(reloadWaiting, 15000);
+    const onVisibility = () => {
+      window.clearInterval(id);
+      if (document.hidden) return;
+      reloadWaiting();
+      id = window.setInterval(reloadWaiting, 15000);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [reloadWaiting]);
 
   useEffect(() => {
@@ -348,7 +364,14 @@ export function Shell() {
             {ws && agentShown && (
               <aside id="agent" ref={agentPane} className="agent-panel" aria-label="Agent" style={paneWidth(agentWidth)}>
                 <h2>Agent</h2>
-                <AgentPanel org={ws.org} project={ws.project} workspace={ws.workspace} ask={ask} onAsked={() => setAsk(undefined)} />
+                <AgentPanel
+                  key={here}
+                  org={ws.org}
+                  project={ws.project}
+                  workspace={ws.workspace}
+                  ask={ask && here === wsKey(ask) ? ask.text : undefined}
+                  onAsked={() => setAsk(undefined)}
+                />
               </aside>
             )}
           </div>
@@ -360,6 +383,8 @@ export function Shell() {
 }
 
 type WorkspaceParams = { org: string; project: string; workspace: string };
+
+const wsKey = (w: WorkspaceParams) => `${w.org}/${w.project}/${w.workspace}`;
 
 // Crumbs leads from Projects to the page shown: rest is the path after the
 // workspace, such as ["runs", "4"].

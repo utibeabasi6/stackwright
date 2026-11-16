@@ -3,8 +3,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useParams } from "@tanstack/react-router";
 import { Action, Submit, useAction } from "../../Action";
 import { securityApi } from "../../api";
-import { Role } from "../../gen/stackwright/v1/orgs_pb";
-import { useMe } from "../../me";
+import { useRole } from "../../me";
 import { decidesRisk } from "../../roles";
 import { useLoad } from "../../useLoad";
 
@@ -28,8 +27,7 @@ deny contains res if {
 
 export function SecuritySettings() {
   const { org } = useParams({ strict: false }) as { org: string };
-  const me = useMe();
-  const decides = decidesRisk(me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED);
+  const decides = decidesRisk(useRole(org));
   const policy = useLoad(`security-policy:${org}`, () => securityApi.getSecurityPolicy({ org }));
   const [editing, setEditing] = useState<{ name: string; rego: string }>();
   const saving = useAction();

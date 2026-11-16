@@ -206,8 +206,7 @@ func TestStackDeploysEachDeploymentInOrderWithOneApproval(t *testing.T) {
 			w.github.deliver(w, "push", "stack-push", map[string]any{"ref": "refs/heads/main", "before": shaBase, "after": shaHead,
 				"installation": map[string]any{"id": 7}, "repository": map[string]any{"id": 70, "full_name": "acme/infra"}})
 			eventually(t, "a deployment run of the push", func() bool {
-				_, code := owner.call("DeploymentService/GetDeploymentRun", map[string]any{"org": "a", "name": "shop-dev", "number": 2})
-				return code == ""
+				return deploymentRun(owner, "shop-dev", 2) != nil
 			})
 			failed := rw.waitDeployment("shop-dev", 2, "DEPLOYMENT_RUN_STATUS_FAILED")
 			if msg := failed["error"].(string); !strings.Contains(msg,
@@ -225,8 +224,7 @@ func TestStackDeploysEachDeploymentInOrderWithOneApproval(t *testing.T) {
 			w.github.deliver(w, "push", "stack-remove", map[string]any{"ref": "refs/heads/main", "before": shaHead, "after": shaMerge,
 				"installation": map[string]any{"id": 7}, "repository": map[string]any{"id": 70, "full_name": "acme/infra"}})
 			eventually(t, "a deployment run that removes web", func() bool {
-				_, code := owner.call("DeploymentService/GetDeploymentRun", map[string]any{"org": "a", "name": "shop-dev", "number": 3})
-				return code == ""
+				return deploymentRun(owner, "shop-dev", 3) != nil
 			})
 			run := rw.waitDeployment("shop-dev", 3, "DEPLOYMENT_RUN_STATUS_NEEDS_APPROVAL")
 			steps := asList(run["steps"])

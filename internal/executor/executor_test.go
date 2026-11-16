@@ -142,3 +142,29 @@ func TestEngineEnvHasVariablesThenCredentials(t *testing.T) {
 		t.Errorf("a role STS refuses: %v", err)
 	}
 }
+
+func TestUntarKeepsLinksInsideTheSource(t *testing.T) {
+	pack := func(link string) []byte {
+		var buf bytes.Buffer
+		zw := gzip.NewWriter(&buf)
+		tw := tar.NewWriter(zw)
+		_ = tw.WriteHeader(&tar.Header{Typeflag: tar.TypeReg, Name: "common/shared.tf", Size: 2, Mode: 0o644})
+		_, _ = tw.Write([]byte("# "))
+		_ = tw.WriteHeader(&tar.Header{Typeflag: tar.TypeSymlink, Name: "live/shared.tf", Linkname: link})
+		_ = tw.Close()
+		_ = zw.Close()
+		return buf.Bytes()
+	}
+	dir := t.TempDir()
+	if err := untar(pack("../common/shared.tf"), dir); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(filepath.Join(dir, "live", "shared.tf")); err != nil || string(b) != "# " {
+		t.Errorf("the link reads %q, %v", b, err)
+	}
+	for _, out := range []string{"../../etc/passwd", "/etc/passwd"} {
+		if err := untar(pack(out), t.TempDir()); err == nil {
+			t.Errorf("a link to %s was kept", out)
+		}
+	}
+}

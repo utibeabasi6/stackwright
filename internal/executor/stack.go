@@ -35,7 +35,7 @@ func (r *runner) stack(root, dir string) ([]string, error) {
 			if files[name], err = os.ReadFile(filepath.Join(dir, name)); err != nil { //nolint:gosec // a file of the source tree
 				return nil, err
 			}
-		case strings.HasSuffix(name, ".tf") || strings.HasSuffix(name, ".tofu") || strings.HasSuffix(name, ".tf.json"):
+		case stacks.IsConfig(name):
 			return nil, fmt.Errorf("the Stack's folder has its own configuration file %s; Stackwright writes the root module there", name)
 		}
 	}

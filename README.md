@@ -41,7 +41,7 @@ Stackwright host, so set these in `.env` to addresses that it can reach:
 | `STACKWRIGHT_BUILDER_URL` | The builder port, such as `https://stackwright.example.com:8443`. It serves TLS from Stackwright's own CA, so a proxy in front must pass TLS through. |
 | `STACKWRIGHT_SANDBOX_URL` | The server, as the build server's sandboxes reach it. |
 | `STACKWRIGHT_S3_PUBLIC_URL` | Empty: sandboxes reach object storage through the server. Set it for a store they reach directly, such as AWS S3. |
-| `STACKWRIGHT_EXECUTOR_IMAGE` | The sandbox image that build servers pull. |
+| `STACKWRIGHT_EXECUTOR_IMAGE` | The sandbox image. Required; compose sets `stackwright/executor:dev`. A remote build server pulls it only if the name starts with a registry host. |
 
 Compose publishes the builder port on 127.0.0.1 only. Publish it beyond
 this host for build servers on other machines. To run Stackwright for a

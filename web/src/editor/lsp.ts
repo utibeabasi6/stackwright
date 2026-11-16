@@ -43,6 +43,7 @@ export function connect(monaco: typeof Monaco, url: string, ticket: string, onCl
   const queued: string[] = [];
   let next = 1;
   let initialized = false;
+  let closed = false;
   let disposed = false;
 
   // Until tofu-ls answers initialize, everything else waits.
@@ -53,6 +54,10 @@ export function connect(monaco: typeof Monaco, url: string, ticket: string, onCl
   };
   const request = (method: string, params: object) =>
     new Promise<unknown>((resolve, reject) => {
+      if (closed || disposed) {
+        reject(new Error("the language server closed"));
+        return;
+      }
       const id = next++;
       pending.set(id, { resolve, reject });
       send({ id, method, params });
@@ -108,6 +113,7 @@ export function connect(monaco: typeof Monaco, url: string, ticket: string, onCl
     }
   };
   ws.onclose = () => {
+    closed = true;
     for (const p of pending.values()) p.reject(new Error("the language server closed"));
     pending.clear();
     if (!disposed) onClosed();

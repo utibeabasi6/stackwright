@@ -9,8 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +27,7 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builders"
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/findings"
 	"github.com/stackwright/stackwright/internal/jobs"
 	"github.com/stackwright/stackwright/internal/notify"
@@ -123,16 +126,22 @@ func appendEvent(ctx context.Context, tx pgx.Tx, runID, typ string, payload map[
 		return err
 	}
 	event, ok := map[string]string{"run.failed": notify.RunFailed, "run.applied": notify.RunApplied,
-		"run.needs_approval": notify.RunNeedsApproval}[typ]
+		"run.needs_approval": notify.RunNeedsApproval, "run.unblocked": notify.RunNeedsApproval}[typ]
 	if !ok {
 		return nil
 	}
 	e := notify.Event{Type: event}
-	var orgID string
-	if err := tx.QueryRow(ctx, `SELECT r.org_id, o.slug, p.slug, w.name, r.number, coalesce(r.error, '') FROM runs r
+	var orgID, status string
+	var step bool
+	if err := tx.QueryRow(ctx, `SELECT r.org_id, o.slug, p.slug, w.name, r.number, coalesce(r.error, ''), r.status,
+		r.deployment_run_id IS NOT NULL FROM runs r
 		JOIN workspaces w ON w.id = r.workspace_id JOIN projects p ON p.id = w.project_id JOIN orgs o ON o.id = r.org_id WHERE r.id = $1`,
-		runID).Scan(&orgID, &e.Org, &e.Project, &e.Workspace, &e.Run, &e.Error); err != nil {
+		runID).Scan(&orgID, &e.Org, &e.Project, &e.Workspace, &e.Run, &e.Error, &status, &step); err != nil {
 		return err
+	}
+	// A deployment notifies for its steps, which people approve through it.
+	if step || (typ == "run.unblocked" && status != "needs_approval") {
+		return nil
 	}
 	where := fmt.Sprintf("Run #%d of %s/%s", e.Run, e.Project, e.Workspace)
 	switch event {
@@ -264,15 +273,6 @@ func (o *Orchestrator) Create(ctx context.Context, tx pgx.Tx, orgID string, r Ne
 	return runID, number, nil
 }
 
-func (o *Orchestrator) inOrg(ctx context.Context, orgID string, fn func(pgx.Tx) error) error {
-	return pgx.BeginFunc(ctx, o.Pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
-			return err
-		}
-		return fn(tx)
-	})
-}
-
 // Run starts queued runs and dispatches their jobs until ctx ends.
 func (o *Orchestrator) Run(ctx context.Context) {
 	tick := time.NewTicker(2 * time.Second)
@@ -322,7 +322,7 @@ type runRow struct {
 func (o *Orchestrator) step(ctx context.Context, runID, orgID string) error {
 	var r runRow
 	var started bool
-	err := o.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, o.Pool, orgID, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `SELECT id, org_id, status, workspace_id, plan_job_id, apply_job_id, created_by, state_serial, source_key
 			FROM runs WHERE id = $1 FOR UPDATE`, runID).
 			Scan(&r.id, &r.orgID, &r.status, &r.workspaceID, &r.planJobID, &r.applyJobID, &r.createdBy, &r.stateSerial, &r.sourceKey)
@@ -360,7 +360,7 @@ func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperatio
 	var labels map[string]string
 	var providers []string
 	platform := ""
-	if err := o.inOrg(ctx, r.orgID, func(tx pgx.Tx) error {
+	if err := db.InOrg(ctx, o.Pool, r.orgID, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `SELECT required_labels, providers FROM workspaces WHERE id = $1`, r.workspaceID).
 			Scan(&labels, &providers); err != nil {
 			return err
@@ -374,7 +374,7 @@ func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperatio
 	}
 	slot, ok := o.Hub.Reserve(r.orgID, labels, platform)
 	if !ok {
-		return o.inOrg(ctx, r.orgID, func(tx pgx.Tx) error {
+		return db.InOrg(ctx, o.Pool, r.orgID, func(tx pgx.Tx) error {
 			var last string
 			if err := tx.QueryRow(ctx, `SELECT type FROM run_events WHERE run_id = $1 ORDER BY seq DESC LIMIT 1`, r.id).Scan(&last); err != nil {
 				return err
@@ -391,32 +391,40 @@ func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperatio
 	if r.createdBy != nil {
 		req.CreatedBy = *r.createdBy
 	}
-	err := o.inOrg(ctx, r.orgID, func(tx pgx.Tx) error {
-		if op == v1.JobOperation_JOB_OPERATION_APPLY {
-			req.PlanJobID = *r.planJobID
-			return o.refuseStale(ctx, tx, r)
-		}
+	// The sealed source is read before the transaction, which then holds
+	// no connection while S3 answers.
+	var sealed []byte
+	if op != v1.JobOperation_JOB_OPERATION_APPLY {
 		key := sourceKey(r.orgID, r.id)
 		if r.sourceKey != nil {
 			key = *r.sourceKey
 		}
 		obj, err := o.S3.GetObject(ctx, o.Bucket, key, minio.GetObjectOptions{})
 		if err != nil {
+			slot.Release()
 			return err
 		}
-		defer func() { _ = obj.Close() }()
-		var buf bytes.Buffer
-		if _, err := buf.ReadFrom(obj); err != nil {
+		sealed, err = io.ReadAll(obj)
+		_ = obj.Close()
+		if err != nil {
+			slot.Release()
 			return err
 		}
-		req.Source, err = o.KEK.Open(ctx, tx, r.orgID, buf.Bytes())
+	}
+	var stale bool
+	err := db.InOrg(ctx, o.Pool, r.orgID, func(tx pgx.Tx) error {
+		if op == v1.JobOperation_JOB_OPERATION_APPLY {
+			req.PlanJobID = *r.planJobID
+			var err error
+			stale, err = o.refuseStale(ctx, tx, r)
+			return err
+		}
+		var err error
+		req.Source, err = o.KEK.Open(ctx, tx, r.orgID, sealed)
 		return err
 	})
-	if err != nil {
+	if err != nil || stale {
 		slot.Release()
-		if errors.Is(err, errStale) {
-			return nil
-		}
 		return err
 	}
 
@@ -424,7 +432,7 @@ func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperatio
 	jobID := created.ID
 	if err != nil {
 		slot.Release()
-		return o.inOrg(ctx, r.orgID, func(tx pgx.Tx) error {
+		return db.InOrg(ctx, o.Pool, r.orgID, func(tx pgx.Tx) error {
 			defer o.Changed(r.id)
 			return finish(ctx, tx, r.id, "failed", err.Error(), "")
 		})
@@ -433,9 +441,13 @@ func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperatio
 	if op == v1.JobOperation_JOB_OPERATION_APPLY {
 		column, operation = "apply_job_id", "apply"
 	}
-	err = o.inOrg(ctx, r.orgID, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE runs SET `+column+` = $2, updated_at = now() WHERE id = $1`, r.id, jobID); err != nil {
+	err = db.InOrg(ctx, o.Pool, r.orgID, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE runs SET `+column+` = $2, updated_at = now() WHERE id = $1 AND status = $3`, r.id, jobID, r.status)
+		if err != nil {
 			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return errEnded
 		}
 		return appendEvent(ctx, tx, r.id, "run.dispatched", map[string]any{"job_id": jobID, "operation": operation, "build_server": slot.Builder}, "")
 	})
@@ -450,23 +462,40 @@ func (o *Orchestrator) startJob(ctx context.Context, r runRow, op v1.JobOperatio
 	return nil
 }
 
-var errStale = errors.New("plan is stale")
+// errEnded is a run that ended, for example by a cancel, while its job was
+// being made.
+var errEnded = errors.New("the run ended before its job started")
 
-// refuseStale fails a run whose plan no longer matches the state.
-func (o *Orchestrator) refuseStale(ctx context.Context, tx pgx.Tx, r runRow) error {
+// refuseStale fails a run whose plan no longer matches the state, and
+// reports whether it did.
+func (o *Orchestrator) refuseStale(ctx context.Context, tx pgx.Tx, r runRow) (bool, error) {
 	serial, err := latestSerial(ctx, tx, r.workspaceID)
 	if err != nil {
-		return err
+		return false, err
 	}
-	if r.stateSerial == nil || serial == *r.stateSerial {
-		return nil
+	var msg string
+	switch {
+	case r.stateSerial != nil && serial != *r.stateSerial:
+		msg = fmt.Sprintf("plan is stale: the state changed after the plan (serial %d, now %d). Start a new run.", *r.stateSerial, serial)
+	default:
+		var newer string
+		err := tx.QueryRow(ctx, `SELECT n.commit_sha FROM runs n JOIN runs r ON r.id = $1
+			WHERE n.workspace_id = r.workspace_id AND n.trigger = 'push' AND n.branch = r.branch
+				AND n.commit_sha <> r.commit_sha AND n.number > r.number
+			ORDER BY n.number DESC LIMIT 1`, r.id).Scan(&newer)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		msg = fmt.Sprintf("plan is stale: the branch moved on to %.7s after the plan. Apply that run instead.", newer)
 	}
-	msg := fmt.Sprintf("plan is stale: the state changed after the plan (serial %d, now %d). Start a new run.", *r.stateSerial, serial)
 	if err := finish(ctx, tx, r.id, "failed", msg, ""); err != nil {
-		return err
+		return false, err
 	}
 	o.afterCommit(ctx, r.id)
-	return errStale
+	return true, nil
 }
 
 // JobEnded moves a run on when one of its jobs ends. It runs in the
@@ -604,6 +633,11 @@ func (o *Orchestrator) JobEnded(ctx context.Context, tx pgx.Tx, jobID, status, m
 	return appendEvent(ctx, tx, *runID, event, nil, "")
 }
 
+// OwnCode are the triggers of runs that plan the workspace's own code:
+// their findings are recorded, and they are the code a nightly review and
+// the topology read (adr/0037, adr/0042).
+var OwnCode = []string{"ui", "push", "schedule", "deployment"}
+
 var errNoScan = errors.New("the plan has no security scan; the build server's executor image is older than the server")
 
 // review records the findings of a plan of the workspace's own code, and
@@ -638,7 +672,7 @@ func (o *Orchestrator) review(ctx context.Context, tx pgx.Tx, orgID, jobID, work
 		}
 		return false, findings.RecordDrift(ctx, tx, orgID, workspaceID, drift)
 	}
-	if trigger == "ui" || trigger == "push" || trigger == "schedule" {
+	if slices.Contains(OwnCode, trigger) {
 		if err := findings.Record(ctx, tx, orgID, workspaceID, results); err != nil {
 			return false, err
 		}
@@ -668,7 +702,8 @@ func (o *Orchestrator) blocking(ctx context.Context, tx pgx.Tx, planJobID, works
 func (o *Orchestrator) Unblock(ctx context.Context, tx pgx.Tx, workspaceID string) error {
 	var runID, planJob string
 	var autoApply bool
-	err := tx.QueryRow(ctx, `SELECT r.id, r.plan_job_id, w.auto_apply FROM runs r JOIN workspaces w ON w.id = r.workspace_id
+	err := tx.QueryRow(ctx, `SELECT r.id, r.plan_job_id, w.auto_apply AND r.deployment_run_id IS NULL FROM runs r
+		JOIN workspaces w ON w.id = r.workspace_id
 		WHERE r.workspace_id = $1 AND r.status = 'blocked' FOR UPDATE OF r`, workspaceID).Scan(&runID, &planJob, &autoApply)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
@@ -748,9 +783,7 @@ func (o *Orchestrator) approve(ctx context.Context, tx pgx.Tx, runID, userID str
 			return appendEvent(ctx, s.Tx, runID, "run.blocked", nil, s.UserID)
 		}
 	}
-	if err := o.refuseStale(ctx, s.Tx, r); errors.Is(err, errStale) {
-		return nil
-	} else if err != nil {
+	if stale, err := o.refuseStale(ctx, s.Tx, r); err != nil || stale {
 		return err
 	}
 	if _, err := s.Tx.Exec(ctx, `UPDATE runs SET status = 'applying', decided_by = $2, updated_at = now() WHERE id = $1`, runID, s.UserID); err != nil {

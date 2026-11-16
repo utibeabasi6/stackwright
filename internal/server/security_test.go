@@ -5,10 +5,6 @@ import (
 	"encoding/base64"
 	"testing"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-
-	"github.com/stackwright/stackwright/internal/runs"
 )
 
 const bucketPrefix = `# METADATA
@@ -140,14 +136,11 @@ func TestSecurityReview(t *testing.T) {
 		t.Errorf("the bucket's findings: %v", got)
 	}
 
-	noHead := func(context.Context, pgx.Tx, string, string) (runs.NewRun, bool, error) {
-		return runs.NewRun{}, false, nil
-	}
 	slot := time.Now().Add(-time.Minute)
-	if err := w.runs.QueueNightly(context.Background(), slot, noHead); err != nil {
+	if err := w.runs.QueueNightly(context.Background(), slot); err != nil {
 		t.Fatal(err)
 	}
-	if err := w.runs.QueueNightly(context.Background(), slot, noHead); err != nil {
+	if err := w.runs.QueueNightly(context.Background(), slot); err != nil {
 		t.Fatal(err)
 	}
 	for _, ws := range []map[string]any{prod, pol} {

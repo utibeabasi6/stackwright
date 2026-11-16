@@ -20,6 +20,7 @@ import (
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builders"
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/seal"
 )
 
@@ -114,6 +115,8 @@ type live struct {
 	turn    context.CancelFunc
 	stopper string
 	watch   map[chan struct{}]bool
+	// starting lets one caller at a time start the session's sandbox.
+	starting sync.Mutex
 }
 
 func (s *Service) session(id string) *live {
@@ -143,15 +146,6 @@ func (s *Service) changed(id string) {
 	}
 }
 
-func (s *Service) inOrg(ctx context.Context, orgID string, fn func(pgx.Tx) error) error {
-	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
-			return err
-		}
-		return fn(tx)
-	})
-}
-
 func connectErr(err error) error {
 	var ce *connect.Error
 	switch {
@@ -171,12 +165,11 @@ func connectErr(err error) error {
 // settings
 
 type settings struct {
-	key           string
-	turn, short   string
-	cap, spent    float64
-	hasKey        bool
-	sealedKey     []byte
-	updatedByName string
+	key         string
+	turn, short string
+	cap, spent  float64
+	hasKey      bool
+	sealedKey   []byte
 }
 
 func (s *Service) loadSettings(ctx context.Context, tx pgx.Tx, orgID string, withKey bool) (settings, error) {
@@ -188,7 +181,7 @@ func (s *Service) loadSettings(ctx context.Context, tx pgx.Tx, orgID string, wit
 	}
 	st.hasKey = len(st.sealedKey) > 0
 	if err := tx.QueryRow(ctx, `SELECT coalesce(sum(cost), 0)::float8 FROM agent_steps
-		WHERE org_id = $1 AND at >= date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`, orgID).Scan(&st.spent); err != nil {
+		WHERE org_id = $1 AND cost > 0 AND at >= date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`, orgID).Scan(&st.spent); err != nil {
 		return st, err
 	}
 	if withKey && st.hasKey {
@@ -332,7 +325,7 @@ func (s *Service) StartSession(ctx context.Context, req *connect.Request[v1.Star
 	if text == "" {
 		slug, title, status = "edit", "Edited by hand", "ready"
 	}
-	branch := "agent/" + slug + "-" + id[:4]
+	branch := "agent/" + slug + "-" + id[:8]
 	if _, err := sc.Tx.Exec(ctx, `INSERT INTO agent_sessions (id, org_id, workspace_id, repo_id, branch, base, status, title, created_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, id, sc.OrgID, workspaceID, repoID, branch, base, status, title, sc.UserID); err != nil {
 		return nil, authz.Internal(err)
@@ -512,6 +505,17 @@ const stepQuery = `SELECT st.seq, st.kind, st.payload::text, st.at, coalesce(nul
 
 func (s *Service) WatchSession(ctx context.Context, req *connect.Request[v1.WatchSessionRequest], stream *connect.ServerStream[v1.WatchSessionResponse]) error {
 	sc := authz.ScopeFrom(ctx)
+	// The live entry is made only for a session the caller can see, since
+	// entries stay for the server's life.
+	if _, err := uuid.Parse(req.Msg.Id); err != nil {
+		return connectErr(pgx.ErrNoRows)
+	}
+	if err := sc.Read(ctx, s.Pool, func(tx pgx.Tx) error {
+		_, err := oneSession(ctx, tx, req.Msg.Id)
+		return err
+	}); err != nil {
+		return connectErr(err)
+	}
 	l := s.session(req.Msg.Id)
 	ch := make(chan struct{}, 1)
 	s.mu.Lock()
@@ -596,7 +600,7 @@ func appendStep(ctx context.Context, tx pgx.Tx, orgID, session, kind string, pay
 
 // step appends a step outside a request, and tells watchers.
 func (s *Service) step(ctx context.Context, orgID, session, kind string, payload map[string]any, cost float64, actor string) error {
-	err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
 		return appendStep(ctx, tx, orgID, session, kind, payload, cost, actor)
 	})
 	s.changed(session)
@@ -604,7 +608,7 @@ func (s *Service) step(ctx context.Context, orgID, session, kind string, payload
 }
 
 func (s *Service) setStatus(ctx context.Context, orgID, session, status, msg string) {
-	err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `UPDATE agent_sessions SET status = $2, error = nullif($3, ''), updated_at = now(), idle_since = now()
 			WHERE id = $1 AND status <> 'closed'`, session, status, msg)
 		return err
@@ -616,7 +620,7 @@ func (s *Service) setStatus(ctx context.Context, orgID, session, status, msg str
 }
 
 func (s *Service) setDirty(ctx context.Context, orgID, session string, dirty bool) {
-	err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `UPDATE agent_sessions SET dirty = $2, updated_at = now() WHERE id = $1`, session, dirty)
 		return err
 	})
@@ -636,47 +640,56 @@ func (s *Service) ensureSandbox(ctx context.Context, session, orgID string) erro
 		return nil
 	default:
 	}
-	var labels map[string]string
-	var running *string
-	err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `SELECT w.required_labels, s.sandbox_id FROM agent_sessions s JOIN workspaces w ON w.id = s.workspace_id
-			WHERE s.id = $1`, session).Scan(&labels, &running)
-	})
-	if err != nil {
-		return err
-	}
-	if running == nil {
-		slot, ok := s.Hub.ReserveWith(orgID, labels, "", builders.Toolbox)
-		if !ok {
-			return fmt.Errorf("%w: none with a free slot runs agent sandboxes; a build server needs its builder updated to run them", ErrNoSandbox)
-		}
-		token := auth.RandomToken()
-		job := sandboxPrefix + session + "-" + auth.RandomToken()[:8]
-		gitBase := s.Hub.ServerURL
-		if !slot.Remote {
-			gitBase = s.Hub.BuiltInServerURL
-		}
-		err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
-			if _, err := tx.Exec(ctx, `INSERT INTO agent_sandbox_tokens (token_hash, session_id, org_id) VALUES ($1, $2, $3)`,
-				auth.HashToken(token), session, orgID); err != nil {
-				return err
-			}
-			_, err := tx.Exec(ctx, `UPDATE agent_sessions SET sandbox_id = $2, sandbox_platform = $3, sandbox_remote = $4, status = 'starting',
-				updated_at = now() WHERE id = $1`, session, job, slot.Platform, slot.Remote)
-			return err
+	// One caller at a time checks for a sandbox and starts one; the wait
+	// for its toolbox happens after, so a caller that waits holds no lock.
+	if err := func() error {
+		l.starting.Lock()
+		defer l.starting.Unlock()
+		var labels map[string]string
+		var running *string
+		err := db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
+			return tx.QueryRow(ctx, `SELECT w.required_labels, s.sandbox_id FROM agent_sessions s JOIN workspaces w ON w.id = s.workspace_id
+				WHERE s.id = $1`, session).Scan(&labels, &running)
 		})
 		if err != nil {
-			slot.Release()
 			return err
 		}
-		s.mu.Lock()
-		l.orgID, l.gitBase, l.platform, l.remote, l.job, l.adopted = orgID, gitBase, slot.Platform, slot.Remote, job, false
-		l.gone = make(chan struct{})
-		s.mu.Unlock()
-		s.changed(session)
-		if err := slot.Start(&v1.StartSandbox{JobId: job, Ticket: token, Toolbox: true}); err != nil {
-			return fmt.Errorf("%w: %w", ErrNoSandbox, err)
+		if running == nil {
+			slot, ok := s.Hub.ReserveWith(orgID, labels, "", builders.Toolbox)
+			if !ok {
+				return fmt.Errorf("%w: none with a free slot runs agent sandboxes; a build server needs its builder updated to run them", ErrNoSandbox)
+			}
+			token := auth.RandomToken()
+			job := sandboxPrefix + session + "-" + auth.RandomToken()[:8]
+			gitBase := s.Hub.ServerURL
+			if !slot.Remote {
+				gitBase = s.Hub.BuiltInServerURL
+			}
+			err := db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
+				if _, err := tx.Exec(ctx, `INSERT INTO agent_sandbox_tokens (token_hash, session_id, org_id) VALUES ($1, $2, $3)`,
+					auth.HashToken(token), session, orgID); err != nil {
+					return err
+				}
+				_, err := tx.Exec(ctx, `UPDATE agent_sessions SET sandbox_id = $2, sandbox_platform = $3, sandbox_remote = $4, status = 'starting',
+					updated_at = now() WHERE id = $1`, session, job, slot.Platform, slot.Remote)
+				return err
+			})
+			if err != nil {
+				slot.Release()
+				return err
+			}
+			s.mu.Lock()
+			l.orgID, l.gitBase, l.platform, l.remote, l.job, l.adopted = orgID, gitBase, slot.Platform, slot.Remote, job, false
+			l.gone = make(chan struct{})
+			s.mu.Unlock()
+			s.changed(session)
+			if err := slot.Start(&v1.StartSandbox{JobId: job, Ticket: token, Toolbox: true}); err != nil {
+				return fmt.Errorf("%w: %w", ErrNoSandbox, err)
+			}
 		}
+		return nil
+	}(); err != nil {
+		return err
 	}
 	s.mu.Lock()
 	ready, gone, adopted := l.ready, l.gone, l.adopted

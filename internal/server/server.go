@@ -23,6 +23,7 @@ import (
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/agent"
 	"github.com/stackwright/stackwright/internal/api"
+	"github.com/stackwright/stackwright/internal/artifact"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builders"
@@ -67,7 +68,10 @@ var cliBinary = regexp.MustCompile(`^stackwright-(darwin|linux)-(arm64|amd64)$`)
 func New(c Config) http.Handler {
 	cookies := auth.Cookies{Secure: strings.HasPrefix(c.PublicURL, "https://")}
 	signIn := &auth.SignIn{Pool: c.Pool, KEK: c.KEK, PublicURL: c.PublicURL, Cookies: cookies}
-	opts := connect.WithInterceptors(&authz.Interceptor{Pool: c.Pool})
+	// Connect reads, and inflates, a whole request before any check runs,
+	// so every service has a size limit; a few raise it.
+	opts := connect.WithOptions(connect.WithInterceptors(&authz.Interceptor{Pool: c.Pool, Limit: userLimit()}),
+		connect.WithReadMaxBytes(4<<20))
 
 	mux := http.NewServeMux()
 	serve := func(path string, h http.Handler) {
@@ -100,7 +104,7 @@ func New(c Config) http.Handler {
 			_, number, err := hooks.queuePlan(ctx, orgID, session, userID, source)
 			return number, err
 		}}
-	serve(stackwrightv1connect.NewAgentServiceHandler(c.Agent, opts))
+	serve(stackwrightv1connect.NewAgentServiceHandler(c.Agent, opts, connect.WithReadMaxBytes(16<<20)))
 	serve(stackwrightv1connect.NewToolboxServiceHandler(c.Agent, opts, connect.WithReadMaxBytes(40<<20)))
 	mux.Handle("/git/", c.GitHub.GitProxy())
 	mux.Handle("/lsp/", c.Agent.LanguageServer())
@@ -188,7 +192,7 @@ func New(c Config) http.Handler {
 // form may post to besides this one: GitHub takes the App manifest as a
 // form.
 func secure(next http.Handler, formTargets ...string) http.Handler {
-	csp := "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action " +
+	csp := "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action " +
 		strings.Join(append([]string{"'self'"}, formTargets...), " ")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -203,7 +207,7 @@ func secure(next http.Handler, formTargets ...string) http.Handler {
 // signs (adr/0021): Enrol, Connect with a client certificate, and the
 // builder binaries.
 func NewBuilderPort(c Config) http.Handler {
-	opts := connect.WithInterceptors(&authz.Interceptor{Pool: c.Pool})
+	opts := connect.WithOptions(connect.WithInterceptors(&authz.Interceptor{Pool: c.Pool}), connect.WithReadMaxBytes(4<<20))
 	mux := http.NewServeMux()
 	path, h := stackwrightv1connect.NewBuilderServiceHandler(c.Builders, opts)
 	mux.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -240,6 +244,8 @@ func s3Relay(target *url.URL, bucket string) http.Handler {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		case !strings.HasPrefix(r.URL.Path, "/s3/"+bucket+"/") || r.URL.Query().Get("X-Amz-Signature") == "":
 			http.Error(w, "only presigned URLs of the bucket", http.StatusForbidden)
+		case r.Method == http.MethodPut && (r.ContentLength < 0 || r.ContentLength > artifact.MaxSize):
+			http.Error(w, "a PUT needs a Content-Length of at most 128 MiB", http.StatusRequestEntityTooLarge)
 		default:
 			rp.ServeHTTP(w, r)
 		}

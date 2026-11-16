@@ -14,6 +14,7 @@ import (
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/db"
 )
 
 // Connect serves a session's toolbox. Its first order is the checkout; the
@@ -122,7 +123,7 @@ func (s *Service) checkoutOrder(ctx context.Context, id, orgID string) (*v1.Chec
 	}
 	c := &v1.Checkout{GitUrl: fmt.Sprintf("%s/git/%s/", gitBase, id)}
 	var eng, version string
-	err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT s.branch, s.base, p.path, p.engine, p.engine_version FROM agent_sessions s
 			JOIN workspaces w ON w.id = s.workspace_id JOIN projects p ON p.id = w.project_id WHERE s.id = $1`, id).
 			Scan(&c.Branch, &c.Base, &c.Path, &eng, &version)
@@ -197,7 +198,7 @@ func (s *Service) removeSandbox(ctx context.Context, id, orgID, why string) {
 	if job != "" {
 		s.Hub.Stop(job)
 	}
-	err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM agent_sandbox_tokens WHERE session_id = $1`, id); err != nil {
 			return err
 		}
@@ -258,7 +259,7 @@ func (s *Service) RunReaper(ctx context.Context, every time.Duration) {
 		case <-t.C:
 		}
 		if err := s.reap(ctx); err != nil {
-			slog.Error("agent reaper", "err", err)
+			slog.Error("reaping idle agent sandboxes", "err", err)
 		}
 	}
 }
@@ -270,7 +271,7 @@ func (s *Service) reap(ctx context.Context) error {
 	}
 	for _, r := range list {
 		var idle bool
-		err := s.inOrg(ctx, r.org, func(tx pgx.Tx) error {
+		err := db.InOrg(ctx, s.Pool, r.org, func(tx pgx.Tx) error {
 			return tx.QueryRow(ctx, `SELECT NOT dirty AND status NOT IN ('working', 'starting') AND idle_since < now() - make_interval(secs => $2)
 				FROM agent_sessions WHERE id = $1`, r.id, s.IdleAfter.Seconds()).Scan(&idle)
 		})
@@ -321,7 +322,7 @@ func (s *Service) Recover(ctx context.Context) error {
 	for _, r := range running {
 		var job, platform *string
 		var remote bool
-		if err := s.inOrg(ctx, r.org, func(tx pgx.Tx) error {
+		if err := db.InOrg(ctx, s.Pool, r.org, func(tx pgx.Tx) error {
 			return tx.QueryRow(ctx, `SELECT sandbox_id, sandbox_platform, sandbox_remote FROM agent_sessions WHERE id = $1`, r.id).
 				Scan(&job, &platform, &remote)
 		}); err != nil && !errors.Is(err, pgx.ErrNoRows) {

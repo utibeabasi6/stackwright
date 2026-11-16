@@ -56,6 +56,12 @@ func runServer(args []string) error {
 	if err != nil {
 		return err
 	}
+	// No default: a default name would pull from a registry namespace that
+	// the project does not hold (adr/0047).
+	executorImage := config.Env("STACKWRIGHT_EXECUTOR_IMAGE", "")
+	if executorImage == "" {
+		return errors.New("set STACKWRIGHT_EXECUTOR_IMAGE to the executor image that build servers run")
+	}
 	kek, err := loadKEK()
 	if err != nil {
 		return err
@@ -139,7 +145,7 @@ func runServer(args []string) error {
 	}
 	hub := &builders.Hub{
 		Pool: pool, CA: ca, BuiltInTokens: builderTokens, BuilderURL: builderURL, Version: version.Version,
-		Images:           map[string]string{"docker": config.Env("STACKWRIGHT_EXECUTOR_IMAGE", "ghcr.io/stackwright/executor:"+version.Version)},
+		Images:           map[string]string{"docker": executorImage},
 		ServerURL:        sandboxURL,
 		BuiltInServerURL: internalURL,
 	}
@@ -165,8 +171,9 @@ func runServer(args []string) error {
 	go gh.RunWebhooks(ctx, 2*time.Second)
 	go gh.RunChecks(ctx, 2*time.Second)
 	go jobService.RunReaper(ctx, 5*time.Second)
+	go jobService.RunRetention(ctx)
 	go orchestrator.Run(ctx)
-	go orchestrator.Nightly(ctx, gh.BranchHead)
+	go orchestrator.Nightly(ctx)
 	go orchestrator.Drift(ctx)
 	if err := agentService.Recover(ctx); err != nil {
 		return err
@@ -310,10 +317,12 @@ func objectStore(ctx context.Context, internalURL, sandboxURL string) (store, er
 			return st, err
 		}
 	} else {
-		st.presign = st.client
+		// Built-in sandboxes reach S3 through the egress proxy too, so they
+		// get the address that every sandbox can reach.
 		if st.presignRemote, err = connect("STACKWRIGHT_S3_PUBLIC_URL", public); err != nil {
 			return st, err
 		}
+		st.presign = st.presignRemote
 	}
 	st.bucket = config.Env("STACKWRIGHT_S3_BUCKET", "stackwright")
 	exists, err := st.client.BucketExists(ctx, st.bucket)

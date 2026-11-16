@@ -18,12 +18,9 @@ service DeploymentService {
   rpc SaveDeployment(SaveDeploymentRequest) returns (SaveDeploymentResponse);
   rpc ArchiveDeployment(ArchiveDeploymentRequest) returns (ArchiveDeploymentResponse);
   rpc StartDeploymentRun(StartDeploymentRunRequest) returns (StartDeploymentRunResponse);
-  rpc GetDeploymentRun(GetDeploymentRunRequest) returns (GetDeploymentRunResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-  }
-  rpc ApproveDeploymentRun(DecideDeploymentRunRequest) returns (DecideDeploymentRunResponse);
-  rpc RejectDeploymentRun(DecideDeploymentRunRequest) returns (DecideDeploymentRunResponse);
-  rpc CancelDeploymentRun(DecideDeploymentRunRequest) returns (DecideDeploymentRunResponse);
+  rpc ApproveDeploymentRun(ApproveDeploymentRunRequest) returns (ApproveDeploymentRunResponse);
+  rpc RejectDeploymentRun(RejectDeploymentRunRequest) returns (RejectDeploymentRunResponse);
+  rpc CancelDeploymentRun(CancelDeploymentRunRequest) returns (CancelDeploymentRunResponse);
 }
 
 message WorkspaceRef {
@@ -137,22 +134,32 @@ message StartDeploymentRunResponse {
   DeploymentRun run = 1;
 }
 
-message GetDeploymentRunRequest {
+message ApproveDeploymentRunRequest {
   string org = 1;
   string name = 2;
   int32 number = 3;
 }
 
-message GetDeploymentRunResponse {
+message ApproveDeploymentRunResponse {
   DeploymentRun run = 1;
 }
 
-message DecideDeploymentRunRequest {
+message RejectDeploymentRunRequest {
   string org = 1;
   string name = 2;
   int32 number = 3;
 }
 
-message DecideDeploymentRunResponse {
+message RejectDeploymentRunResponse {
+  DeploymentRun run = 1;
+}
+
+message CancelDeploymentRunRequest {
+  string org = 1;
+  string name = 2;
+  int32 number = 3;
+}
+
+message CancelDeploymentRunResponse {
   DeploymentRun run = 1;
 }

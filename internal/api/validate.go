@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$`)
@@ -49,9 +48,4 @@ func checkEmail(email string) error {
 		return invalid("that is not an email address")
 	}
 	return nil
-}
-
-func uniqueViolation(err error) bool {
-	var pg *pgconn.PgError
-	return errors.As(err, &pg) && pg.Code == "23505"
 }

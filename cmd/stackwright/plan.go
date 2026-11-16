@@ -54,11 +54,26 @@ func runPlan(args []string) error {
 		}
 		path := filepath.Join(t.root, filepath.FromSlash(name))
 		fi, err := os.Lstat(path)
-		if errors.Is(err, os.ErrNotExist) || err == nil && !fi.Mode().IsRegular() {
+		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
 		if err != nil {
 			return err
+		}
+		// A link is uploaded as a link: the configuration it stands for
+		// must not go missing from the plan.
+		if fi.Mode()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			if err := tw.WriteHeader(&tar.Header{Typeflag: tar.TypeSymlink, Name: name, Linkname: target, ModTime: fi.ModTime()}); err != nil {
+				return err
+			}
+			continue
+		}
+		if !fi.Mode().IsRegular() {
+			continue
 		}
 		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: int64(fi.Mode().Perm()), Size: fi.Size(), ModTime: fi.ModTime()}); err != nil {
 			return err

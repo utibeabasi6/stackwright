@@ -15,6 +15,7 @@ import (
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/db"
 )
 
 const inviteTTL = 7 * 24 * time.Hour
@@ -36,7 +37,7 @@ func (o *Orgs) CreateOrg(ctx context.Context, req *connect.Request[v1.CreateOrgR
 		return nil, authz.Internal(err)
 	}
 	_, err := s.Tx.Exec(ctx, `INSERT INTO orgs (id, slug, name) VALUES ($1, $2, $3)`, orgID, req.Msg.Slug, strings.TrimSpace(req.Msg.Name))
-	if uniqueViolation(err) {
+	if db.UniqueViolation(err) {
 		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("an org with that short name exists"))
 	}
 	if err != nil {
@@ -86,11 +87,17 @@ func memberRole(ctx context.Context, s *authz.Scope, userID string) (v1.Role, er
 }
 
 func lastOwner(ctx context.Context, s *authz.Scope) (bool, error) {
-	var owners int
-	if err := s.Tx.QueryRow(ctx, `SELECT count(*) FROM memberships WHERE org_id = app_org_id() AND role = 'owner'`).Scan(&owners); err != nil {
+	// Locking the owners makes two demotions at once count in turn, so
+	// neither leaves the org with none.
+	rows, err := s.Tx.Query(ctx, `SELECT user_id FROM memberships WHERE org_id = app_org_id() AND role = 'owner' FOR UPDATE`)
+	if err != nil {
 		return false, authz.Internal(err)
 	}
-	return owners <= 1, nil
+	owners, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return false, authz.Internal(err)
+	}
+	return len(owners) <= 1, nil
 }
 
 var errOwnersOnly = connect.NewError(connect.CodePermissionDenied, errors.New("only an owner may give or take the owner role"))
@@ -163,7 +170,7 @@ func (o *Orgs) CreateInvite(ctx context.Context, req *connect.Request[v1.CreateI
 	token, id, expires := auth.RandomToken(), uuid.NewString(), time.Now().Add(inviteTTL)
 	_, err := s.Tx.Exec(ctx, `INSERT INTO invites (id, org_id, email, role, token_hash, invited_by, expires_at)
 		VALUES ($1, app_org_id(), $2, $3, $4, $5, $6)`, id, m.Email, authz.RoleToDB(m.Role), auth.HashToken(token), s.UserID, expires)
-	if uniqueViolation(err) {
+	if db.UniqueViolation(err) {
 		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("an open invite for this email exists; revoke it first"))
 	}
 	if err != nil {

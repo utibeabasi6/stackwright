@@ -379,7 +379,7 @@ func tfFiles(root *os.Root, dir string) ([]tfFile, error) {
 	}
 	var out []tfFile
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".tf") {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".tf") && !strings.HasSuffix(e.Name(), ".tofu") {
 			continue
 		}
 		name := path.Join(dir, e.Name())
@@ -474,6 +474,9 @@ func (b *box) conventions() (string, error) {
 	}
 	var w strings.Builder
 	for _, p := range slices.Compact([]string{"STACKWRIGHT.md", path.Join(dir, "STACKWRIGHT.md")}) {
+		if fi, err := root.Lstat(p); err != nil || !fi.Mode().IsRegular() {
+			continue
+		}
 		data, err := root.ReadFile(p)
 		if err != nil {
 			continue
@@ -505,7 +508,7 @@ func projectFacts(root *os.Root, dir string) []string {
 			}
 			if e.IsDir() {
 				names = append(names, e.Name()+"/")
-			} else if strings.HasSuffix(e.Name(), ".tf") || strings.HasSuffix(e.Name(), ".tfvars") {
+			} else if strings.HasSuffix(e.Name(), ".tf") || strings.HasSuffix(e.Name(), ".tofu") || strings.HasSuffix(e.Name(), ".tfvars") {
 				names = append(names, e.Name())
 			}
 		}

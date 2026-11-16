@@ -43,7 +43,15 @@ func (w *world) runBuilder(id *builder.Identity) {
 	}
 	b := &builder.Builder{Identity: id, Backend: d, BackendName: "docker"}
 	ctx, cancel := context.WithCancel(context.Background())
-	w.t.Cleanup(cancel)
+	// A builder that stops leaves its sandboxes for the next one; a test
+	// has no next one.
+	w.t.Cleanup(func() {
+		cancel()
+		left, _ := d.Adopt(context.Background(), id.ServerID)
+		for _, s := range left {
+			_ = s.Remove(context.Background())
+		}
+	})
 	go b.Run(ctx)
 	wait, stop := context.WithTimeout(ctx, 30*time.Second)
 	defer stop()

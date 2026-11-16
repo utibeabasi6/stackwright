@@ -15,6 +15,8 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	"github.com/stackwright/stackwright/internal/db"
+	"github.com/stackwright/stackwright/internal/notify"
 )
 
 // ErrCycle is a deployment whose links loop.
@@ -284,7 +286,7 @@ func (o *Orchestrator) advanceDeployments(ctx context.Context) error {
 		return err
 	}
 	for _, a := range all {
-		if err := o.inOrg(ctx, a.org, func(tx pgx.Tx) error { return o.advance(ctx, tx, a.org, a.id) }); err != nil && ctx.Err() == nil {
+		if err := db.InOrg(ctx, o.Pool, a.org, func(tx pgx.Tx) error { return o.advance(ctx, tx, a.org, a.id) }); err != nil && ctx.Err() == nil {
 			slog.Error("advance deployment run", "deployment_run", a.id, "err", err)
 		}
 	}
@@ -429,9 +431,36 @@ func (o *Orchestrator) openInputs(ctx context.Context, tx pgx.Tx, orgID string, 
 }
 
 func setDeploymentStatus(ctx context.Context, tx pgx.Tx, id, status, msg string) error {
-	_, err := tx.Exec(ctx, `UPDATE deployment_runs SET status = $2, error = nullif($3, ''), updated_at = now(),
-		finished_at = CASE WHEN $2 IN ('applied', 'planned', 'failed', 'rejected', 'canceled') THEN now() END WHERE id = $1`, id, status, msg)
-	return err
+	var was string
+	if err := tx.QueryRow(ctx, `SELECT status FROM deployment_runs WHERE id = $1`, id).Scan(&was); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE deployment_runs SET status = $2, error = nullif($3, ''), updated_at = now(),
+		finished_at = CASE WHEN $2 IN ('applied', 'planned', 'failed', 'rejected', 'canceled') THEN now() END WHERE id = $1`, id, status, msg); err != nil {
+		return err
+	}
+	event, ok := map[string]string{"failed": notify.RunFailed, "applied": notify.RunApplied, "needs_approval": notify.RunNeedsApproval}[status]
+	if !ok || was == status {
+		return nil
+	}
+	e := notify.Event{Type: event, Error: msg}
+	var orgID string
+	var number int
+	if err := tx.QueryRow(ctx, `SELECT r.org_id, o.slug, d.name, r.number FROM deployment_runs r
+		JOIN deployments d ON d.id = r.deployment_id JOIN orgs o ON o.id = r.org_id WHERE r.id = $1`, id).
+		Scan(&orgID, &e.Org, &e.Deployment, &number); err != nil {
+		return err
+	}
+	where := fmt.Sprintf("Deployment %s, run #%d,", e.Deployment, number)
+	switch event {
+	case notify.RunFailed:
+		e.Text = "✗ " + where + " failed: " + msg
+	case notify.RunApplied:
+		e.Text = "✓ " + where + " applied"
+	default:
+		e.Text = where + " waits for approval"
+	}
+	return notify.Enqueue(ctx, tx, orgID, e)
 }
 
 // failDeployment ends a deployment run and every step run that has not

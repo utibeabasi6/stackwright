@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { Action } from "../Action";
 import { Link } from "@tanstack/react-router";
 import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
-import { message, stateApi } from "../api";
+import { stateApi } from "../api";
 import { Copy } from "../Copy";
 import { Engine } from "../gen/stackwright/v1/projects_pb";
 import { useLoad } from "../useLoad";
@@ -14,41 +13,26 @@ export function StatePanel(props: { org: string; project: string; workspace: str
   const key = `${org}/${project}/${workspace}`;
   const st = useLoad(`state:${key}`, () => stateApi.getState({ org, project, workspace }));
   const history = useLoad(`history:${key}`, () => stateApi.listStateVersions({ org, project, workspace }));
-  const [error, setError] = useState<string>();
   const cli = props.engine === Engine.TERRAFORM ? "terraform" : "tofu";
 
   const act = async (fn: () => Promise<unknown>) => {
-    setError(undefined);
-    try {
-      await fn();
-      st.reload();
-      history.reload();
-      return true;
-    } catch (err) {
-      setError(message(err));
-      return false;
-    }
+    await fn();
+    st.reload();
+    history.reload();
   };
   const download = async (id: string, serial: bigint) => {
-    try {
-      const r = await stateApi.getStateVersion({ org, project, workspace, id });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([r.state], { type: "application/json" }));
-      a.download = `${project}-${workspace}-${serial}.tfstate`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      return true;
-    } catch (err) {
-      setError(message(err));
-      return false;
-    }
+    const r = await stateApi.getStateVersion({ org, project, workspace, id });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([r.state], { type: "application/json" }));
+    a.download = `${project}-${workspace}-${serial}.tfstate`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
   const latest = st.data?.latest;
   const lock = st.data?.lock;
   return (
     <>
-      {error && <p className="error">{error}</p>}
       <section className="card" aria-labelledby="state-h">
         <h2 id="state-h">State</h2>
         {st.error && <p className="error">{st.error}</p>}

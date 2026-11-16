@@ -846,6 +846,21 @@ test("Ask agent to fix starts a session when none can take a message", async () 
   expect(api.sent).toEqual([]);
 });
 
+test("Ask agent to fix on the inbox opens the finding's workspace and asks its agent there", async () => {
+  signedInAs(Role.OWNER);
+  api.projects = [{ ...network, linkedRepo: "acme/infra" }];
+  api.agentKey = true;
+  api.sessionStatus = AgentSessionStatus.READY;
+  api.agentSteps = [{ seq: 1n, kind: "user", payload: JSON.stringify({ text: "Add a random_pet named db" }) }];
+  api.findings = [{ ...sshOpen, blocking: false }];
+  const history = at("/a/inbox");
+  await userEvent.click(await screen.findByRole("button", { name: "Ask agent to fix" }));
+  await waitFor(() => expect(history.location.pathname).toBe("/a/projects/network/prod"));
+  expect(await screen.findByRole("complementary", { name: "Agent" })).toBeInTheDocument();
+  await waitFor(() => expect(api.sent).toHaveLength(1));
+  expect(api.sent[0]).toMatchObject({ org: "a", id: "s1", message: expect.stringContaining("AWS-0107") });
+});
+
 test("a proposed pull request opens only when a person approves it", async () => {
   signedInAs(Role.WRITER);
   api.projects = [{ ...network, linkedRepo: "acme/infra" }];

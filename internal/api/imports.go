@@ -75,7 +75,7 @@ func (h Imports) ScanRepository(ctx context.Context, req *connect.Request[v1.Sca
 		}
 		out.Roots = append(out.Roots, &v1.FoundRoot{Path: r.Path, Workspaces: r.Workspaces, StateBackend: backendOf(r), Backend: r.Backend,
 			Engine: key(engines, r.Engine), Labels: r.Labels, Slug: r.Slug, ExistingProject: existing, CommittedState: r.CommittedState,
-			Units: r.Units, StackDeployments: r.StackDeployments})
+			Units: r.Units, StackDeployments: r.StackDeployments, StackError: r.StackError})
 	}
 	return connect.NewResponse(out), nil
 }

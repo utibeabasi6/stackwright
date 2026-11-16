@@ -17,6 +17,7 @@ import (
 
 	"github.com/stackwright/stackwright/fixtures"
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/findings"
 	"github.com/stackwright/stackwright/internal/github"
@@ -26,7 +27,7 @@ import (
 const (
 	maxSource     = 32 << 20
 	timelineBatch = 500
-	watchFallback = time.Second
+	watchFallback = 5 * time.Second
 	listRunsLimit = 50
 	maxSourceName = 200
 )
@@ -360,7 +361,7 @@ func (Runs) ListWaiting(ctx context.Context, _ *connect.Request[v1.ListWaitingRe
 			return nil, err
 		}
 	}
-	if mayDecideRisk(s.Role) == nil {
+	if authz.Policy[stackwrightv1connect.SecurityServiceAcceptRiskProcedure].Admits(s.Role) {
 		if out.Findings, err = queryFindings(ctx, s.Tx, `f.fixed_at IS NULL AND f.severity IN ('high', 'critical') AND a.reason IS NULL
 			AND w.archived_at IS NULL AND p.archived_at IS NULL ORDER BY f.first_seen_at DESC`); err != nil {
 			return nil, err
@@ -389,7 +390,7 @@ func (Runs) ListWaiting(ctx context.Context, _ *connect.Request[v1.ListWaitingRe
 		}
 	}
 	if out.Failures, err = queryRuns(ctx, s.Tx, `r.status = 'failed' AND w.archived_at IS NULL
-		AND r.id IN (SELECT DISTINCT ON (workspace_id) id FROM runs ORDER BY workspace_id, number DESC)
+		AND NOT EXISTS (SELECT FROM runs n WHERE n.workspace_id = r.workspace_id AND n.number > r.number)
 		ORDER BY r.finished_at DESC`); err != nil {
 		return nil, err
 	}

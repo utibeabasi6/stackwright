@@ -1,11 +1,11 @@
 import { Link, Outlet, useParams } from "@tanstack/react-router";
 import { Role } from "../../gen/stackwright/v1/orgs_pb";
-import { useMe } from "../../me";
+import { useMe, useRole } from "../../me";
 
 export function Settings() {
   const { org } = useParams({ strict: false }) as { org: string };
   const me = useMe();
-  const role = me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
+  const role = useRole(org);
   const admin = role >= Role.ADMIN;
   return (
     <>

@@ -26,6 +26,8 @@ const (
 	maxRead  = 200 << 10
 	maxFiles = 1000
 	maxHits  = 200
+	// maxSearch skips files that are too large to be code.
+	maxSearch = 4 << 20
 )
 
 // inside returns rel's path under root, refusing paths that leave it.
@@ -96,7 +98,16 @@ func (b *box) open(rel string) (*os.Root, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return root, path.Clean("/" + filepath.ToSlash(rel))[1:], nil
+	name := path.Clean("/" + filepath.ToSlash(rel))[1:]
+	// os.Root follows a link that stays in the checkout, which the guard's
+	// name check does not see: a link named notes.md can point at state.
+	for p := name; p != "." && p != ""; p = path.Dir(p) {
+		if fi, err := root.Lstat(p); err == nil && fi.Mode()&fs.ModeSymlink != 0 {
+			_ = root.Close()
+			return nil, "", fmt.Errorf("%w: %s is a symbolic link", ErrRefused, p)
+		}
+	}
+	return root, name, nil
 }
 
 func (b *box) list(rel string) (string, error) {
@@ -117,7 +128,7 @@ func (b *box) list(rel string) (string, error) {
 			}
 			return nil
 		}
-		if !d.IsDir() {
+		if !d.IsDir() && d.Type()&fs.ModeSymlink == 0 {
 			out = append(out, r)
 		}
 		if len(out) >= maxFiles {
@@ -158,7 +169,11 @@ func (b *box) search(pattern, rel string) (string, error) {
 		if f == "" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(b.repo, filepath.FromSlash(f)))
+		p := filepath.Join(b.repo, filepath.FromSlash(f))
+		if fi, err := os.Lstat(p); err != nil || !fi.Mode().IsRegular() || fi.Size() > maxSearch {
+			continue
+		}
+		data, err := os.ReadFile(p) //nolint:gosec // a regular file that list found in the checkout
 		if err != nil || bytes.IndexByte(data, 0) >= 0 {
 			continue
 		}

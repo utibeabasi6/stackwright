@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { Action, Submit, useAction } from "../Action";
 import { Link } from "@tanstack/react-router";
 import Markdown from "react-markdown";
@@ -6,7 +7,7 @@ import remarkGfm from "remark-gfm";
 import { agentApi, message, projectApi } from "../api";
 import { AgentSessionStatus, type AgentSession, type AgentStep } from "../gen/stackwright/v1/agent_pb";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
-import { useShell } from "../me";
+import { useRole, useShell } from "../me";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
 import { useConfirm } from "../Confirm";
@@ -51,12 +52,14 @@ const canTake = [AgentSessionStatus.READY, AgentSessionStatus.ASLEEP, AgentSessi
 
 // AskAgent sends an error to the agent. It shows only to writers, on
 // projects that the agent can work on.
-export function AskAgent({ org, project, prompt, label = "Ask agent to fix" }: { org: string; project: string; prompt: string; label?: string }) {
-  const { me, projects, askAgent } = useShell();
-  const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
+type AskProps = { org: string; project: string; workspace: string; prompt: string; label?: string };
+
+export function AskAgent({ org, project, workspace, prompt, label = "Ask agent to fix" }: AskProps) {
+  const { projects, askAgent } = useShell();
+  const writer = useRole(org) >= Role.WRITER;
   if (!writer || !projects?.find((p) => p.slug === project)?.linkedRepo) return null;
   return (
-    <button type="button" className="link ask-agent" onClick={() => askAgent(prompt)}>
+    <button type="button" className="link ask-agent" onClick={() => askAgent({ org, project, workspace }, prompt)}>
       {label}
     </button>
   );
@@ -65,8 +68,7 @@ export function AskAgent({ org, project, prompt, label = "Ask agent to fix" }: {
 // AgentPanel is a chat with the agent about one workspace: its sessions, the
 // open one's conversation, and a composer that starts or continues one.
 export function AgentPanel({ org, project, workspace, ask, onAsked }: Props) {
-  const { me } = useShell();
-  const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
+  const writer = useRole(org) >= Role.WRITER;
   const settings = useLoad(`agent-settings:${org}`, () => agentApi.getAgentSettings({ org }).then((r) => r.settings));
   const ws = useLoad(`${org}/${project}/${workspace}`, () => projectApi.getWorkspace({ org, project, workspace }));
   const sessions = useLoad(`agent-sessions:${org}/${project}/${workspace}`, () =>
@@ -172,6 +174,7 @@ function useSession(org: string, id: string) {
   useEffect(() => {
     const abort = new AbortController();
     let cursor = 0n;
+    let delay = 1000;
     (async () => {
       while (!abort.signal.aborted) {
         try {
@@ -182,9 +185,13 @@ function useSession(org: string, id: string) {
               cursor = r.steps[r.steps.length - 1].seq;
               setSteps((prev) => [...prev, ...fresh]);
             }
+            delay = 1000;
           }
-        } catch {
-          if (abort.signal.aborted) return;
+        } catch (err) {
+          if (abort.signal.aborted || (err instanceof ConnectError && err.code === Code.NotFound)) return;
+          await new Promise((r) => setTimeout(r, delay));
+          delay = Math.min(delay * 2, 30000);
+          continue;
         }
         await new Promise((r) => setTimeout(r, 1000));
       }

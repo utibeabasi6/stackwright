@@ -17,7 +17,7 @@ Docker CLI and no Docker SDK.
 
 **Secrets are files.** The job ticket is copied into the container before it
 starts. The container's environment holds no secret, so `docker inspect`
-shows none. The executor reads the ticket and deletes it.
+shows none. The executor reads the ticket, which works once; the folder is read-only to the sandbox (adr/0047).
 
 **Each sandbox is locked down:** its own bridge network, a non-root user, all
 capabilities dropped, `no-new-privileges`, a read-only root file system with

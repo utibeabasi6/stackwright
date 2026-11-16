@@ -81,7 +81,7 @@ type ScanRepositoryResponse struct {
 	Roots  []*FoundRoot           `protobuf:"bytes,2,rep,name=roots,proto3" json:"roots,omitempty"`
 	// Folders that root modules call as local modules.
 	Modules []string `protobuf:"bytes,3,rep,name=modules,proto3" json:"modules,omitempty"`
-	// Folders with a terragrunt.hcl; they import with phase 18.
+	// Folders with a terragrunt.hcl.
 	TerragruntUnits []string `protobuf:"bytes,4,rep,name=terragrunt_units,json=terragruntUnits,proto3" json:"terragrunt_units,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -166,8 +166,11 @@ type FoundRoot struct {
 	Units []string `protobuf:"bytes,10,rep,name=units,proto3" json:"units,omitempty"`
 	// For a Terraform Stack, its deployments (adr/0043).
 	StackDeployments []string `protobuf:"bytes,11,rep,name=stack_deployments,json=stackDeployments,proto3" json:"stack_deployments,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Why a Terraform Stack's files do not parse; it cannot import until
+	// they do.
+	StackError    string `protobuf:"bytes,12,opt,name=stack_error,json=stackError,proto3" json:"stack_error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FoundRoot) Reset() {
@@ -275,6 +278,13 @@ func (x *FoundRoot) GetStackDeployments() []string {
 		return x.StackDeployments
 	}
 	return nil
+}
+
+func (x *FoundRoot) GetStackError() string {
+	if x != nil {
+		return x.StackError
+	}
+	return ""
 }
 
 type StartImportRequest struct {
@@ -760,7 +770,7 @@ const file_stackwright_v1_imports_proto_rawDesc = "" +
 	"\x06commit\x18\x01 \x01(\tR\x06commit\x12/\n" +
 	"\x05roots\x18\x02 \x03(\v2\x19.stackwright.v1.FoundRootR\x05roots\x12\x18\n" +
 	"\amodules\x18\x03 \x03(\tR\amodules\x12)\n" +
-	"\x10terragrunt_units\x18\x04 \x03(\tR\x0fterragruntUnits\"\xf1\x03\n" +
+	"\x10terragrunt_units\x18\x04 \x03(\tR\x0fterragruntUnits\"\x92\x04\n" +
 	"\tFoundRoot\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1e\n" +
 	"\n" +
@@ -775,7 +785,9 @@ const file_stackwright_v1_imports_proto_rawDesc = "" +
 	"\x0fcommitted_state\x18\t \x01(\bR\x0ecommittedState\x12\x14\n" +
 	"\x05units\x18\n" +
 	" \x03(\tR\x05units\x12+\n" +
-	"\x11stack_deployments\x18\v \x03(\tR\x10stackDeployments\x1a9\n" +
+	"\x11stack_deployments\x18\v \x03(\tR\x10stackDeployments\x12\x1f\n" +
+	"\vstack_error\x18\f \x01(\tR\n" +
+	"stackError\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x84\x01\n" +

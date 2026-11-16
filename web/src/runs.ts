@@ -21,8 +21,6 @@ export const statusOf = (s: RunStatus) => statuses[s];
 export const finished = (s: RunStatus) =>
   [RunStatus.PLANNED, RunStatus.APPLIED, RunStatus.FAILED, RunStatus.REJECTED, RunStatus.CANCELED].includes(s);
 
-export const active = (s: RunStatus) => [RunStatus.PLANNING, RunStatus.NEEDS_APPROVAL, RunStatus.BLOCKED, RunStatus.APPLYING].includes(s);
-
 export function runTitle(r: Run) {
   return `${r.planOnly ? "Plan" : "Run"} #${r.number}`;
 }

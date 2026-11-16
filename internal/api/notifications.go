@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/notify"
 	"github.com/stackwright/stackwright/internal/seal"
 )
@@ -146,7 +148,7 @@ func (h Notifications) CreateDestination(ctx context.Context, req *connect.Reque
 	id := uuid.NewString()
 	_, err = s.Tx.Exec(ctx, `INSERT INTO notification_destinations (id, org_id, kind, name, url, secret, events) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		id, s.OrgID, kind, name, sealedURL, sealedSecret, names)
-	if uniqueViolation(err) {
+	if db.UniqueViolation(err) {
 		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("a destination has that name"))
 	}
 	if err != nil {
@@ -265,8 +267,8 @@ func (h Notifications) SaveAuditExport(ctx context.Context, req *connect.Request
 	if m.RetentionDays < 30 || m.RetentionDays > 3650 {
 		return nil, invalid("keep the audit log for 30 to 3650 days")
 	}
-	if _, err := s.Tx.Exec(ctx, `UPDATE orgs SET audit_retention_days = $2 WHERE id = $1`, s.OrgID, m.RetentionDays); err != nil {
-		return nil, authz.Internal(err)
+	if tag, err := s.Tx.Exec(ctx, `UPDATE orgs SET audit_retention_days = $2 WHERE id = $1`, s.OrgID, m.RetentionDays); err != nil || tag.RowsAffected() != 1 {
+		return nil, authz.Internal(cmp.Or(err, errors.New("the org's retention did not change")))
 	}
 	if bucket := strings.TrimSpace(m.S3Bucket); bucket == "" {
 		if _, err := s.Tx.Exec(ctx, `DELETE FROM audit_exports WHERE kind = 's3'`); err != nil {

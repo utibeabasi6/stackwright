@@ -16,7 +16,8 @@ needs its own GitHub App, because the App's webhook URL is the install's.
 it in Settings › GitHub. The browser posts the manifest to GitHub, which
 makes the App and sends the browser back with a code. The server trades the
 code for the App's id, private key, client secret and webhook secret, and
-seals them with the instance data key. The App asks for contents: read,
+seals them with the instance data key. The App asks for contents: write (the agent pushes branches), members:
+read (to check who may link an installation, adr/0047),
 pull requests: write, checks: write and metadata: read, and the push and
 pull request events. The page's CSP allows a form to post to the GitHub web
 URL for this.

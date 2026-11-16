@@ -1,6 +1,6 @@
 # 0004 — A key file by default, Vault Transit optional
 
-**Status:** Accepted, 2026-11-11.
+**Status:** Accepted, 2026-11-11. The Vault part is not built (adr/0047).
 
 ## Context
 

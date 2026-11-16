@@ -120,6 +120,19 @@ func (g *GitHub) forget() {
 	g.app, g.tokens = nil, nil
 }
 
+// dropToken forgets a cached installation token that GitHub refused: a
+// token keeps the App's permissions from when it was made, so after an org
+// accepts new ones only a fresh token has them.
+func (g *GitHub) dropToken(value string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for id, t := range g.tokens {
+		if t.value == value {
+			delete(g.tokens, id)
+		}
+	}
+}
+
 func parseKey(b []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(b)
 	if block == nil {
@@ -223,6 +236,7 @@ func (g *GitHub) request(ctx context.Context, method, url, bearer string, in any
 		case http.StatusNotFound:
 			return nil, fmt.Errorf("%w: %s %s", ErrNotFound, method, url)
 		case http.StatusUnauthorized, http.StatusForbidden:
+			g.dropToken(bearer)
 			return nil, fmt.Errorf("%w: %s %s: %s", ErrForbidden, method, url, msg)
 		case http.StatusUnprocessableEntity:
 			return nil, fmt.Errorf("%w: %s %s: %s", ErrBadRequest, method, url, msg)

@@ -157,7 +157,11 @@ func (b *builder) read(i int, p Plan) error {
 			}
 		}
 		for name, c := range m.ModuleCalls {
-			walk(joinModule(prefix, "module."+name), c.Module)
+			next := "module." + name
+			if prefix != "" {
+				next = prefix + "." + next
+			}
+			walk(next, c.Module)
 		}
 	}
 	walk("", pj.Configuration.RootModule)
@@ -174,8 +178,13 @@ func (b *builder) read(i int, p Plan) error {
 		unknown, _ := rc.Change.AfterUnknown.(map[string]any)
 		module := graph.StripKeys(rc.ModuleAddress)
 		resource := rc.Type + "." + rc.Name
+		// The topology draws reads and unknown actions as unchanged.
+		act := graph.Action(rc.Change.Actions)
+		if act == v1.PlanAction_PLAN_ACTION_READ || act == v1.PlanAction_PLAN_ACTION_UNSPECIFIED {
+			act = v1.PlanAction_PLAN_ACTION_NO_OP
+		}
 		in := &instance{plan: i, module: module, address: rc.Address, resource: resource, key: rc.IndexKey, typ: rc.Type,
-			action: action(rc.Change.Actions), values: values, unknown: unknown, exprs: exprs[module+"\x00"+resource]}
+			action: act, values: values, unknown: unknown, exprs: exprs[module+"\x00"+resource]}
 		b.instances = append(b.instances, in)
 		id, _ := values["id"].(string)
 		if id != "" {
@@ -624,22 +633,6 @@ func (b *builder) edge(from, to *v1.TopologyNode, kind v1.TopologyEdgeKind, labe
 	b.edges[k] = &v1.TopologyEdge{From: from.Id, To: to.Id, Kind: kind, Label: label, Action: a}
 }
 
-func action(actions []string) v1.PlanAction {
-	switch strings.Join(actions, ",") {
-	case "create":
-		return v1.PlanAction_PLAN_ACTION_CREATE
-	case "update":
-		return v1.PlanAction_PLAN_ACTION_UPDATE
-	case "delete":
-		return v1.PlanAction_PLAN_ACTION_DELETE
-	case "delete,create":
-		return v1.PlanAction_PLAN_ACTION_REPLACE
-	case "create,delete":
-		return v1.PlanAction_PLAN_ACTION_REPLACE_CREATE_FIRST
-	}
-	return v1.PlanAction_PLAN_ACTION_NO_OP
-}
-
 func name(values map[string]any, address string) string {
 	if tags, ok := values["tags"].(map[string]any); ok {
 		if n, ok := tags["Name"].(string); ok && n != "" {
@@ -779,13 +772,6 @@ func strs(v any) []string {
 func num(m map[string]any, k string) int32 {
 	f, _ := m[k].(float64)
 	return int32(f)
-}
-
-func joinModule(prefix, call string) string {
-	if prefix == "" {
-		return call
-	}
-	return prefix + "." + call
 }
 
 // Scope keeps a project's own nodes, and as context what they use from

@@ -9,7 +9,14 @@ import (
 	"errors"
 )
 
-var ErrMalformed = errors.New("the artifact is malformed, or was sealed for another job or name")
+// MaxSize bounds a sealed artifact, since the server reads whole artifacts
+// into memory.
+const MaxSize = 128 << 20
+
+var (
+	ErrMalformed = errors.New("the artifact is malformed, or was sealed for another job or name")
+	ErrTooLarge  = errors.New("the artifact is larger than 128 MiB")
+)
 
 func NewKey() []byte {
 	k := make([]byte, 32)

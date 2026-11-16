@@ -11,7 +11,13 @@ export function Palette({ commands, onClose }: { commands: Command[]; onClose: (
     return q ? commands.filter((c) => c.label.toLowerCase().includes(q) || c.group.toLowerCase().includes(q)) : commands;
   }, [commands, query]);
 
-  useEffect(() => input.current?.focus(), []);
+  useEffect(() => {
+    const opener = document.activeElement;
+    input.current?.focus();
+    return () => {
+      if (opener instanceof HTMLElement) opener.focus();
+    };
+  }, []);
   useEffect(() => setActive(0), [query]);
 
   const choose = (c: Command | undefined) => {

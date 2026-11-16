@@ -132,7 +132,7 @@ func TestAuditExportSendsEveryRowAndKeepsWhatAnExportLacks(t *testing.T) {
 	w.sts.mu.Lock()
 	w.sts.trust["arn:aws:iam::123456789012:role/audit"] = []string{oidc.Subject(orgID, "", notify.AuditPhase)}
 	w.sts.mu.Unlock()
-	saved := owner.must("NotificationService/SaveAuditExport", merge(org, map[string]any{"retentionDays": 365, "s3Bucket": "audit-logs",
+	saved := owner.must("NotificationService/SaveAuditExport", merge(org, map[string]any{"retentionDays": 400, "s3Bucket": "audit-logs",
 		"s3Prefix": "stackwright", "s3CloudAccount": "logs", "webhookUrl": webhook.srv.URL + "/audit"}))
 	secret := saved["webhookSecret"].(string)
 	stsURL := "http://127.0.0.1:" + w.sts.url[strings.LastIndex(w.sts.url, ":")+1:]
@@ -141,6 +141,10 @@ func TestAuditExportSendsEveryRowAndKeepsWhatAnExportLacks(t *testing.T) {
 
 	var last int64
 	if err := w.owner.QueryRow(t.Context(), `SELECT max(id) FROM audit_log WHERE org_id = $1`, orgID).Scan(&last); err != nil {
+		t.Fatal(err)
+	}
+	// The export holds back rows of the last five minutes.
+	if _, err := w.owner.Exec(t.Context(), `UPDATE audit_log SET at = at - interval '10 minutes' WHERE org_id = $1`, orgID); err != nil {
 		t.Fatal(err)
 	}
 	if err := auditor.ExportDue(t.Context()); err != nil {
@@ -166,6 +170,9 @@ func TestAuditExportSendsEveryRowAndKeepsWhatAnExportLacks(t *testing.T) {
 	got := owner.must("NotificationService/GetAuditExport", org)
 	if got["s3"].(map[string]any)["sentId"] != itoa(last) || got["webhook"].(map[string]any)["sentId"] != itoa(last) {
 		t.Errorf("the cursors: %v", got)
+	}
+	if got["retentionDays"] != float64(400) {
+		t.Errorf("the retention: %v", got["retentionDays"])
 	}
 
 	// Rows past the retention go once every export has them.

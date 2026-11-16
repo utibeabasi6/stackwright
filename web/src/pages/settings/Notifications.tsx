@@ -98,7 +98,24 @@ export function Notifications() {
                       {d.name}
                       <span className="muted"> · {d.kind === DestinationKind.SLACK ? "Slack" : "Webhook"} · {d.host}</span>
                     </td>
-                    <td>{eventNames.filter(([e]) => d.events.includes(e)).map(([, n]) => n).join(", ")}</td>
+                    <td>
+                      <div className="stack">
+                        {eventNames.map(([e, n]) => (
+                          <label key={e}>
+                            <input
+                              type="checkbox"
+                              checked={d.events.includes(e)}
+                              onChange={(ev) =>
+                                void notificationApi
+                                  .updateDestinationEvents({ org, id: d.id, events: ev.target.checked ? [...d.events, e] : d.events.filter((x) => x !== e) })
+                                  .then(() => list.reload(), fail)
+                              }
+                            />{" "}
+                            {n}
+                          </label>
+                        ))}
+                      </div>
+                    </td>
                     <td>
                       {d.lastError ? (
                         <span className="error">! {d.lastError}</span>

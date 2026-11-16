@@ -41,6 +41,38 @@ the builder CA, so a proxy in front of it must pass TLS through. Publish
 it directly, and set `STACKWRIGHT_BUILDER_URL` to the address that build
 servers use.
 
+## The database logins
+
+The server uses `stackwright_app`, which row-level security limits to one
+org at a time. Migrations, `rotate-kek` and the scheduled functions use
+the owner login (`stackwright`), which must be a superuser or have
+`BYPASSRLS`: the tables force row-level security on their owner. Compose's
+Postgres makes it a superuser. On a managed Postgres, grant `BYPASSRLS`;
+`migrate` refuses an owner login without it.
+
+The server opens up to 25 connections.
+
+## The executor image
+
+`STACKWRIGHT_EXECUTOR_IMAGE` names the image that every sandbox runs, and
+the egress proxy. It has no default. Compose builds and names it
+`stackwright/executor:dev` on the built-in host. A remote build server
+pulls a missing image only when its name starts with a registry host,
+such as `ghcr.io/you/stackwright-executor:0.1.0`; otherwise load the image
+on it (adr/0047).
+
+## Licences
+
+Each image holds the licences of what it ships under `/licenses`, and the
+web app serves its packages' notices at `/THIRD_PARTY_NOTICES.txt`.
+
+## What is deleted
+
+Job artifacts (plans, working trees, scans) are deleted 30 days after the
+job, except those of a run that has not ended, of each workspace's last
+applied run, and of its last plan of its own code. Runs, their events and
+state versions are kept. The audit log follows its own retention.
+
 ## Backup
 
 ```bash
@@ -84,7 +116,8 @@ state through a server on the copies. It does not use a second host.
 4. Start the new server: `docker compose up -d --wait`.
 
 Runs that wait for approval, and runs in progress on a build server,
-continue after the upgrade. Server N accepts build servers and executors
+continue after the upgrade. A build server that restarts finds its
+sandboxes again and keeps watching them. Server N accepts build servers and executors
 of N-1, so remote build servers can be upgraded after the server.
 
 `TestUpgradeWhileARunWaits` in `test/upgrade/` checks this. It builds the
@@ -142,14 +175,21 @@ The server limits requests with a token bucket for each caller:
 
 | Route | Key | Rate | Burst |
 | --- | --- | --- | --- |
-| Sign-in, invites, setup, `/auth/` (OIDC, GitHub, SAML), the device flow | Client IP | 5 a second | 30 |
-| The API | Session or token, else client IP | 50 a second | 300 |
+| The RPCs that need no sign-in, `/auth/` (OIDC, GitHub, SAML), the device flow | Client IP | 5 a second | 30 |
+| The API, before the caller is known | Client IP | 100 a second | 1000 |
+| The API, for a signed-in user (session or CLI token) | User | 50 a second | 300 |
 | SCIM | Client IP | 20 a second | 200 |
 
 A caller over the limit gets 429, or `resource_exhausted` over Connect,
-with `Retry-After`. Jobs, build servers, the state backend and webhooks
-are not limited: each has its own token. The counts live in the server
-process.
+with `Retry-After`. An IPv6 client counts by its /64. Jobs, build
+servers, the state backend and webhooks are not limited: each has its own
+token. The counts live in the server process.
+
+Password sign-in also counts failed attempts: 10 for one email from one
+address, and 100 for one email from all addresses, in 15 minutes.
+
+A request body is at most 4 MiB (16 MiB for the agent, 40 to 48 MiB for
+uploads), checked before it is decompressed.
 
 ## What sandboxes can reach
 
@@ -165,7 +205,8 @@ link-local, shared and multicast addresses, and logs each refusal.
   `STACKWRIGHT_EGRESS_ALLOW` on the builder to a comma-separated list of
   `host:port` pairs. Every sandbox on that builder can then reach them.
 - With `STACKWRIGHT_S3_PUBLIC_URL` empty, sandboxes reach object storage
-  through the server, under `/s3/`. Set it for an object store that
-  sandboxes can reach directly, such as AWS S3.
+  through the server, under `/s3/`. Set it for an object store that every
+  sandbox, built-in or remote, can reach directly, such as AWS S3. If
+  that address is private, add it to `STACKWRIGHT_EGRESS_ALLOW` too.
 
 See [threat-model.md](threat-model.md) for what this protects against.

@@ -992,7 +992,7 @@ func (x *StartDeploymentRunResponse) GetRun() *DeploymentRun {
 	return nil
 }
 
-type GetDeploymentRunRequest struct {
+type ApproveDeploymentRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -1001,20 +1001,20 @@ type GetDeploymentRunRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetDeploymentRunRequest) Reset() {
-	*x = GetDeploymentRunRequest{}
+func (x *ApproveDeploymentRunRequest) Reset() {
+	*x = ApproveDeploymentRunRequest{}
 	mi := &file_stackwright_v1_deployments_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetDeploymentRunRequest) String() string {
+func (x *ApproveDeploymentRunRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetDeploymentRunRequest) ProtoMessage() {}
+func (*ApproveDeploymentRunRequest) ProtoMessage() {}
 
-func (x *GetDeploymentRunRequest) ProtoReflect() protoreflect.Message {
+func (x *ApproveDeploymentRunRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_stackwright_v1_deployments_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1026,53 +1026,53 @@ func (x *GetDeploymentRunRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetDeploymentRunRequest.ProtoReflect.Descriptor instead.
-func (*GetDeploymentRunRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApproveDeploymentRunRequest.ProtoReflect.Descriptor instead.
+func (*ApproveDeploymentRunRequest) Descriptor() ([]byte, []int) {
 	return file_stackwright_v1_deployments_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *GetDeploymentRunRequest) GetOrg() string {
+func (x *ApproveDeploymentRunRequest) GetOrg() string {
 	if x != nil {
 		return x.Org
 	}
 	return ""
 }
 
-func (x *GetDeploymentRunRequest) GetName() string {
+func (x *ApproveDeploymentRunRequest) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *GetDeploymentRunRequest) GetNumber() int32 {
+func (x *ApproveDeploymentRunRequest) GetNumber() int32 {
 	if x != nil {
 		return x.Number
 	}
 	return 0
 }
 
-type GetDeploymentRunResponse struct {
+type ApproveDeploymentRunResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Run           *DeploymentRun         `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetDeploymentRunResponse) Reset() {
-	*x = GetDeploymentRunResponse{}
+func (x *ApproveDeploymentRunResponse) Reset() {
+	*x = ApproveDeploymentRunResponse{}
 	mi := &file_stackwright_v1_deployments_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetDeploymentRunResponse) String() string {
+func (x *ApproveDeploymentRunResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetDeploymentRunResponse) ProtoMessage() {}
+func (*ApproveDeploymentRunResponse) ProtoMessage() {}
 
-func (x *GetDeploymentRunResponse) ProtoReflect() protoreflect.Message {
+func (x *ApproveDeploymentRunResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_stackwright_v1_deployments_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1084,19 +1084,19 @@ func (x *GetDeploymentRunResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetDeploymentRunResponse.ProtoReflect.Descriptor instead.
-func (*GetDeploymentRunResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApproveDeploymentRunResponse.ProtoReflect.Descriptor instead.
+func (*ApproveDeploymentRunResponse) Descriptor() ([]byte, []int) {
 	return file_stackwright_v1_deployments_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *GetDeploymentRunResponse) GetRun() *DeploymentRun {
+func (x *ApproveDeploymentRunResponse) GetRun() *DeploymentRun {
 	if x != nil {
 		return x.Run
 	}
 	return nil
 }
 
-type DecideDeploymentRunRequest struct {
+type RejectDeploymentRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -1105,20 +1105,20 @@ type DecideDeploymentRunRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DecideDeploymentRunRequest) Reset() {
-	*x = DecideDeploymentRunRequest{}
+func (x *RejectDeploymentRunRequest) Reset() {
+	*x = RejectDeploymentRunRequest{}
 	mi := &file_stackwright_v1_deployments_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DecideDeploymentRunRequest) String() string {
+func (x *RejectDeploymentRunRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DecideDeploymentRunRequest) ProtoMessage() {}
+func (*RejectDeploymentRunRequest) ProtoMessage() {}
 
-func (x *DecideDeploymentRunRequest) ProtoReflect() protoreflect.Message {
+func (x *RejectDeploymentRunRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_stackwright_v1_deployments_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1130,53 +1130,53 @@ func (x *DecideDeploymentRunRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DecideDeploymentRunRequest.ProtoReflect.Descriptor instead.
-func (*DecideDeploymentRunRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use RejectDeploymentRunRequest.ProtoReflect.Descriptor instead.
+func (*RejectDeploymentRunRequest) Descriptor() ([]byte, []int) {
 	return file_stackwright_v1_deployments_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *DecideDeploymentRunRequest) GetOrg() string {
+func (x *RejectDeploymentRunRequest) GetOrg() string {
 	if x != nil {
 		return x.Org
 	}
 	return ""
 }
 
-func (x *DecideDeploymentRunRequest) GetName() string {
+func (x *RejectDeploymentRunRequest) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *DecideDeploymentRunRequest) GetNumber() int32 {
+func (x *RejectDeploymentRunRequest) GetNumber() int32 {
 	if x != nil {
 		return x.Number
 	}
 	return 0
 }
 
-type DecideDeploymentRunResponse struct {
+type RejectDeploymentRunResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Run           *DeploymentRun         `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DecideDeploymentRunResponse) Reset() {
-	*x = DecideDeploymentRunResponse{}
+func (x *RejectDeploymentRunResponse) Reset() {
+	*x = RejectDeploymentRunResponse{}
 	mi := &file_stackwright_v1_deployments_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DecideDeploymentRunResponse) String() string {
+func (x *RejectDeploymentRunResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DecideDeploymentRunResponse) ProtoMessage() {}
+func (*RejectDeploymentRunResponse) ProtoMessage() {}
 
-func (x *DecideDeploymentRunResponse) ProtoReflect() protoreflect.Message {
+func (x *RejectDeploymentRunResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_stackwright_v1_deployments_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1188,12 +1188,116 @@ func (x *DecideDeploymentRunResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DecideDeploymentRunResponse.ProtoReflect.Descriptor instead.
-func (*DecideDeploymentRunResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use RejectDeploymentRunResponse.ProtoReflect.Descriptor instead.
+func (*RejectDeploymentRunResponse) Descriptor() ([]byte, []int) {
 	return file_stackwright_v1_deployments_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *DecideDeploymentRunResponse) GetRun() *DeploymentRun {
+func (x *RejectDeploymentRunResponse) GetRun() *DeploymentRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+type CancelDeploymentRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Org           string                 `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Number        int32                  `protobuf:"varint,3,opt,name=number,proto3" json:"number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelDeploymentRunRequest) Reset() {
+	*x = CancelDeploymentRunRequest{}
+	mi := &file_stackwright_v1_deployments_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelDeploymentRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelDeploymentRunRequest) ProtoMessage() {}
+
+func (x *CancelDeploymentRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_deployments_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelDeploymentRunRequest.ProtoReflect.Descriptor instead.
+func (*CancelDeploymentRunRequest) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_deployments_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CancelDeploymentRunRequest) GetOrg() string {
+	if x != nil {
+		return x.Org
+	}
+	return ""
+}
+
+func (x *CancelDeploymentRunRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CancelDeploymentRunRequest) GetNumber() int32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+type CancelDeploymentRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *DeploymentRun         `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelDeploymentRunResponse) Reset() {
+	*x = CancelDeploymentRunResponse{}
+	mi := &file_stackwright_v1_deployments_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelDeploymentRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelDeploymentRunResponse) ProtoMessage() {}
+
+func (x *CancelDeploymentRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stackwright_v1_deployments_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelDeploymentRunResponse.ProtoReflect.Descriptor instead.
+func (*CancelDeploymentRunResponse) Descriptor() ([]byte, []int) {
+	return file_stackwright_v1_deployments_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CancelDeploymentRunResponse) GetRun() *DeploymentRun {
 	if x != nil {
 		return x.Run
 	}
@@ -1277,18 +1381,24 @@ const file_stackwright_v1_deployments_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
 	"\adestroy\x18\x03 \x01(\bR\adestroy\"M\n" +
 	"\x1aStartDeploymentRunResponse\x12/\n" +
-	"\x03run\x18\x01 \x01(\v2\x1d.stackwright.v1.DeploymentRunR\x03run\"W\n" +
-	"\x17GetDeploymentRunRequest\x12\x10\n" +
+	"\x03run\x18\x01 \x01(\v2\x1d.stackwright.v1.DeploymentRunR\x03run\"[\n" +
+	"\x1bApproveDeploymentRunRequest\x12\x10\n" +
 	"\x03org\x18\x01 \x01(\tR\x03org\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06number\x18\x03 \x01(\x05R\x06number\"K\n" +
-	"\x18GetDeploymentRunResponse\x12/\n" +
+	"\x06number\x18\x03 \x01(\x05R\x06number\"O\n" +
+	"\x1cApproveDeploymentRunResponse\x12/\n" +
 	"\x03run\x18\x01 \x01(\v2\x1d.stackwright.v1.DeploymentRunR\x03run\"Z\n" +
-	"\x1aDecideDeploymentRunRequest\x12\x10\n" +
+	"\x1aRejectDeploymentRunRequest\x12\x10\n" +
 	"\x03org\x18\x01 \x01(\tR\x03org\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
 	"\x06number\x18\x03 \x01(\x05R\x06number\"N\n" +
-	"\x1bDecideDeploymentRunResponse\x12/\n" +
+	"\x1bRejectDeploymentRunResponse\x12/\n" +
+	"\x03run\x18\x01 \x01(\v2\x1d.stackwright.v1.DeploymentRunR\x03run\"Z\n" +
+	"\x1aCancelDeploymentRunRequest\x12\x10\n" +
+	"\x03org\x18\x01 \x01(\tR\x03org\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06number\x18\x03 \x01(\x05R\x06number\"N\n" +
+	"\x1bCancelDeploymentRunResponse\x12/\n" +
 	"\x03run\x18\x01 \x01(\v2\x1d.stackwright.v1.DeploymentRunR\x03run*\xde\x02\n" +
 	"\x13DeploymentRunStatus\x12%\n" +
 	"!DEPLOYMENT_RUN_STATUS_UNSPECIFIED\x10\x00\x12\"\n" +
@@ -1299,17 +1409,16 @@ const file_stackwright_v1_deployments_proto_rawDesc = "" +
 	"\x1dDEPLOYMENT_RUN_STATUS_PLANNED\x10\x05\x12 \n" +
 	"\x1cDEPLOYMENT_RUN_STATUS_FAILED\x10\x06\x12\"\n" +
 	"\x1eDEPLOYMENT_RUN_STATUS_REJECTED\x10\a\x12\"\n" +
-	"\x1eDEPLOYMENT_RUN_STATUS_CANCELED\x10\b2\xd4\a\n" +
+	"\x1eDEPLOYMENT_RUN_STATUS_CANCELED\x10\b2\xea\x06\n" +
 	"\x11DeploymentService\x12g\n" +
 	"\x0fListDeployments\x12&.stackwright.v1.ListDeploymentsRequest\x1a'.stackwright.v1.ListDeploymentsResponse\"\x03\x90\x02\x01\x12a\n" +
 	"\rGetDeployment\x12$.stackwright.v1.GetDeploymentRequest\x1a%.stackwright.v1.GetDeploymentResponse\"\x03\x90\x02\x01\x12_\n" +
 	"\x0eSaveDeployment\x12%.stackwright.v1.SaveDeploymentRequest\x1a&.stackwright.v1.SaveDeploymentResponse\x12h\n" +
 	"\x11ArchiveDeployment\x12(.stackwright.v1.ArchiveDeploymentRequest\x1a).stackwright.v1.ArchiveDeploymentResponse\x12k\n" +
-	"\x12StartDeploymentRun\x12).stackwright.v1.StartDeploymentRunRequest\x1a*.stackwright.v1.StartDeploymentRunResponse\x12j\n" +
-	"\x10GetDeploymentRun\x12'.stackwright.v1.GetDeploymentRunRequest\x1a(.stackwright.v1.GetDeploymentRunResponse\"\x03\x90\x02\x01\x12o\n" +
-	"\x14ApproveDeploymentRun\x12*.stackwright.v1.DecideDeploymentRunRequest\x1a+.stackwright.v1.DecideDeploymentRunResponse\x12n\n" +
-	"\x13RejectDeploymentRun\x12*.stackwright.v1.DecideDeploymentRunRequest\x1a+.stackwright.v1.DecideDeploymentRunResponse\x12n\n" +
-	"\x13CancelDeploymentRun\x12*.stackwright.v1.DecideDeploymentRunRequest\x1a+.stackwright.v1.DecideDeploymentRunResponseB\xc4\x01\n" +
+	"\x12StartDeploymentRun\x12).stackwright.v1.StartDeploymentRunRequest\x1a*.stackwright.v1.StartDeploymentRunResponse\x12q\n" +
+	"\x14ApproveDeploymentRun\x12+.stackwright.v1.ApproveDeploymentRunRequest\x1a,.stackwright.v1.ApproveDeploymentRunResponse\x12n\n" +
+	"\x13RejectDeploymentRun\x12*.stackwright.v1.RejectDeploymentRunRequest\x1a+.stackwright.v1.RejectDeploymentRunResponse\x12n\n" +
+	"\x13CancelDeploymentRun\x12*.stackwright.v1.CancelDeploymentRunRequest\x1a+.stackwright.v1.CancelDeploymentRunResponseB\xc4\x01\n" +
 	"\x12com.stackwright.v1B\x10DeploymentsProtoP\x01ZCgithub.com/stackwright/stackwright/gen/stackwright/v1;stackwrightv1\xa2\x02\x03SXX\xaa\x02\x0eStackwright.V1\xca\x02\x0eStackwright\\V1\xe2\x02\x1aStackwright\\V1\\GPBMetadata\xea\x02\x0fStackwright::V1b\x06proto3"
 
 var (
@@ -1325,40 +1434,42 @@ func file_stackwright_v1_deployments_proto_rawDescGZIP() []byte {
 }
 
 var file_stackwright_v1_deployments_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_stackwright_v1_deployments_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_stackwright_v1_deployments_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_stackwright_v1_deployments_proto_goTypes = []any{
-	(DeploymentRunStatus)(0),            // 0: stackwright.v1.DeploymentRunStatus
-	(*WorkspaceRef)(nil),                // 1: stackwright.v1.WorkspaceRef
-	(*DeploymentLink)(nil),              // 2: stackwright.v1.DeploymentLink
-	(*DeploymentStep)(nil),              // 3: stackwright.v1.DeploymentStep
-	(*DeploymentRun)(nil),               // 4: stackwright.v1.DeploymentRun
-	(*Deployment)(nil),                  // 5: stackwright.v1.Deployment
-	(*ListDeploymentsRequest)(nil),      // 6: stackwright.v1.ListDeploymentsRequest
-	(*ListDeploymentsResponse)(nil),     // 7: stackwright.v1.ListDeploymentsResponse
-	(*GetDeploymentRequest)(nil),        // 8: stackwright.v1.GetDeploymentRequest
-	(*GetDeploymentResponse)(nil),       // 9: stackwright.v1.GetDeploymentResponse
-	(*SaveDeploymentRequest)(nil),       // 10: stackwright.v1.SaveDeploymentRequest
-	(*SaveDeploymentResponse)(nil),      // 11: stackwright.v1.SaveDeploymentResponse
-	(*ArchiveDeploymentRequest)(nil),    // 12: stackwright.v1.ArchiveDeploymentRequest
-	(*ArchiveDeploymentResponse)(nil),   // 13: stackwright.v1.ArchiveDeploymentResponse
-	(*StartDeploymentRunRequest)(nil),   // 14: stackwright.v1.StartDeploymentRunRequest
-	(*StartDeploymentRunResponse)(nil),  // 15: stackwright.v1.StartDeploymentRunResponse
-	(*GetDeploymentRunRequest)(nil),     // 16: stackwright.v1.GetDeploymentRunRequest
-	(*GetDeploymentRunResponse)(nil),    // 17: stackwright.v1.GetDeploymentRunResponse
-	(*DecideDeploymentRunRequest)(nil),  // 18: stackwright.v1.DecideDeploymentRunRequest
-	(*DecideDeploymentRunResponse)(nil), // 19: stackwright.v1.DecideDeploymentRunResponse
-	(RunStatus)(0),                      // 20: stackwright.v1.RunStatus
-	(*timestamppb.Timestamp)(nil),       // 21: google.protobuf.Timestamp
+	(DeploymentRunStatus)(0),             // 0: stackwright.v1.DeploymentRunStatus
+	(*WorkspaceRef)(nil),                 // 1: stackwright.v1.WorkspaceRef
+	(*DeploymentLink)(nil),               // 2: stackwright.v1.DeploymentLink
+	(*DeploymentStep)(nil),               // 3: stackwright.v1.DeploymentStep
+	(*DeploymentRun)(nil),                // 4: stackwright.v1.DeploymentRun
+	(*Deployment)(nil),                   // 5: stackwright.v1.Deployment
+	(*ListDeploymentsRequest)(nil),       // 6: stackwright.v1.ListDeploymentsRequest
+	(*ListDeploymentsResponse)(nil),      // 7: stackwright.v1.ListDeploymentsResponse
+	(*GetDeploymentRequest)(nil),         // 8: stackwright.v1.GetDeploymentRequest
+	(*GetDeploymentResponse)(nil),        // 9: stackwright.v1.GetDeploymentResponse
+	(*SaveDeploymentRequest)(nil),        // 10: stackwright.v1.SaveDeploymentRequest
+	(*SaveDeploymentResponse)(nil),       // 11: stackwright.v1.SaveDeploymentResponse
+	(*ArchiveDeploymentRequest)(nil),     // 12: stackwright.v1.ArchiveDeploymentRequest
+	(*ArchiveDeploymentResponse)(nil),    // 13: stackwright.v1.ArchiveDeploymentResponse
+	(*StartDeploymentRunRequest)(nil),    // 14: stackwright.v1.StartDeploymentRunRequest
+	(*StartDeploymentRunResponse)(nil),   // 15: stackwright.v1.StartDeploymentRunResponse
+	(*ApproveDeploymentRunRequest)(nil),  // 16: stackwright.v1.ApproveDeploymentRunRequest
+	(*ApproveDeploymentRunResponse)(nil), // 17: stackwright.v1.ApproveDeploymentRunResponse
+	(*RejectDeploymentRunRequest)(nil),   // 18: stackwright.v1.RejectDeploymentRunRequest
+	(*RejectDeploymentRunResponse)(nil),  // 19: stackwright.v1.RejectDeploymentRunResponse
+	(*CancelDeploymentRunRequest)(nil),   // 20: stackwright.v1.CancelDeploymentRunRequest
+	(*CancelDeploymentRunResponse)(nil),  // 21: stackwright.v1.CancelDeploymentRunResponse
+	(RunStatus)(0),                       // 22: stackwright.v1.RunStatus
+	(*timestamppb.Timestamp)(nil),        // 23: google.protobuf.Timestamp
 }
 var file_stackwright_v1_deployments_proto_depIdxs = []int32{
 	1,  // 0: stackwright.v1.DeploymentLink.from:type_name -> stackwright.v1.WorkspaceRef
 	1,  // 1: stackwright.v1.DeploymentLink.to:type_name -> stackwright.v1.WorkspaceRef
 	1,  // 2: stackwright.v1.DeploymentStep.workspace:type_name -> stackwright.v1.WorkspaceRef
-	20, // 3: stackwright.v1.DeploymentStep.run_status:type_name -> stackwright.v1.RunStatus
+	22, // 3: stackwright.v1.DeploymentStep.run_status:type_name -> stackwright.v1.RunStatus
 	1,  // 4: stackwright.v1.DeploymentStep.waiting_for:type_name -> stackwright.v1.WorkspaceRef
 	0,  // 5: stackwright.v1.DeploymentRun.status:type_name -> stackwright.v1.DeploymentRunStatus
-	21, // 6: stackwright.v1.DeploymentRun.created_at:type_name -> google.protobuf.Timestamp
-	21, // 7: stackwright.v1.DeploymentRun.finished_at:type_name -> google.protobuf.Timestamp
+	23, // 6: stackwright.v1.DeploymentRun.created_at:type_name -> google.protobuf.Timestamp
+	23, // 7: stackwright.v1.DeploymentRun.finished_at:type_name -> google.protobuf.Timestamp
 	3,  // 8: stackwright.v1.DeploymentRun.steps:type_name -> stackwright.v1.DeploymentStep
 	1,  // 9: stackwright.v1.Deployment.steps:type_name -> stackwright.v1.WorkspaceRef
 	2,  // 10: stackwright.v1.Deployment.links:type_name -> stackwright.v1.DeploymentLink
@@ -1370,31 +1481,30 @@ var file_stackwright_v1_deployments_proto_depIdxs = []int32{
 	2,  // 16: stackwright.v1.SaveDeploymentRequest.links:type_name -> stackwright.v1.DeploymentLink
 	5,  // 17: stackwright.v1.SaveDeploymentResponse.deployment:type_name -> stackwright.v1.Deployment
 	4,  // 18: stackwright.v1.StartDeploymentRunResponse.run:type_name -> stackwright.v1.DeploymentRun
-	4,  // 19: stackwright.v1.GetDeploymentRunResponse.run:type_name -> stackwright.v1.DeploymentRun
-	4,  // 20: stackwright.v1.DecideDeploymentRunResponse.run:type_name -> stackwright.v1.DeploymentRun
-	6,  // 21: stackwright.v1.DeploymentService.ListDeployments:input_type -> stackwright.v1.ListDeploymentsRequest
-	8,  // 22: stackwright.v1.DeploymentService.GetDeployment:input_type -> stackwright.v1.GetDeploymentRequest
-	10, // 23: stackwright.v1.DeploymentService.SaveDeployment:input_type -> stackwright.v1.SaveDeploymentRequest
-	12, // 24: stackwright.v1.DeploymentService.ArchiveDeployment:input_type -> stackwright.v1.ArchiveDeploymentRequest
-	14, // 25: stackwright.v1.DeploymentService.StartDeploymentRun:input_type -> stackwright.v1.StartDeploymentRunRequest
-	16, // 26: stackwright.v1.DeploymentService.GetDeploymentRun:input_type -> stackwright.v1.GetDeploymentRunRequest
-	18, // 27: stackwright.v1.DeploymentService.ApproveDeploymentRun:input_type -> stackwright.v1.DecideDeploymentRunRequest
-	18, // 28: stackwright.v1.DeploymentService.RejectDeploymentRun:input_type -> stackwright.v1.DecideDeploymentRunRequest
-	18, // 29: stackwright.v1.DeploymentService.CancelDeploymentRun:input_type -> stackwright.v1.DecideDeploymentRunRequest
+	4,  // 19: stackwright.v1.ApproveDeploymentRunResponse.run:type_name -> stackwright.v1.DeploymentRun
+	4,  // 20: stackwright.v1.RejectDeploymentRunResponse.run:type_name -> stackwright.v1.DeploymentRun
+	4,  // 21: stackwright.v1.CancelDeploymentRunResponse.run:type_name -> stackwright.v1.DeploymentRun
+	6,  // 22: stackwright.v1.DeploymentService.ListDeployments:input_type -> stackwright.v1.ListDeploymentsRequest
+	8,  // 23: stackwright.v1.DeploymentService.GetDeployment:input_type -> stackwright.v1.GetDeploymentRequest
+	10, // 24: stackwright.v1.DeploymentService.SaveDeployment:input_type -> stackwright.v1.SaveDeploymentRequest
+	12, // 25: stackwright.v1.DeploymentService.ArchiveDeployment:input_type -> stackwright.v1.ArchiveDeploymentRequest
+	14, // 26: stackwright.v1.DeploymentService.StartDeploymentRun:input_type -> stackwright.v1.StartDeploymentRunRequest
+	16, // 27: stackwright.v1.DeploymentService.ApproveDeploymentRun:input_type -> stackwright.v1.ApproveDeploymentRunRequest
+	18, // 28: stackwright.v1.DeploymentService.RejectDeploymentRun:input_type -> stackwright.v1.RejectDeploymentRunRequest
+	20, // 29: stackwright.v1.DeploymentService.CancelDeploymentRun:input_type -> stackwright.v1.CancelDeploymentRunRequest
 	7,  // 30: stackwright.v1.DeploymentService.ListDeployments:output_type -> stackwright.v1.ListDeploymentsResponse
 	9,  // 31: stackwright.v1.DeploymentService.GetDeployment:output_type -> stackwright.v1.GetDeploymentResponse
 	11, // 32: stackwright.v1.DeploymentService.SaveDeployment:output_type -> stackwright.v1.SaveDeploymentResponse
 	13, // 33: stackwright.v1.DeploymentService.ArchiveDeployment:output_type -> stackwright.v1.ArchiveDeploymentResponse
 	15, // 34: stackwright.v1.DeploymentService.StartDeploymentRun:output_type -> stackwright.v1.StartDeploymentRunResponse
-	17, // 35: stackwright.v1.DeploymentService.GetDeploymentRun:output_type -> stackwright.v1.GetDeploymentRunResponse
-	19, // 36: stackwright.v1.DeploymentService.ApproveDeploymentRun:output_type -> stackwright.v1.DecideDeploymentRunResponse
-	19, // 37: stackwright.v1.DeploymentService.RejectDeploymentRun:output_type -> stackwright.v1.DecideDeploymentRunResponse
-	19, // 38: stackwright.v1.DeploymentService.CancelDeploymentRun:output_type -> stackwright.v1.DecideDeploymentRunResponse
-	30, // [30:39] is the sub-list for method output_type
-	21, // [21:30] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	17, // 35: stackwright.v1.DeploymentService.ApproveDeploymentRun:output_type -> stackwright.v1.ApproveDeploymentRunResponse
+	19, // 36: stackwright.v1.DeploymentService.RejectDeploymentRun:output_type -> stackwright.v1.RejectDeploymentRunResponse
+	21, // 37: stackwright.v1.DeploymentService.CancelDeploymentRun:output_type -> stackwright.v1.CancelDeploymentRunResponse
+	30, // [30:38] is the sub-list for method output_type
+	22, // [22:30] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_stackwright_v1_deployments_proto_init() }
@@ -1409,7 +1519,7 @@ func file_stackwright_v1_deployments_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stackwright_v1_deployments_proto_rawDesc), len(file_stackwright_v1_deployments_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -123,6 +123,14 @@ func (h GitHub) StartInstall(ctx context.Context, req *connect.Request[v1.StartI
 
 func (h GitHub) UnlinkInstallation(ctx context.Context, req *connect.Request[v1.UnlinkInstallationRequest]) (*connect.Response[v1.UnlinkInstallationResponse], error) {
 	s := authz.ScopeFrom(ctx)
+	var linked bool
+	if err := s.Tx.QueryRow(ctx, `SELECT EXISTS (SELECT FROM github_installations WHERE installation_id = $1 AND org_id = $2)`,
+		req.Msg.GetInstallationId(), s.OrgID).Scan(&linked); err != nil {
+		return nil, authz.Internal(err)
+	}
+	if !linked {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("installation not found"))
+	}
 	if _, err := s.Tx.Exec(ctx, `SELECT lock_repo_runs($1)`, req.Msg.GetInstallationId()); err != nil {
 		return nil, authz.Internal(err)
 	}

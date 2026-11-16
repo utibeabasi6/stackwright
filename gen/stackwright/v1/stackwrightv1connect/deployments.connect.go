@@ -48,9 +48,6 @@ const (
 	// DeploymentServiceStartDeploymentRunProcedure is the fully-qualified name of the
 	// DeploymentService's StartDeploymentRun RPC.
 	DeploymentServiceStartDeploymentRunProcedure = "/stackwright.v1.DeploymentService/StartDeploymentRun"
-	// DeploymentServiceGetDeploymentRunProcedure is the fully-qualified name of the DeploymentService's
-	// GetDeploymentRun RPC.
-	DeploymentServiceGetDeploymentRunProcedure = "/stackwright.v1.DeploymentService/GetDeploymentRun"
 	// DeploymentServiceApproveDeploymentRunProcedure is the fully-qualified name of the
 	// DeploymentService's ApproveDeploymentRun RPC.
 	DeploymentServiceApproveDeploymentRunProcedure = "/stackwright.v1.DeploymentService/ApproveDeploymentRun"
@@ -70,10 +67,9 @@ type DeploymentServiceClient interface {
 	SaveDeployment(context.Context, *connect.Request[v1.SaveDeploymentRequest]) (*connect.Response[v1.SaveDeploymentResponse], error)
 	ArchiveDeployment(context.Context, *connect.Request[v1.ArchiveDeploymentRequest]) (*connect.Response[v1.ArchiveDeploymentResponse], error)
 	StartDeploymentRun(context.Context, *connect.Request[v1.StartDeploymentRunRequest]) (*connect.Response[v1.StartDeploymentRunResponse], error)
-	GetDeploymentRun(context.Context, *connect.Request[v1.GetDeploymentRunRequest]) (*connect.Response[v1.GetDeploymentRunResponse], error)
-	ApproveDeploymentRun(context.Context, *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error)
-	RejectDeploymentRun(context.Context, *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error)
-	CancelDeploymentRun(context.Context, *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error)
+	ApproveDeploymentRun(context.Context, *connect.Request[v1.ApproveDeploymentRunRequest]) (*connect.Response[v1.ApproveDeploymentRunResponse], error)
+	RejectDeploymentRun(context.Context, *connect.Request[v1.RejectDeploymentRunRequest]) (*connect.Response[v1.RejectDeploymentRunResponse], error)
+	CancelDeploymentRun(context.Context, *connect.Request[v1.CancelDeploymentRunRequest]) (*connect.Response[v1.CancelDeploymentRunResponse], error)
 }
 
 // NewDeploymentServiceClient constructs a client for the stackwright.v1.DeploymentService service.
@@ -119,26 +115,19 @@ func NewDeploymentServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(deploymentServiceMethods.ByName("StartDeploymentRun")),
 			connect.WithClientOptions(opts...),
 		),
-		getDeploymentRun: connect.NewClient[v1.GetDeploymentRunRequest, v1.GetDeploymentRunResponse](
-			httpClient,
-			baseURL+DeploymentServiceGetDeploymentRunProcedure,
-			connect.WithSchema(deploymentServiceMethods.ByName("GetDeploymentRun")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
-		approveDeploymentRun: connect.NewClient[v1.DecideDeploymentRunRequest, v1.DecideDeploymentRunResponse](
+		approveDeploymentRun: connect.NewClient[v1.ApproveDeploymentRunRequest, v1.ApproveDeploymentRunResponse](
 			httpClient,
 			baseURL+DeploymentServiceApproveDeploymentRunProcedure,
 			connect.WithSchema(deploymentServiceMethods.ByName("ApproveDeploymentRun")),
 			connect.WithClientOptions(opts...),
 		),
-		rejectDeploymentRun: connect.NewClient[v1.DecideDeploymentRunRequest, v1.DecideDeploymentRunResponse](
+		rejectDeploymentRun: connect.NewClient[v1.RejectDeploymentRunRequest, v1.RejectDeploymentRunResponse](
 			httpClient,
 			baseURL+DeploymentServiceRejectDeploymentRunProcedure,
 			connect.WithSchema(deploymentServiceMethods.ByName("RejectDeploymentRun")),
 			connect.WithClientOptions(opts...),
 		),
-		cancelDeploymentRun: connect.NewClient[v1.DecideDeploymentRunRequest, v1.DecideDeploymentRunResponse](
+		cancelDeploymentRun: connect.NewClient[v1.CancelDeploymentRunRequest, v1.CancelDeploymentRunResponse](
 			httpClient,
 			baseURL+DeploymentServiceCancelDeploymentRunProcedure,
 			connect.WithSchema(deploymentServiceMethods.ByName("CancelDeploymentRun")),
@@ -154,10 +143,9 @@ type deploymentServiceClient struct {
 	saveDeployment       *connect.Client[v1.SaveDeploymentRequest, v1.SaveDeploymentResponse]
 	archiveDeployment    *connect.Client[v1.ArchiveDeploymentRequest, v1.ArchiveDeploymentResponse]
 	startDeploymentRun   *connect.Client[v1.StartDeploymentRunRequest, v1.StartDeploymentRunResponse]
-	getDeploymentRun     *connect.Client[v1.GetDeploymentRunRequest, v1.GetDeploymentRunResponse]
-	approveDeploymentRun *connect.Client[v1.DecideDeploymentRunRequest, v1.DecideDeploymentRunResponse]
-	rejectDeploymentRun  *connect.Client[v1.DecideDeploymentRunRequest, v1.DecideDeploymentRunResponse]
-	cancelDeploymentRun  *connect.Client[v1.DecideDeploymentRunRequest, v1.DecideDeploymentRunResponse]
+	approveDeploymentRun *connect.Client[v1.ApproveDeploymentRunRequest, v1.ApproveDeploymentRunResponse]
+	rejectDeploymentRun  *connect.Client[v1.RejectDeploymentRunRequest, v1.RejectDeploymentRunResponse]
+	cancelDeploymentRun  *connect.Client[v1.CancelDeploymentRunRequest, v1.CancelDeploymentRunResponse]
 }
 
 // ListDeployments calls stackwright.v1.DeploymentService.ListDeployments.
@@ -185,23 +173,18 @@ func (c *deploymentServiceClient) StartDeploymentRun(ctx context.Context, req *c
 	return c.startDeploymentRun.CallUnary(ctx, req)
 }
 
-// GetDeploymentRun calls stackwright.v1.DeploymentService.GetDeploymentRun.
-func (c *deploymentServiceClient) GetDeploymentRun(ctx context.Context, req *connect.Request[v1.GetDeploymentRunRequest]) (*connect.Response[v1.GetDeploymentRunResponse], error) {
-	return c.getDeploymentRun.CallUnary(ctx, req)
-}
-
 // ApproveDeploymentRun calls stackwright.v1.DeploymentService.ApproveDeploymentRun.
-func (c *deploymentServiceClient) ApproveDeploymentRun(ctx context.Context, req *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
+func (c *deploymentServiceClient) ApproveDeploymentRun(ctx context.Context, req *connect.Request[v1.ApproveDeploymentRunRequest]) (*connect.Response[v1.ApproveDeploymentRunResponse], error) {
 	return c.approveDeploymentRun.CallUnary(ctx, req)
 }
 
 // RejectDeploymentRun calls stackwright.v1.DeploymentService.RejectDeploymentRun.
-func (c *deploymentServiceClient) RejectDeploymentRun(ctx context.Context, req *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
+func (c *deploymentServiceClient) RejectDeploymentRun(ctx context.Context, req *connect.Request[v1.RejectDeploymentRunRequest]) (*connect.Response[v1.RejectDeploymentRunResponse], error) {
 	return c.rejectDeploymentRun.CallUnary(ctx, req)
 }
 
 // CancelDeploymentRun calls stackwright.v1.DeploymentService.CancelDeploymentRun.
-func (c *deploymentServiceClient) CancelDeploymentRun(ctx context.Context, req *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
+func (c *deploymentServiceClient) CancelDeploymentRun(ctx context.Context, req *connect.Request[v1.CancelDeploymentRunRequest]) (*connect.Response[v1.CancelDeploymentRunResponse], error) {
 	return c.cancelDeploymentRun.CallUnary(ctx, req)
 }
 
@@ -213,10 +196,9 @@ type DeploymentServiceHandler interface {
 	SaveDeployment(context.Context, *connect.Request[v1.SaveDeploymentRequest]) (*connect.Response[v1.SaveDeploymentResponse], error)
 	ArchiveDeployment(context.Context, *connect.Request[v1.ArchiveDeploymentRequest]) (*connect.Response[v1.ArchiveDeploymentResponse], error)
 	StartDeploymentRun(context.Context, *connect.Request[v1.StartDeploymentRunRequest]) (*connect.Response[v1.StartDeploymentRunResponse], error)
-	GetDeploymentRun(context.Context, *connect.Request[v1.GetDeploymentRunRequest]) (*connect.Response[v1.GetDeploymentRunResponse], error)
-	ApproveDeploymentRun(context.Context, *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error)
-	RejectDeploymentRun(context.Context, *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error)
-	CancelDeploymentRun(context.Context, *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error)
+	ApproveDeploymentRun(context.Context, *connect.Request[v1.ApproveDeploymentRunRequest]) (*connect.Response[v1.ApproveDeploymentRunResponse], error)
+	RejectDeploymentRun(context.Context, *connect.Request[v1.RejectDeploymentRunRequest]) (*connect.Response[v1.RejectDeploymentRunResponse], error)
+	CancelDeploymentRun(context.Context, *connect.Request[v1.CancelDeploymentRunRequest]) (*connect.Response[v1.CancelDeploymentRunResponse], error)
 }
 
 // NewDeploymentServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -258,13 +240,6 @@ func NewDeploymentServiceHandler(svc DeploymentServiceHandler, opts ...connect.H
 		connect.WithSchema(deploymentServiceMethods.ByName("StartDeploymentRun")),
 		connect.WithHandlerOptions(opts...),
 	)
-	deploymentServiceGetDeploymentRunHandler := connect.NewUnaryHandler(
-		DeploymentServiceGetDeploymentRunProcedure,
-		svc.GetDeploymentRun,
-		connect.WithSchema(deploymentServiceMethods.ByName("GetDeploymentRun")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
 	deploymentServiceApproveDeploymentRunHandler := connect.NewUnaryHandler(
 		DeploymentServiceApproveDeploymentRunProcedure,
 		svc.ApproveDeploymentRun,
@@ -295,8 +270,6 @@ func NewDeploymentServiceHandler(svc DeploymentServiceHandler, opts ...connect.H
 			deploymentServiceArchiveDeploymentHandler.ServeHTTP(w, r)
 		case DeploymentServiceStartDeploymentRunProcedure:
 			deploymentServiceStartDeploymentRunHandler.ServeHTTP(w, r)
-		case DeploymentServiceGetDeploymentRunProcedure:
-			deploymentServiceGetDeploymentRunHandler.ServeHTTP(w, r)
 		case DeploymentServiceApproveDeploymentRunProcedure:
 			deploymentServiceApproveDeploymentRunHandler.ServeHTTP(w, r)
 		case DeploymentServiceRejectDeploymentRunProcedure:
@@ -332,18 +305,14 @@ func (UnimplementedDeploymentServiceHandler) StartDeploymentRun(context.Context,
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.DeploymentService.StartDeploymentRun is not implemented"))
 }
 
-func (UnimplementedDeploymentServiceHandler) GetDeploymentRun(context.Context, *connect.Request[v1.GetDeploymentRunRequest]) (*connect.Response[v1.GetDeploymentRunResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.DeploymentService.GetDeploymentRun is not implemented"))
-}
-
-func (UnimplementedDeploymentServiceHandler) ApproveDeploymentRun(context.Context, *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
+func (UnimplementedDeploymentServiceHandler) ApproveDeploymentRun(context.Context, *connect.Request[v1.ApproveDeploymentRunRequest]) (*connect.Response[v1.ApproveDeploymentRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.DeploymentService.ApproveDeploymentRun is not implemented"))
 }
 
-func (UnimplementedDeploymentServiceHandler) RejectDeploymentRun(context.Context, *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
+func (UnimplementedDeploymentServiceHandler) RejectDeploymentRun(context.Context, *connect.Request[v1.RejectDeploymentRunRequest]) (*connect.Response[v1.RejectDeploymentRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.DeploymentService.RejectDeploymentRun is not implemented"))
 }
 
-func (UnimplementedDeploymentServiceHandler) CancelDeploymentRun(context.Context, *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
+func (UnimplementedDeploymentServiceHandler) CancelDeploymentRun(context.Context, *connect.Request[v1.CancelDeploymentRunRequest]) (*connect.Response[v1.CancelDeploymentRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stackwright.v1.DeploymentService.CancelDeploymentRun is not implemented"))
 }

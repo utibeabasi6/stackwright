@@ -28,8 +28,15 @@ func (r *Redactor) Add(values ...string) {
 		if v == "" {
 			continue
 		}
-		// OpenTofu writes & < > as they are; Go's encoder writes &.
-		for _, s := range [][]byte{[]byte(v), jsonString(v, true), jsonString(v, false)} {
+		// OpenTofu writes & < > as they are; Go's encoder writes &
+		// < >. A value inside jsonencode() is escaped twice in a
+		// plan's JSON and in diagnostics.
+		once := [][]byte{jsonString(v, true), jsonString(v, false)}
+		forms := [][]byte{[]byte(v), once[0], once[1]}
+		for _, e := range once {
+			forms = append(forms, jsonString(string(e), true), jsonString(string(e), false))
+		}
+		for _, s := range forms {
 			if !slices.ContainsFunc(r.secrets, func(x []byte) bool { return bytes.Equal(x, s) }) {
 				r.secrets = append(r.secrets, s)
 			}

@@ -18,6 +18,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/runs"
 	"github.com/stackwright/stackwright/internal/stacks"
 )
@@ -110,7 +111,17 @@ func (g *GitHub) processDue(ctx context.Context) error {
 		return err
 	}
 	for _, d := range due {
-		perr := g.process(ctx, d.event, d.payload)
+		// A delivery carries code from the repository, which reaches
+		// parsers; one that panics must fail its delivery, not stop the
+		// server and then panic again at each start.
+		perr := func() (err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					err = fmt.Errorf("processing the delivery panicked: %v", p)
+				}
+			}()
+			return g.process(ctx, d.event, d.payload)
+		}()
 		if perr != nil {
 			slog.Warn("webhook failed", "delivery", d.id, "event", d.event, "err", perr)
 			_, err = g.Pool.Exec(ctx, `UPDATE webhook_deliveries SET attempts = attempts + 1, error = $2,
@@ -154,6 +165,7 @@ type payload struct {
 	Ref    string `json:"ref"`
 	Before string `json:"before"`
 	After  string `json:"after"`
+	Forced bool   `json:"forced"`
 }
 
 func (g *GitHub) process(ctx context.Context, event string, raw []byte) error {
@@ -169,10 +181,7 @@ func (g *GitHub) process(ctx context.Context, event string, raw []byte) error {
 	if err != nil {
 		return err
 	}
-	return pgx.BeginFunc(ctx, g.Pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
-			return err
-		}
+	return db.InOrg(ctx, g.Pool, orgID, func(tx pgx.Tx) error {
 		switch {
 		case event == "installation" && p.Action == "deleted":
 			if _, err := tx.Exec(ctx, `SELECT lock_repo_runs($1)`, p.Installation.ID); err != nil {
@@ -305,9 +314,13 @@ func (g *GitHub) push(ctx context.Context, tx pgx.Tx, orgID string, p payload) e
 	if err != nil || len(ts) == 0 {
 		return err
 	}
-	changed, err := g.changedFiles(ctx, repo, p.Before, p.After)
-	if err != nil {
-		return err
+	// A compare lists the files from the two commits' merge base, so after a
+	// force push it misses what the push took away: every target plans.
+	var changed []string
+	if !p.Forced {
+		if changed, err = g.changedFiles(ctx, repo, p.Before, p.After); err != nil {
+			return err
+		}
 	}
 	return g.start(ctx, tx, orgID, repo, ts, changed, runs.NewRun{
 		Trigger: "push", CommitSHA: p.After, Branch: branch, SourceName: fmt.Sprintf("%s@%s", repo.fullName, branch),
@@ -382,7 +395,14 @@ func (g *GitHub) BranchHead(ctx context.Context, tx pgx.Tx, orgID, workspaceID s
 	if err := g.call(ctx, http.MethodGet, fmt.Sprintf("/repos/%s/commits/%s", repo.fullName, url.PathEscape(branch)), token, nil, &commit); err != nil {
 		return runs.NewRun{}, true, fmt.Errorf("find the newest commit on %s: %w", branch, err)
 	}
-	a, err := g.archive(ctx, tx, orgID, repo, commit.SHA)
+	// A commit that is stored already needs no download; many workspaces
+	// of one repository ask for the same head.
+	var a archive
+	err = tx.QueryRow(ctx, `SELECT object_key, sha256 FROM source_archives WHERE repo_id = $1 AND commit_sha = $2`, repo.id, commit.SHA).
+		Scan(&a.key, &a.sha256)
+	if errors.Is(err, pgx.ErrNoRows) {
+		a, err = g.archive(ctx, tx, orgID, repo, commit.SHA)
+	}
 	if err != nil {
 		return runs.NewRun{}, true, err
 	}

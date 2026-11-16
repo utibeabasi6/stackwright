@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/stackwright/stackwright/internal/stacks"
@@ -67,15 +68,48 @@ func IsScanned(name string) bool {
 	case "terragrunt.hcl", ".opentofu-version", ".terraform-version":
 		return true
 	}
-	if stacks.IsStackFile(name) {
-		return true
+	return stacks.IsStackFile(name) || stacks.IsConfig(name)
+}
+
+// LocalSources returns the local module paths that a configuration file
+// or a terragrunt.hcl calls, relative to its folder. A file that does not
+// parse adds nothing; its plan reports it.
+// https://opentofu.org/docs/language/modules/sources/#local-paths
+func LocalSources(name string, src []byte) []string {
+	var all []string
+	switch {
+	case path.Base(name) == "terragrunt.hcl":
+		_, all = terragrunt(src)
+	case strings.HasSuffix(name, ".json"):
+		all = jsonModuleSources(name, src)
+	default:
+		all = moduleSources(name, src)
 	}
-	for _, ext := range []string{".tf", ".tofu", ".tf.json", ".tofu.json"} {
-		if strings.HasSuffix(name, ext) {
-			return true
+	var out []string
+	for _, s := range all {
+		if strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") {
+			out = append(out, s)
 		}
 	}
-	return false
+	return out
+}
+
+func jsonModuleSources(name string, src []byte) []string {
+	file, diags := hcljson.Parse(src, name)
+	if diags.HasErrors() {
+		return nil
+	}
+	content, _, _ := file.Body.PartialContent(&hcl.BodySchema{Blocks: []hcl.BlockHeaderSchema{{Type: "module", LabelNames: []string{"name"}}}})
+	var out []string
+	for _, b := range content.Blocks {
+		attrs, _, _ := b.Body.PartialContent(&hcl.BodySchema{Attributes: []hcl.AttributeSchema{{Name: "source"}}})
+		if a := attrs.Attributes["source"]; a != nil {
+			if v, diags := a.Expr.Value(nil); !diags.HasErrors() && v.IsKnown() && !v.IsNull() && v.Type() == cty.String {
+				out = append(out, v.AsString())
+			}
+		}
+	}
+	return out
 }
 
 // Scan finds the roots, modules and Terragrunt units of a repository from
@@ -136,6 +170,7 @@ func Scan(repo string, names []string, files map[string][]byte) Result {
 			callsFrom(dir, moduleSources(name, src))
 		case strings.HasSuffix(base, ".tf.json") || strings.HasSuffix(base, ".tofu.json"):
 			at(dir).config = append(at(dir).config, name)
+			callsFrom(dir, jsonModuleSources(name, src))
 		}
 	}
 

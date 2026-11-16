@@ -3,7 +3,7 @@ import { Action, Submit, useAction } from "../../Action";
 import { useParams } from "@tanstack/react-router";
 import { message, orgApi } from "../../api";
 import { Role } from "../../gen/stackwright/v1/orgs_pb";
-import { useMe } from "../../me";
+import { useMe, useRole } from "../../me";
 import { roleName, roles } from "../../roles";
 import { useLoad } from "../../useLoad";
 import { Select } from "../../Select";
@@ -11,7 +11,7 @@ import { Select } from "../../Select";
 export function Members() {
   const { org } = useParams({ strict: false }) as { org: string };
   const me = useMe();
-  const myRole = me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
+  const myRole = useRole(org);
   const admin = myRole >= Role.ADMIN;
   const members = useLoad(`members:${org}`, () => orgApi.listMembers({ org }));
   const invites = useLoad(`invites:${org}:${admin}`, () =>

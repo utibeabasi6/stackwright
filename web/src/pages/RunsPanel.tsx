@@ -5,7 +5,7 @@ import { message, runApi } from "../api";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run } from "../gen/stackwright/v1/runs_pb";
 import { formatLabels } from "../labels";
-import { useShell } from "../me";
+import { useRole, useShell } from "../me";
 import { origin, runTitle, statusOf } from "../runs";
 import { useLoad } from "../useLoad";
 
@@ -24,12 +24,12 @@ type Props = {
 };
 
 export function RunsPanel({ org, project, workspace, sample, linkedRepo, runBranch, autoApply, requiredLabels, gitState }: Props) {
-  const { me, reloadWaiting } = useShell();
+  const { reloadWaiting } = useShell();
   const navigate = useNavigate();
   const runs = useLoad(`runs:${org}/${project}/${workspace}`, () => runApi.listRuns({ org, project, workspace }).then((r) => r.runs));
   const [error, setError] = useState<string>();
   const starting = useAction();
-  const role = me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
+  const role = useRole(org);
   const latest = runs.data?.[0];
   const urgent = latest?.status === RunStatus.NEEDS_APPROVAL || latest?.status === RunStatus.FAILED;
 

@@ -133,7 +133,7 @@ func Record(ctx context.Context, tx pgx.Tx, orgID, workspaceID string, results [
 			return err
 		}
 		ids = append(ids, id)
-		if opened && (r.Severity == "high" || r.Severity == "critical") {
+		if opened && Blocks(r.Severity) {
 			e := notify.Event{Type: notify.FindingOpened, Resource: r.Resource, Severity: r.Severity, Check: r.CheckID}
 			if err := workspaceOf(ctx, tx, workspaceID, &e); err != nil {
 				return err

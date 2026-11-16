@@ -386,3 +386,40 @@ func TestWorkspaceNames(t *testing.T) {
 		}
 	}
 }
+
+func TestMalformedReferencesAreErrors(t *testing.T) {
+	for name, files := range map[string]map[string]string{
+		"a quoted providers key": {"main.tfcomponent.hcl": minimal + `
+component "b" {
+  source    = "./pet"
+  providers = { "random" = provider.random.this }
+}
+`},
+		"an index in depends_on": {"main.tfcomponent.hcl": minimal + `
+component "b" {
+  source     = "./pet"
+  depends_on = [component["pet"]]
+}
+`},
+		"an index in removed from": {"main.tfcomponent.hcl": minimal + `
+removed {
+  from   = component["pet"]
+  source = "./pet"
+}
+`},
+		"an index in deployment_group": {"main.tfcomponent.hcl": minimal, "deploy.tfdeploy.hcl": `deployment_group "canary" {}
+deployment "dev" {
+  inputs           = { names = ["a"] }
+  deployment_group = deployment_group["canary"]
+}
+`},
+	} {
+		in := map[string][]byte{}
+		for k, v := range files {
+			in[k] = []byte(v)
+		}
+		if _, err := Parse(in); err == nil {
+			t.Errorf("%s: parsed", name)
+		}
+	}
+}

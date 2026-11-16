@@ -1,6 +1,8 @@
 package authz
 
 import (
+	"slices"
+
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 )
@@ -27,9 +29,23 @@ const (
 type Rule struct {
 	Access Access
 	Min    v1.Role
+	// Roles, when set, are the only roles admitted, whatever their rank.
+	Roles []v1.Role
+}
+
+func (r Rule) Admits(role v1.Role) bool {
+	if r.Roles != nil {
+		return slices.Contains(r.Roles, role)
+	}
+	return AtLeast(role, r.Min)
 }
 
 func org(min v1.Role) Rule { return Rule{Access: InOrg, Min: min} }
+
+// decidesRisk admits the security role, admins and owners: writers and
+// reviewers rank above security, but those who change code do not accept
+// its risks (adr/0037).
+var decidesRisk = Rule{Access: InOrg, Roles: []v1.Role{v1.Role_ROLE_SECURITY, v1.Role_ROLE_ADMIN, v1.Role_ROLE_OWNER}}
 
 // Policy lists every RPC. The interceptor refuses one that is not here.
 var Policy = map[string]Rule{
@@ -70,31 +86,28 @@ var Policy = map[string]Rule{
 	stackwrightv1connect.ImportServiceScanRepositoryProcedure:       org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.ImportServiceStartImportProcedure:          org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.ImportServiceGetImportProcedure:            org(v1.Role_ROLE_VIEWER),
-	// The handlers narrow these to the security role, admins and owners
-	// (adr/0037): writers and reviewers rank above security.
-	stackwrightv1connect.SecurityServiceListFindingsProcedure:      org(v1.Role_ROLE_VIEWER),
-	stackwrightv1connect.SecurityServiceListRunFindingsProcedure:   org(v1.Role_ROLE_VIEWER),
-	stackwrightv1connect.SecurityServiceGetSecurityPolicyProcedure: org(v1.Role_ROLE_VIEWER),
-	stackwrightv1connect.SecurityServiceAcceptRiskProcedure:        org(v1.Role_ROLE_SECURITY),
-	stackwrightv1connect.SecurityServiceSetPolicySetProcedure:      org(v1.Role_ROLE_SECURITY),
-	stackwrightv1connect.SecurityServiceDeletePolicySetProcedure:   org(v1.Role_ROLE_SECURITY),
-	stackwrightv1connect.SecurityServiceSetSkippedChecksProcedure:  org(v1.Role_ROLE_SECURITY),
-	stackwrightv1connect.ProjectServiceArchiveProjectProcedure:     org(v1.Role_ROLE_ADMIN),
-	stackwrightv1connect.ProjectServiceCreateWorkspaceProcedure:    org(v1.Role_ROLE_ADMIN),
-	stackwrightv1connect.ProjectServiceArchiveWorkspaceProcedure:   org(v1.Role_ROLE_ADMIN),
-	stackwrightv1connect.ProjectServiceUpdateWorkspaceProcedure:    org(v1.Role_ROLE_ADMIN),
-	stackwrightv1connect.ProjectServiceListEngineVersionsProcedure: {Access: SignedIn},
+	stackwrightv1connect.SecurityServiceListFindingsProcedure:       org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.SecurityServiceListRunFindingsProcedure:    org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.SecurityServiceGetSecurityPolicyProcedure:  org(v1.Role_ROLE_VIEWER),
+	stackwrightv1connect.SecurityServiceAcceptRiskProcedure:         decidesRisk,
+	stackwrightv1connect.SecurityServiceSetPolicySetProcedure:       decidesRisk,
+	stackwrightv1connect.SecurityServiceDeletePolicySetProcedure:    decidesRisk,
+	stackwrightv1connect.SecurityServiceSetSkippedChecksProcedure:   decidesRisk,
+	stackwrightv1connect.ProjectServiceArchiveProjectProcedure:      org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.ProjectServiceCreateWorkspaceProcedure:     org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.ProjectServiceArchiveWorkspaceProcedure:    org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.ProjectServiceUpdateWorkspaceProcedure:     org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.ProjectServiceListEngineVersionsProcedure:  {Access: SignedIn},
 
 	stackwrightv1connect.RunServiceCreateRunProcedure:                        org(v1.Role_ROLE_WRITER),
 	stackwrightv1connect.DeploymentServiceListDeploymentsProcedure:           org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.DeploymentServiceGetDeploymentProcedure:             org(v1.Role_ROLE_VIEWER),
-	stackwrightv1connect.DeploymentServiceGetDeploymentRunProcedure:          org(v1.Role_ROLE_VIEWER),
 	stackwrightv1connect.DeploymentServiceSaveDeploymentProcedure:            org(v1.Role_ROLE_WRITER),
 	stackwrightv1connect.DeploymentServiceArchiveDeploymentProcedure:         org(v1.Role_ROLE_WRITER),
 	stackwrightv1connect.SsoServiceGetSsoProcedure:                           org(v1.Role_ROLE_ADMIN),
-	stackwrightv1connect.SsoServiceSaveSsoProcedure:                          org(v1.Role_ROLE_ADMIN),
-	stackwrightv1connect.SsoServiceDeleteSsoProcedure:                        org(v1.Role_ROLE_ADMIN),
-	stackwrightv1connect.SsoServiceRotateScimTokenProcedure:                  org(v1.Role_ROLE_ADMIN),
+	stackwrightv1connect.SsoServiceSaveSsoProcedure:                          org(v1.Role_ROLE_OWNER),
+	stackwrightv1connect.SsoServiceDeleteSsoProcedure:                        org(v1.Role_ROLE_OWNER),
+	stackwrightv1connect.SsoServiceRotateScimTokenProcedure:                  org(v1.Role_ROLE_OWNER),
 	stackwrightv1connect.NotificationServiceListDestinationsProcedure:        org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.NotificationServiceCreateDestinationProcedure:       org(v1.Role_ROLE_ADMIN),
 	stackwrightv1connect.NotificationServiceUpdateDestinationEventsProcedure: org(v1.Role_ROLE_ADMIN),

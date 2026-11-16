@@ -98,7 +98,7 @@ func (s *Server) serve(fn func(*call) (int, any, error)) http.HandlerFunc {
 		writeErr := func(err error) {
 			var se *scimError
 			if !errors.As(err, &se) {
-				slog.Error("scim", "path", r.URL.Path, "err", err)
+				slog.Error("scim request failed", "path", r.URL.Path, "err", err)
 				se = &scimError{status: http.StatusInternalServerError, detail: "internal error"}
 			}
 			body := map[string]any{"schemas": []string{errorSchema}, "status": strconv.Itoa(se.status), "detail": se.detail}
@@ -241,10 +241,7 @@ func (b userBody) name() string {
 	if n == "" {
 		n = strings.TrimSpace(b.Name.GivenName + " " + b.Name.FamilyName)
 	}
-	if len(n) > 100 {
-		n = n[:100]
-	}
-	return n
+	return auth.ClipName(n)
 }
 
 type userRow struct {
@@ -336,19 +333,28 @@ func (s *Server) createUser(c *call) (int, any, error) {
 	if exists {
 		return 0, nil, fail(http.StatusConflict, "uniqueness", "userName %s exists", b.UserName)
 	}
+	// An account that exists already is linked only if it is a member of
+	// this org: SCIM must not reach accounts of other orgs (adr/0047).
 	var userID string
-	err := c.tx.QueryRow(c.ctx, `SELECT id FROM users WHERE lower(email) = $1`, mail).Scan(&userID)
-	if errors.Is(err, pgx.ErrNoRows) {
+	var member bool
+	err := c.tx.QueryRow(c.ctx, `SELECT u.id, EXISTS (SELECT FROM memberships m WHERE m.user_id = u.id AND m.org_id = $2)
+		FROM users u WHERE lower(u.email) = $1`, mail, c.org).Scan(&userID, &member)
+	created := errors.Is(err, pgx.ErrNoRows)
+	switch {
+	case created:
 		userID = uuid.NewString()
-		_, err = c.tx.Exec(c.ctx, `INSERT INTO users (id, email, name) VALUES ($1, $2, $3)`, userID, mail, b.name())
-	}
-	if err != nil {
+		if _, err := c.tx.Exec(c.ctx, `INSERT INTO users (id, email, name) VALUES ($1, $2, $3)`, userID, mail, b.name()); err != nil {
+			return 0, nil, err
+		}
+	case err != nil:
 		return 0, nil, err
+	case !member:
+		return 0, nil, fail(http.StatusConflict, "uniqueness", "an account outside this org has the email %s; invite it to the org first", mail)
 	}
 	id := uuid.NewString()
 	active := b.Active == nil || *b.Active
-	if _, err := c.tx.Exec(c.ctx, `INSERT INTO scim_users (id, org_id, user_id, user_name, external_id, active) VALUES ($1, $2, $3, $4, $5, $6)`,
-		id, c.org, userID, b.UserName, b.ExternalID, active); err != nil {
+	if _, err := c.tx.Exec(c.ctx, `INSERT INTO scim_users (id, org_id, user_id, user_name, external_id, active, created_user)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`, id, c.org, userID, b.UserName, b.ExternalID, active, created); err != nil {
 		return 0, nil, err
 	}
 	if err := c.sync(id); err != nil {
@@ -377,7 +383,7 @@ func (s *Server) putUser(c *call) (int, any, error) {
 		return 0, nil, err
 	}
 	if n := b.name(); n != "" {
-		if _, err := c.tx.Exec(c.ctx, `UPDATE users SET name = $2 WHERE id = $1`, u.userID, n); err != nil {
+		if err := c.rename(u.id, n); err != nil {
 			return 0, nil, err
 		}
 	}
@@ -459,10 +465,7 @@ func (s *Server) patchUser(c *call) (int, any, error) {
 			case "displayname":
 				var n string
 				_ = json.Unmarshal(v, &n)
-				if len(n) > 100 {
-					n = n[:100]
-				}
-				if _, err := c.tx.Exec(c.ctx, `UPDATE users SET name = $2 WHERE id = $1`, u.userID, n); err != nil {
+				if err := c.rename(u.id, auth.ClipName(n)); err != nil {
 					return 0, nil, err
 				}
 			}
@@ -501,13 +504,24 @@ func (s *Server) deleteUser(c *call) (int, any, error) {
 	return http.StatusNoContent, nil, nil
 }
 
+// rename sets the name of an account that this org's SCIM made. The name
+// of an account it only linked belongs to its owner.
+func (c *call) rename(scimUserID, name string) error {
+	_, err := c.tx.Exec(c.ctx, `UPDATE users u SET name = $2 FROM scim_users s
+		WHERE s.id = $1 AND s.created_user AND u.id = s.user_id`, scimUserID, name)
+	return err
+}
+
 // sync makes a SCIM user's membership match: an active user has the
 // highest role of their mapped groups, or the default; an inactive one has
-// none, and loses every session and CLI token. An owner is left as is.
+// none, and loses the sessions and CLI tokens it signed in with through
+// this org, or all of them if this org's SCIM made the account. An owner is
+// left as is.
 func (c *call) sync(scimUserID string) error {
 	var userID string
-	var active bool
-	if err := c.tx.QueryRow(c.ctx, `SELECT user_id, active FROM scim_users WHERE id = $1`, scimUserID).Scan(&userID, &active); err != nil {
+	var active, created bool
+	if err := c.tx.QueryRow(c.ctx, `SELECT user_id, active, created_user FROM scim_users WHERE id = $1`, scimUserID).
+		Scan(&userID, &active, &created); err != nil {
 		return err
 	}
 	var owner bool
@@ -523,9 +537,9 @@ func (c *call) sync(scimUserID string) error {
 		if _, err := c.tx.Exec(c.ctx, `DELETE FROM memberships WHERE org_id = $1 AND user_id = $2`, c.org, userID); err != nil {
 			return err
 		}
-		for _, q := range []string{`DELETE FROM sessions WHERE user_id = $1`,
-			`UPDATE cli_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`} {
-			if _, err := c.tx.Exec(c.ctx, q, userID); err != nil {
+		for _, q := range []string{`DELETE FROM sessions WHERE user_id = $1 AND ($3 OR sso_org_id = $2)`,
+			`UPDATE cli_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL AND ($3 OR sso_org_id = $2)`} {
+			if _, err := c.tx.Exec(c.ctx, q, userID, c.org, created); err != nil {
 				return err
 			}
 		}

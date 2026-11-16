@@ -49,8 +49,10 @@ type Builder struct {
 	// Cache is the builder's own path to its cache, or empty for none.
 	Cache string
 
-	mu       sync.Mutex
-	running  map[string]sandbox.Sandbox
+	mu      sync.Mutex
+	running map[string]sandbox.Sandbox
+	// stopped holds stops that came before their sandbox started.
+	stopped  map[string]bool
 	statuses chan *v1.SandboxStatus
 	mirror   sync.Mutex
 }
@@ -59,7 +61,17 @@ type Builder struct {
 // stream.
 func (b *Builder) Run(ctx context.Context) {
 	b.running = map[string]sandbox.Sandbox{}
+	b.stopped = map[string]bool{}
 	b.statuses = make(chan *v1.SandboxStatus, 256)
+	// A sandbox outlives the builder process too: the next one watches it.
+	adopted, err := b.Backend.Adopt(ctx, b.Identity.ServerID)
+	if err != nil {
+		slog.Error("find the sandboxes of an earlier run", "err", err)
+	}
+	for jobID, s := range adopted {
+		b.running[jobID] = s
+		go b.watch(ctx, jobID, s)
+	}
 	backoff := time.Second
 	for ctx.Err() == nil {
 		start := time.Now()
@@ -106,7 +118,8 @@ func (b *Builder) session(ctx context.Context) error {
 	go func() {
 		tick := time.NewTicker(heartbeatEvery)
 		defer tick.Stop()
-		renewing := false
+		// A renewal the server never answers is asked for again.
+		var renewed time.Time
 		for {
 			var msg *v1.ConnectRequest
 			select {
@@ -115,7 +128,7 @@ func (b *Builder) session(ctx context.Context) error {
 			case <-tick.C:
 				msg = &v1.ConnectRequest{Body: &v1.ConnectRequest_Heartbeat{Heartbeat: &v1.BuilderHeartbeat{}}}
 				cert := b.Identity.certificate()
-				if renewing || time.Until(cert.NotAfter) > cert.NotAfter.Sub(cert.NotBefore)/2 {
+				if time.Since(renewed) < 5*time.Minute || time.Until(cert.NotAfter) > cert.NotAfter.Sub(cert.NotBefore)/2 {
 					break
 				}
 				csr, err := b.Identity.csr()
@@ -123,7 +136,7 @@ func (b *Builder) session(ctx context.Context) error {
 					slog.Error("make a certificate request", "err", err)
 					break
 				}
-				renewing = true
+				renewed = time.Now()
 				msg = &v1.ConnectRequest{Body: &v1.ConnectRequest_Renew{Renew: &v1.RenewCertificate{Csr: csr}}}
 			case st := <-b.statuses:
 				msg = &v1.ConnectRequest{Body: &v1.ConnectRequest_Sandbox{Sandbox: st}}
@@ -168,7 +181,7 @@ func (b *Builder) report(st *v1.SandboxStatus) {
 
 func (b *Builder) start(ctx context.Context, order *v1.StartSandbox) {
 	jobID := order.GetJobId()
-	spec := sandbox.Spec{Image: order.GetImage(), Labels: map[string]string{"dev.stackwright.job": jobID}}
+	spec := sandbox.Spec{Image: order.GetImage(), Labels: map[string]string{"dev.stackwright.job": jobID, sandbox.BuilderLabel: b.Identity.ServerID}}
 	if u, err := url.Parse(order.GetServerUrl()); err == nil && u.Host != "" {
 		port := u.Port()
 		if port == "" {
@@ -202,15 +215,30 @@ func (b *Builder) start(ctx context.Context, order *v1.StartSandbox) {
 	}
 	b.mu.Lock()
 	b.running[jobID] = s
+	stopped := b.stopped[jobID]
+	delete(b.stopped, jobID)
 	b.mu.Unlock()
+	if stopped {
+		if err := s.Stop(ctx, stopGrace); err != nil {
+			slog.Error("stop sandbox", "job", jobID, "err", err)
+		}
+	}
 	b.report(&v1.SandboxStatus{JobId: jobID, State: v1.SandboxStatus_STATE_STARTED})
 	slog.Info("sandbox started", "job", jobID, "sandbox", s.ID())
 	if b.Cache != "" && len(order.GetProviders()) > 0 {
 		go b.cacheProviders(ctx, order)
 	}
+	b.watch(ctx, jobID, s)
+}
 
+// watch removes a sandbox when it exits and reports the exit. When the
+// builder stops first, the sandbox keeps running for the next builder.
+func (b *Builder) watch(ctx context.Context, jobID string, s sandbox.Sandbox) {
 	code, err := s.Wait(ctx)
-	if err != nil && ctx.Err() == nil {
+	if ctx.Err() != nil {
+		return
+	}
+	if err != nil {
 		slog.Error("wait for sandbox", "job", jobID, "err", err)
 	}
 	if code != 0 {
@@ -230,6 +258,9 @@ func (b *Builder) start(ctx context.Context, order *v1.StartSandbox) {
 func (b *Builder) stop(ctx context.Context, jobID string) {
 	b.mu.Lock()
 	s := b.running[jobID]
+	if s == nil {
+		b.stopped[jobID] = true
+	}
 	b.mu.Unlock()
 	if s == nil {
 		return
@@ -342,7 +373,7 @@ func (b *Builder) cacheProviders(ctx context.Context, order *v1.StartSandbox) {
 			"engine":    []byte(order.GetEngine().GetSha256() + " " + order.GetEngine().GetName()),
 			"providers": []byte(strings.Join(missing, "\n")),
 		},
-		Labels: map[string]string{"dev.stackwright.mirror": "true"},
+		Labels: map[string]string{"dev.stackwright.mirror": "true", sandbox.BuilderLabel: b.Identity.ServerID},
 		Cache:  sandbox.CacheWritable,
 	})
 	if err != nil {

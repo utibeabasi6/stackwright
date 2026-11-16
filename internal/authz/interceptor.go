@@ -90,6 +90,8 @@ func (s *Scope) Read(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) er
 
 type Interceptor struct {
 	Pool *pgxpool.Pool
+	// Limit, when set, spends one request of a signed-in user's rate limit.
+	Limit func(userID string) error
 }
 
 type peerCertKey struct{}
@@ -102,7 +104,7 @@ func WithPeerCertificate(ctx context.Context, cert *x509.Certificate) context.Co
 
 // checkOrg sets the scope's org from slug, if the user's role there is min
 // or above. s.Tx needs the user setting.
-func checkOrg(ctx context.Context, s *Scope, slug string, min v1.Role) error {
+func checkOrg(ctx context.Context, s *Scope, slug string, rule Rule) error {
 	var orgID, role string
 	err := s.Tx.QueryRow(ctx, `SELECT o.id, m.role FROM orgs o JOIN memberships m ON m.org_id = o.id
 		WHERE o.slug = $1 AND m.user_id = app_user_id()`, slug).Scan(&orgID, &role)
@@ -116,8 +118,15 @@ func checkOrg(ctx context.Context, s *Scope, slug string, min v1.Role) error {
 	if err := checkSSO(ctx, s.Tx, orgID, slug, s.Role); err != nil {
 		return err
 	}
-	if !AtLeast(s.Role, min) {
-		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("this needs the %s role or above", RoleToDB(min)))
+	if !rule.Admits(s.Role) {
+		if rule.Roles != nil {
+			names := make([]string, len(rule.Roles))
+			for i, r := range rule.Roles {
+				names[i] = RoleToDB(r)
+			}
+			return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("this needs one of the roles %s", strings.Join(names, ", ")))
+		}
+		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("this needs the %s role or above", RoleToDB(rule.Min)))
 	}
 	if err := s.SetOrg(ctx, orgID); err != nil {
 		return Internal(err)
@@ -160,6 +169,11 @@ func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		jobAccess := rule.Access == JobTicket || rule.Access == Job
 		if rule.Access != Public && !jobAccess && !signedIn {
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not signed in"))
+		}
+		if signedIn && !jobAccess && i.Limit != nil {
+			if err := i.Limit(user.ID); err != nil {
+				return nil, err
+			}
 		}
 
 		tx, err := i.Pool.Begin(ctx)
@@ -209,7 +223,7 @@ func (i *Interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 			if !ok {
 				return nil, Internal(fmt.Errorf("%s is org-scoped but its request has no org", procedure))
 			}
-			if err := checkOrg(ctx, s, msg.GetOrg(), rule.Min); err != nil {
+			if err := checkOrg(ctx, s, msg.GetOrg(), rule); err != nil {
 				return nil, err
 			}
 		default:
@@ -287,6 +301,11 @@ func (i *Interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) co
 			if !signedIn {
 				return connect.NewError(connect.CodeUnauthenticated, errors.New("not signed in"))
 			}
+			if i.Limit != nil {
+				if err := i.Limit(user.ID); err != nil {
+					return err
+				}
+			}
 			s := &Scope{UserID: user.ID, IP: user.IP}
 			checked := &orgCheckedConn{StreamingHandlerConn: conn, check: func(msg any) error {
 				m, ok := msg.(interface{ GetOrg() string })
@@ -299,7 +318,7 @@ func (i *Interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) co
 					if err := s.SetUser(ctx, user.ID); err != nil {
 						return Internal(err)
 					}
-					return checkOrg(ctx, s, m.GetOrg(), rule.Min)
+					return checkOrg(ctx, s, m.GetOrg(), rule)
 				})
 			}}
 			return next(context.WithValue(ctx, scopeKey{}, s), checked)

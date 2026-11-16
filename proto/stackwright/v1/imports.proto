@@ -33,7 +33,7 @@ message ScanRepositoryResponse {
   repeated FoundRoot roots = 2;
   // Folders that root modules call as local modules.
   repeated string modules = 3;
-  // Folders with a terragrunt.hcl; they import with phase 18.
+  // Folders with a terragrunt.hcl.
   repeated string terragrunt_units = 4;
 }
 
@@ -57,6 +57,9 @@ message FoundRoot {
   repeated string units = 10;
   // For a Terraform Stack, its deployments (adr/0043).
   repeated string stack_deployments = 11;
+  // Why a Terraform Stack's files do not parse; it cannot import until
+  // they do.
+  string stack_error = 12;
 }
 
 message StartImportRequest {

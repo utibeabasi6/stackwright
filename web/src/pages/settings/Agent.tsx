@@ -3,7 +3,7 @@ import { ActionButton, Submit, useAction } from "../../Action";
 import { useParams } from "@tanstack/react-router";
 import { agentApi, message } from "../../api";
 import { Role } from "../../gen/stackwright/v1/orgs_pb";
-import { useMe } from "../../me";
+import { useRole } from "../../me";
 import { useLoad } from "../../useLoad";
 
 const dollars = (n: number) => `$${n.toFixed(2)}`;
@@ -12,8 +12,7 @@ const dollars = (n: number) => `$${n.toFixed(2)}`;
 // monthly spending cap.
 export function AgentSettings() {
   const { org } = useParams({ strict: false }) as { org: string };
-  const me = useMe();
-  const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
+  const admin = useRole(org) >= Role.ADMIN;
   const settings = useLoad(`agent-settings:${org}`, () => agentApi.getAgentSettings({ org }).then((r) => r.settings));
   const [error, setError] = useState<string>();
   const saving = useAction();

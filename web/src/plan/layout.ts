@@ -1,4 +1,4 @@
-import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
+import type { default as ELK, ElkNode } from "elkjs/lib/elk.bundled.js";
 import { PlanAction, type ActionCount, type PlanGraph, type PlanGroup, type PlanNode } from "../gen/stackwright/v1/graph_pb";
 
 export const nodeWidth = 240;
@@ -72,7 +72,8 @@ export function visible(g: PlanGraph, closed: boolean, open: Set<string>, hideUn
   return { items: [...items.values()], groups, edges: [...edges.values()] };
 }
 
-const elk = new ELK();
+// ELK loads on the first layout, so it stays out of the main bundle.
+let elk: Promise<InstanceType<typeof ELK>> | undefined;
 
 // layout returns where ELK puts each item, as absolute positions.
 export async function layout(v: View): Promise<Map<string, Point>> {
@@ -103,7 +104,8 @@ export async function layout(v: View): Promise<Map<string, Point>> {
       walk(c, p.x, p.y);
     }
   };
-  walk(await elk.layout(root), 0, 0);
+  elk ??= import("elkjs/lib/elk.bundled.js").then((m) => new m.default());
+  walk(await (await elk).layout(root), 0, 0);
   return out;
 }
 

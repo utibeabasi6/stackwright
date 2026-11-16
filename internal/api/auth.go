@@ -26,34 +26,59 @@ type Auth struct {
 	SetupCode string
 
 	mu       sync.Mutex
-	attempts map[string][]time.Time
+	failures map[string][]time.Time
+	swept    time.Time
 }
 
+// Failed sign-ins are limited per email from one address, so a guesser at
+// one address cannot lock the account out for everyone, and per email from
+// all addresses, so many addresses cannot guess freely.
 const (
-	signInLimit  = 10
-	signInWindow = 15 * time.Minute
+	signInLimit      = 10
+	signInEmailLimit = 100
+	signInWindow     = 15 * time.Minute
 )
 
-func (a *Auth) allowSignIn(email string) bool {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.attempts == nil {
-		a.attempts = map[string][]time.Time{}
-	}
-	key := strings.ToLower(email)
-	cutoff := time.Now().Add(-signInWindow)
-	recent := a.attempts[key][:0]
-	for _, t := range a.attempts[key] {
-		if t.After(cutoff) {
-			recent = append(recent, t)
+// recent drops key's failures older than the window and returns the rest.
+// a.mu must be held.
+func (a *Auth) recent(key string, now time.Time) []time.Time {
+	kept := a.failures[key][:0]
+	for _, t := range a.failures[key] {
+		if now.Sub(t) < signInWindow {
+			kept = append(kept, t)
 		}
 	}
-	if len(recent) >= signInLimit {
-		a.attempts[key] = recent
-		return false
+	if len(kept) == 0 {
+		delete(a.failures, key)
+	} else {
+		a.failures[key] = kept
 	}
-	a.attempts[key] = append(recent, time.Now())
-	return true
+	return kept
+}
+
+func (a *Auth) throttled(email, ip string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	now := time.Now()
+	if now.Sub(a.swept) > time.Minute {
+		for key := range a.failures {
+			a.recent(key, now)
+		}
+		a.swept = now
+	}
+	email = strings.ToLower(email)
+	return len(a.recent(email+" "+ip, now)) >= signInLimit || len(a.recent(email, now)) >= signInEmailLimit
+}
+
+func (a *Auth) failed(email, ip string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.failures == nil {
+		a.failures = map[string][]time.Time{}
+	}
+	email, now := strings.ToLower(email), time.Now()
+	a.failures[email+" "+ip] = append(a.failures[email+" "+ip], now)
+	a.failures[email] = append(a.failures[email], now)
 }
 
 func (a *Auth) startSession(ctx context.Context, s *authz.Scope, h interface{ Header() http.Header }, userID string) error {
@@ -101,7 +126,7 @@ func (a *Auth) CompleteSetup(ctx context.Context, req *connect.Request[v1.Comple
 
 	userID, orgID := uuid.NewString(), uuid.NewString()
 	if _, err := s.Tx.Exec(ctx, `INSERT INTO users (id, email, name, password_hash, instance_admin) VALUES ($1, $2, $3, $4, true)`,
-		userID, m.Email, strings.TrimSpace(m.Name), auth.HashPassword(m.Password)); err != nil {
+		userID, m.Email, auth.ClipName(m.Name), auth.HashPassword(m.Password)); err != nil {
 		return nil, authz.Internal(err)
 	}
 	if err := s.SetUser(ctx, userID); err != nil {
@@ -128,7 +153,10 @@ var errWrongPassword = connect.NewError(connect.CodeUnauthenticated, errors.New(
 
 func (a *Auth) SignIn(ctx context.Context, req *connect.Request[v1.SignInRequest]) (*connect.Response[v1.SignInResponse], error) {
 	s := authz.ScopeFrom(ctx)
-	if !a.allowSignIn(req.Msg.Email) {
+	if len(req.Msg.Email) > 254 {
+		return nil, errWrongPassword
+	}
+	if a.throttled(req.Msg.Email, s.IP) {
 		return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("too many sign-in attempts for this email; wait 15 minutes"))
 	}
 	var userID, hash string
@@ -138,6 +166,7 @@ func (a *Auth) SignIn(ctx context.Context, req *connect.Request[v1.SignInRequest
 		return nil, authz.Internal(err)
 	}
 	if !auth.PasswordMatches(hash, req.Msg.Password) {
+		a.failed(req.Msg.Email, s.IP)
 		return nil, errWrongPassword
 	}
 	if err := s.SetUser(ctx, userID); err != nil {
@@ -257,7 +286,7 @@ func (a *Auth) AcceptInvite(ctx context.Context, req *connect.Request[v1.AcceptI
 		userID := uuid.NewString()
 		email = inv.Email
 		if _, err := s.Tx.Exec(ctx, `INSERT INTO users (id, email, name, password_hash) VALUES ($1, $2, $3, $4)`,
-			userID, email, strings.TrimSpace(req.Msg.Name), auth.HashPassword(req.Msg.Password)); err != nil {
+			userID, email, auth.ClipName(req.Msg.Name), auth.HashPassword(req.Msg.Password)); err != nil {
 			return nil, authz.Internal(err)
 		}
 		if err := s.SetUser(ctx, userID); err != nil {

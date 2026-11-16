@@ -164,7 +164,7 @@ func Serve(ctx context.Context, allow string) error {
 		<-ctx.Done()
 		_ = srv.Close()
 	}()
-	slog.Info("egress proxy", "port", Port, "allow", allow)
+	slog.Info("egress proxy listening", "port", Port, "allow", allow)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

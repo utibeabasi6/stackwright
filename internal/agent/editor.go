@@ -18,13 +18,24 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/toolbox/guard"
 )
 
 const (
 	ticketLife = 30 * time.Second
 	maxFrame   = 8 << 20
+	editorWait = 30 * time.Second
 )
+
+// editorCall waits for the toolbox at most editorWait: an editor request
+// holds a database connection, and a turn's tools can hold the toolbox for
+// minutes.
+func (s *Service) editorCall(ctx context.Context, id, name, args string) (*v1.ToolResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, editorWait)
+	defer cancel()
+	return s.callTool(ctx, id, name, args)
+}
 
 // ErrStarting is returned while the session's sandbox starts; the editor
 // tries again.
@@ -63,7 +74,7 @@ func (s *Service) editorReady(ctx context.Context, tx pgx.Tx, id, orgID string) 
 			err := s.ensureSandbox(bg, id, orgID)
 			// ensureSandbox marks the session starting; it goes back to what
 			// it was, unless a turn took it meanwhile.
-			_ = s.inOrg(bg, orgID, func(tx pgx.Tx) error {
+			_ = db.InOrg(bg, s.Pool, orgID, func(tx pgx.Tx) error {
 				_, err := tx.Exec(bg, `UPDATE agent_sessions SET status = $2, updated_at = now() WHERE id = $1 AND status = 'starting'`, id, status)
 				return err
 			})
@@ -81,7 +92,7 @@ func (s *Service) ListFiles(ctx context.Context, req *connect.Request[v1.ListFil
 	if err := s.editorReady(ctx, sc.Tx, req.Msg.Id, sc.OrgID); err != nil {
 		return nil, connectErr(err)
 	}
-	r, err := s.callTool(ctx, req.Msg.Id, "list_files", "")
+	r, err := s.editorCall(ctx, req.Msg.Id, "list_files", "")
 	if err == nil && r.GetError() {
 		err = errors.New(r.GetOutput())
 	}
@@ -107,7 +118,7 @@ func (s *Service) OpenFile(ctx context.Context, req *connect.Request[v1.OpenFile
 		return nil, connectErr(err)
 	}
 	args, _ := json.Marshal(map[string]string{"path": m.Path})
-	r, err := s.callTool(ctx, m.Id, "open_file", string(args))
+	r, err := s.editorCall(ctx, m.Id, "open_file", string(args))
 	if err == nil && r.GetError() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(r.GetOutput()))
 	}
@@ -130,7 +141,7 @@ func (s *Service) SaveFile(ctx context.Context, req *connect.Request[v1.SaveFile
 		return nil, connectErr(err)
 	}
 	args, _ := json.Marshal(map[string]string{"path": m.Path, "base": m.Base, "content": m.Content})
-	r, err := s.callTool(ctx, m.Id, "save_file", string(args))
+	r, err := s.editorCall(ctx, m.Id, "save_file", string(args))
 	if err == nil && r.GetError() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(r.GetOutput()))
 	}
@@ -158,7 +169,7 @@ func (s *Service) PlanCheckout(ctx context.Context, req *connect.Request[v1.Plan
 	if err := s.editorReady(ctx, sc.Tx, req.Msg.Id, sc.OrgID); err != nil {
 		return nil, connectErr(err)
 	}
-	r, err := s.callTool(ctx, req.Msg.Id, "pack", "")
+	r, err := s.editorCall(ctx, req.Msg.Id, "pack", "")
 	switch {
 	case err != nil:
 		return nil, connect.NewError(connect.CodeUnavailable, err)

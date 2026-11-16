@@ -111,7 +111,7 @@ services:
     restart: "no"
 
   postgres:
-    image: postgres:16.14-alpine
+    image: postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
     environment:
       POSTGRES_USER: stackwright
       POSTGRES_DB: stackwright
@@ -127,7 +127,7 @@ services:
     restart: unless-stopped
 
   nats:
-    image: nats:2.15.2-alpine
+    image: nats:2.15.2-alpine@sha256:afae2fdbe2e326c65e1246cb83b9d05d319188734f3bd577ac8072daae78a10f
     command: ["-c", "/etc/nats/nats.conf"]
     environment:
       NATS_PASSWORD: ${STACKWRIGHT_NATS_PASSWORD:?Run make init to create .env}
@@ -142,7 +142,7 @@ services:
     restart: unless-stopped
 
   rustfs:
-    image: rustfs/rustfs:1.0.4
+    image: rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
     environment:
       RUSTFS_ACCESS_KEY: ${STACKWRIGHT_S3_ACCESS_KEY:?Run make init to create .env}
       RUSTFS_SECRET_KEY: ${STACKWRIGHT_S3_SECRET_KEY:?Run make init to create .env}

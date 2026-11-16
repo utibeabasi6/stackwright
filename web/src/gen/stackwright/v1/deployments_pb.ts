@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stackwright/v1/deployments.proto.
  */
 export const file_stackwright_v1_deployments: GenFile = /*@__PURE__*/
-  fileDesc("CiBzdGFja3dyaWdodC92MS9kZXBsb3ltZW50cy5wcm90bxIOc3RhY2t3cmlnaHQudjEiMgoMV29ya3NwYWNlUmVmEg8KB3Byb2plY3QYASABKAkSEQoJd29ya3NwYWNlGAIgASgJIogBCg5EZXBsb3ltZW50TGluaxIqCgRmcm9tGAEgASgLMhwuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlUmVmEigKAnRvGAIgASgLMhwuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlUmVmEg4KBm91dHB1dBgDIAEoCRIQCgh2YXJpYWJsZRgEIAEoCSLMAQoORGVwbG95bWVudFN0ZXASLwoJd29ya3NwYWNlGAEgASgLMhwuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlUmVmEhIKCnJ1bl9udW1iZXIYAiABKAUSLQoKcnVuX3N0YXR1cxgDIAEoDjIZLnN0YWNrd3JpZ2h0LnYxLlJ1blN0YXR1cxITCgtoYXNfY2hhbmdlcxgEIAEoCBIxCgt3YWl0aW5nX2ZvchgFIAMoCzIcLnN0YWNrd3JpZ2h0LnYxLldvcmtzcGFjZVJlZiKsAgoNRGVwbG95bWVudFJ1bhIOCgZudW1iZXIYASABKAUSMwoGc3RhdHVzGAIgASgOMiMuc3RhY2t3cmlnaHQudjEuRGVwbG95bWVudFJ1blN0YXR1cxIPCgdkZXN0cm95GAMgASgIEg0KBWVycm9yGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSEgoKZGVjaWRlZF9ieRgGIAEoCRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLQoFc3RlcHMYCSADKAsyHi5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50U3RlcCLtAQoKRGVwbG95bWVudBIMCgRuYW1lGAEgASgJEisKBXN0ZXBzGAIgAygLMhwuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlUmVmEi0KBWxpbmtzGAMgAygLMh4uc3RhY2t3cmlnaHQudjEuRGVwbG95bWVudExpbmsSLwoIbGFzdF9ydW4YBCABKAsyHS5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50UnVuEhUKDXN0YWNrX3Byb2plY3QYBSABKAkSGAoQc3RhY2tfZGVwbG95bWVudBgGIAEoCRITCgtzdGFja19ncm91cBgHIAEoCSIlChZMaXN0RGVwbG95bWVudHNSZXF1ZXN0EgsKA29yZxgBIAEoCSJKChdMaXN0RGVwbG95bWVudHNSZXNwb25zZRIvCgtkZXBsb3ltZW50cxgBIAMoCzIaLnN0YWNrd3JpZ2h0LnYxLkRlcGxveW1lbnQiMQoUR2V0RGVwbG95bWVudFJlcXVlc3QSCwoDb3JnGAEgASgJEgwKBG5hbWUYAiABKAkidAoVR2V0RGVwbG95bWVudFJlc3BvbnNlEi4KCmRlcGxveW1lbnQYASABKAsyGi5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50EisKBHJ1bnMYAiADKAsyHS5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50UnVuIo4BChVTYXZlRGVwbG95bWVudFJlcXVlc3QSCwoDb3JnGAEgASgJEgwKBG5hbWUYAiABKAkSKwoFc3RlcHMYAyADKAsyHC5zdGFja3dyaWdodC52MS5Xb3Jrc3BhY2VSZWYSLQoFbGlua3MYBCADKAsyHi5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50TGluayJIChZTYXZlRGVwbG95bWVudFJlc3BvbnNlEi4KCmRlcGxveW1lbnQYASABKAsyGi5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50IjUKGEFyY2hpdmVEZXBsb3ltZW50UmVxdWVzdBILCgNvcmcYASABKAkSDAoEbmFtZRgCIAEoCSIbChlBcmNoaXZlRGVwbG95bWVudFJlc3BvbnNlIkcKGVN0YXJ0RGVwbG95bWVudFJ1blJlcXVlc3QSCwoDb3JnGAEgASgJEgwKBG5hbWUYAiABKAkSDwoHZGVzdHJveRgDIAEoCCJIChpTdGFydERlcGxveW1lbnRSdW5SZXNwb25zZRIqCgNydW4YASABKAsyHS5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50UnVuIkQKF0dldERlcGxveW1lbnRSdW5SZXF1ZXN0EgsKA29yZxgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBm51bWJlchgDIAEoBSJGChhHZXREZXBsb3ltZW50UnVuUmVzcG9uc2USKgoDcnVuGAEgASgLMh0uc3RhY2t3cmlnaHQudjEuRGVwbG95bWVudFJ1biJHChpEZWNpZGVEZXBsb3ltZW50UnVuUmVxdWVzdBILCgNvcmcYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZudW1iZXIYAyABKAUiSQobRGVjaWRlRGVwbG95bWVudFJ1blJlc3BvbnNlEioKA3J1bhgBIAEoCzIdLnN0YWNrd3JpZ2h0LnYxLkRlcGxveW1lbnRSdW4q3gIKE0RlcGxveW1lbnRSdW5TdGF0dXMSJQohREVQTE9ZTUVOVF9SVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIgoeREVQTE9ZTUVOVF9SVU5fU1RBVFVTX1BMQU5OSU5HEAESKAokREVQTE9ZTUVOVF9SVU5fU1RBVFVTX05FRURTX0FQUFJPVkFMEAISIgoeREVQTE9ZTUVOVF9SVU5fU1RBVFVTX0FQUExZSU5HEAMSIQodREVQTE9ZTUVOVF9SVU5fU1RBVFVTX0FQUExJRUQQBBIhCh1ERVBMT1lNRU5UX1JVTl9TVEFUVVNfUExBTk5FRBAFEiAKHERFUExPWU1FTlRfUlVOX1NUQVRVU19GQUlMRUQQBhIiCh5ERVBMT1lNRU5UX1JVTl9TVEFUVVNfUkVKRUNURUQQBxIiCh5ERVBMT1lNRU5UX1JVTl9TVEFUVVNfQ0FOQ0VMRUQQCDLUBwoRRGVwbG95bWVudFNlcnZpY2USZwoPTGlzdERlcGxveW1lbnRzEiYuc3RhY2t3cmlnaHQudjEuTGlzdERlcGxveW1lbnRzUmVxdWVzdBonLnN0YWNrd3JpZ2h0LnYxLkxpc3REZXBsb3ltZW50c1Jlc3BvbnNlIgOQAgESYQoNR2V0RGVwbG95bWVudBIkLnN0YWNrd3JpZ2h0LnYxLkdldERlcGxveW1lbnRSZXF1ZXN0GiUuc3RhY2t3cmlnaHQudjEuR2V0RGVwbG95bWVudFJlc3BvbnNlIgOQAgESXwoOU2F2ZURlcGxveW1lbnQSJS5zdGFja3dyaWdodC52MS5TYXZlRGVwbG95bWVudFJlcXVlc3QaJi5zdGFja3dyaWdodC52MS5TYXZlRGVwbG95bWVudFJlc3BvbnNlEmgKEUFyY2hpdmVEZXBsb3ltZW50Eiguc3RhY2t3cmlnaHQudjEuQXJjaGl2ZURlcGxveW1lbnRSZXF1ZXN0Gikuc3RhY2t3cmlnaHQudjEuQXJjaGl2ZURlcGxveW1lbnRSZXNwb25zZRJrChJTdGFydERlcGxveW1lbnRSdW4SKS5zdGFja3dyaWdodC52MS5TdGFydERlcGxveW1lbnRSdW5SZXF1ZXN0Giouc3RhY2t3cmlnaHQudjEuU3RhcnREZXBsb3ltZW50UnVuUmVzcG9uc2USagoQR2V0RGVwbG95bWVudFJ1bhInLnN0YWNrd3JpZ2h0LnYxLkdldERlcGxveW1lbnRSdW5SZXF1ZXN0Giguc3RhY2t3cmlnaHQudjEuR2V0RGVwbG95bWVudFJ1blJlc3BvbnNlIgOQAgESbwoUQXBwcm92ZURlcGxveW1lbnRSdW4SKi5zdGFja3dyaWdodC52MS5EZWNpZGVEZXBsb3ltZW50UnVuUmVxdWVzdBorLnN0YWNrd3JpZ2h0LnYxLkRlY2lkZURlcGxveW1lbnRSdW5SZXNwb25zZRJuChNSZWplY3REZXBsb3ltZW50UnVuEiouc3RhY2t3cmlnaHQudjEuRGVjaWRlRGVwbG95bWVudFJ1blJlcXVlc3QaKy5zdGFja3dyaWdodC52MS5EZWNpZGVEZXBsb3ltZW50UnVuUmVzcG9uc2USbgoTQ2FuY2VsRGVwbG95bWVudFJ1bhIqLnN0YWNrd3JpZ2h0LnYxLkRlY2lkZURlcGxveW1lbnRSdW5SZXF1ZXN0Gisuc3RhY2t3cmlnaHQudjEuRGVjaWRlRGVwbG95bWVudFJ1blJlc3BvbnNlQsQBChJjb20uc3RhY2t3cmlnaHQudjFCEERlcGxveW1lbnRzUHJvdG9QAVpDZ2l0aHViLmNvbS9zdGFja3dyaWdodC9zdGFja3dyaWdodC9nZW4vc3RhY2t3cmlnaHQvdjE7c3RhY2t3cmlnaHR2MaICA1NYWKoCDlN0YWNrd3JpZ2h0LlYxygIOU3RhY2t3cmlnaHRcVjHiAhpTdGFja3dyaWdodFxWMVxHUEJNZXRhZGF0YeoCD1N0YWNrd3JpZ2h0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stackwright_v1_runs]);
+  fileDesc("CiBzdGFja3dyaWdodC92MS9kZXBsb3ltZW50cy5wcm90bxIOc3RhY2t3cmlnaHQudjEiMgoMV29ya3NwYWNlUmVmEg8KB3Byb2plY3QYASABKAkSEQoJd29ya3NwYWNlGAIgASgJIogBCg5EZXBsb3ltZW50TGluaxIqCgRmcm9tGAEgASgLMhwuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlUmVmEigKAnRvGAIgASgLMhwuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlUmVmEg4KBm91dHB1dBgDIAEoCRIQCgh2YXJpYWJsZRgEIAEoCSLMAQoORGVwbG95bWVudFN0ZXASLwoJd29ya3NwYWNlGAEgASgLMhwuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlUmVmEhIKCnJ1bl9udW1iZXIYAiABKAUSLQoKcnVuX3N0YXR1cxgDIAEoDjIZLnN0YWNrd3JpZ2h0LnYxLlJ1blN0YXR1cxITCgtoYXNfY2hhbmdlcxgEIAEoCBIxCgt3YWl0aW5nX2ZvchgFIAMoCzIcLnN0YWNrd3JpZ2h0LnYxLldvcmtzcGFjZVJlZiKsAgoNRGVwbG95bWVudFJ1bhIOCgZudW1iZXIYASABKAUSMwoGc3RhdHVzGAIgASgOMiMuc3RhY2t3cmlnaHQudjEuRGVwbG95bWVudFJ1blN0YXR1cxIPCgdkZXN0cm95GAMgASgIEg0KBWVycm9yGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSEgoKZGVjaWRlZF9ieRgGIAEoCRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLQoFc3RlcHMYCSADKAsyHi5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50U3RlcCLtAQoKRGVwbG95bWVudBIMCgRuYW1lGAEgASgJEisKBXN0ZXBzGAIgAygLMhwuc3RhY2t3cmlnaHQudjEuV29ya3NwYWNlUmVmEi0KBWxpbmtzGAMgAygLMh4uc3RhY2t3cmlnaHQudjEuRGVwbG95bWVudExpbmsSLwoIbGFzdF9ydW4YBCABKAsyHS5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50UnVuEhUKDXN0YWNrX3Byb2plY3QYBSABKAkSGAoQc3RhY2tfZGVwbG95bWVudBgGIAEoCRITCgtzdGFja19ncm91cBgHIAEoCSIlChZMaXN0RGVwbG95bWVudHNSZXF1ZXN0EgsKA29yZxgBIAEoCSJKChdMaXN0RGVwbG95bWVudHNSZXNwb25zZRIvCgtkZXBsb3ltZW50cxgBIAMoCzIaLnN0YWNrd3JpZ2h0LnYxLkRlcGxveW1lbnQiMQoUR2V0RGVwbG95bWVudFJlcXVlc3QSCwoDb3JnGAEgASgJEgwKBG5hbWUYAiABKAkidAoVR2V0RGVwbG95bWVudFJlc3BvbnNlEi4KCmRlcGxveW1lbnQYASABKAsyGi5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50EisKBHJ1bnMYAiADKAsyHS5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50UnVuIo4BChVTYXZlRGVwbG95bWVudFJlcXVlc3QSCwoDb3JnGAEgASgJEgwKBG5hbWUYAiABKAkSKwoFc3RlcHMYAyADKAsyHC5zdGFja3dyaWdodC52MS5Xb3Jrc3BhY2VSZWYSLQoFbGlua3MYBCADKAsyHi5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50TGluayJIChZTYXZlRGVwbG95bWVudFJlc3BvbnNlEi4KCmRlcGxveW1lbnQYASABKAsyGi5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50IjUKGEFyY2hpdmVEZXBsb3ltZW50UmVxdWVzdBILCgNvcmcYASABKAkSDAoEbmFtZRgCIAEoCSIbChlBcmNoaXZlRGVwbG95bWVudFJlc3BvbnNlIkcKGVN0YXJ0RGVwbG95bWVudFJ1blJlcXVlc3QSCwoDb3JnGAEgASgJEgwKBG5hbWUYAiABKAkSDwoHZGVzdHJveRgDIAEoCCJIChpTdGFydERlcGxveW1lbnRSdW5SZXNwb25zZRIqCgNydW4YASABKAsyHS5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50UnVuIkgKG0FwcHJvdmVEZXBsb3ltZW50UnVuUmVxdWVzdBILCgNvcmcYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZudW1iZXIYAyABKAUiSgocQXBwcm92ZURlcGxveW1lbnRSdW5SZXNwb25zZRIqCgNydW4YASABKAsyHS5zdGFja3dyaWdodC52MS5EZXBsb3ltZW50UnVuIkcKGlJlamVjdERlcGxveW1lbnRSdW5SZXF1ZXN0EgsKA29yZxgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBm51bWJlchgDIAEoBSJJChtSZWplY3REZXBsb3ltZW50UnVuUmVzcG9uc2USKgoDcnVuGAEgASgLMh0uc3RhY2t3cmlnaHQudjEuRGVwbG95bWVudFJ1biJHChpDYW5jZWxEZXBsb3ltZW50UnVuUmVxdWVzdBILCgNvcmcYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZudW1iZXIYAyABKAUiSQobQ2FuY2VsRGVwbG95bWVudFJ1blJlc3BvbnNlEioKA3J1bhgBIAEoCzIdLnN0YWNrd3JpZ2h0LnYxLkRlcGxveW1lbnRSdW4q3gIKE0RlcGxveW1lbnRSdW5TdGF0dXMSJQohREVQTE9ZTUVOVF9SVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIgoeREVQTE9ZTUVOVF9SVU5fU1RBVFVTX1BMQU5OSU5HEAESKAokREVQTE9ZTUVOVF9SVU5fU1RBVFVTX05FRURTX0FQUFJPVkFMEAISIgoeREVQTE9ZTUVOVF9SVU5fU1RBVFVTX0FQUExZSU5HEAMSIQodREVQTE9ZTUVOVF9SVU5fU1RBVFVTX0FQUExJRUQQBBIhCh1ERVBMT1lNRU5UX1JVTl9TVEFUVVNfUExBTk5FRBAFEiAKHERFUExPWU1FTlRfUlVOX1NUQVRVU19GQUlMRUQQBhIiCh5ERVBMT1lNRU5UX1JVTl9TVEFUVVNfUkVKRUNURUQQBxIiCh5ERVBMT1lNRU5UX1JVTl9TVEFUVVNfQ0FOQ0VMRUQQCDLqBgoRRGVwbG95bWVudFNlcnZpY2USZwoPTGlzdERlcGxveW1lbnRzEiYuc3RhY2t3cmlnaHQudjEuTGlzdERlcGxveW1lbnRzUmVxdWVzdBonLnN0YWNrd3JpZ2h0LnYxLkxpc3REZXBsb3ltZW50c1Jlc3BvbnNlIgOQAgESYQoNR2V0RGVwbG95bWVudBIkLnN0YWNrd3JpZ2h0LnYxLkdldERlcGxveW1lbnRSZXF1ZXN0GiUuc3RhY2t3cmlnaHQudjEuR2V0RGVwbG95bWVudFJlc3BvbnNlIgOQAgESXwoOU2F2ZURlcGxveW1lbnQSJS5zdGFja3dyaWdodC52MS5TYXZlRGVwbG95bWVudFJlcXVlc3QaJi5zdGFja3dyaWdodC52MS5TYXZlRGVwbG95bWVudFJlc3BvbnNlEmgKEUFyY2hpdmVEZXBsb3ltZW50Eiguc3RhY2t3cmlnaHQudjEuQXJjaGl2ZURlcGxveW1lbnRSZXF1ZXN0Gikuc3RhY2t3cmlnaHQudjEuQXJjaGl2ZURlcGxveW1lbnRSZXNwb25zZRJrChJTdGFydERlcGxveW1lbnRSdW4SKS5zdGFja3dyaWdodC52MS5TdGFydERlcGxveW1lbnRSdW5SZXF1ZXN0Giouc3RhY2t3cmlnaHQudjEuU3RhcnREZXBsb3ltZW50UnVuUmVzcG9uc2UScQoUQXBwcm92ZURlcGxveW1lbnRSdW4SKy5zdGFja3dyaWdodC52MS5BcHByb3ZlRGVwbG95bWVudFJ1blJlcXVlc3QaLC5zdGFja3dyaWdodC52MS5BcHByb3ZlRGVwbG95bWVudFJ1blJlc3BvbnNlEm4KE1JlamVjdERlcGxveW1lbnRSdW4SKi5zdGFja3dyaWdodC52MS5SZWplY3REZXBsb3ltZW50UnVuUmVxdWVzdBorLnN0YWNrd3JpZ2h0LnYxLlJlamVjdERlcGxveW1lbnRSdW5SZXNwb25zZRJuChNDYW5jZWxEZXBsb3ltZW50UnVuEiouc3RhY2t3cmlnaHQudjEuQ2FuY2VsRGVwbG95bWVudFJ1blJlcXVlc3QaKy5zdGFja3dyaWdodC52MS5DYW5jZWxEZXBsb3ltZW50UnVuUmVzcG9uc2VCxAEKEmNvbS5zdGFja3dyaWdodC52MUIQRGVwbG95bWVudHNQcm90b1ABWkNnaXRodWIuY29tL3V0aWJlYWJhc2k2L3N0YWNrd3JpZ2h0L2dlbi9zdGFja3dyaWdodC92MTtzdGFja3dyaWdodHYxogIDU1hYqgIOU3RhY2t3cmlnaHQuVjHKAg5TdGFja3dyaWdodFxWMeICGlN0YWNrd3JpZ2h0XFYxXEdQQk1ldGFkYXRh6gIPU3RhY2t3cmlnaHQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_stackwright_v1_runs]);
 
 /**
  * @generated from message stackwright.v1.WorkspaceRef
@@ -436,9 +436,9 @@ export const StartDeploymentRunResponseSchema: GenMessage<StartDeploymentRunResp
   messageDesc(file_stackwright_v1_deployments, 14);
 
 /**
- * @generated from message stackwright.v1.GetDeploymentRunRequest
+ * @generated from message stackwright.v1.ApproveDeploymentRunRequest
  */
-export type GetDeploymentRunRequest = Message<"stackwright.v1.GetDeploymentRunRequest"> & {
+export type ApproveDeploymentRunRequest = Message<"stackwright.v1.ApproveDeploymentRunRequest"> & {
   /**
    * @generated from field: string org = 1;
    */
@@ -456,16 +456,16 @@ export type GetDeploymentRunRequest = Message<"stackwright.v1.GetDeploymentRunRe
 };
 
 /**
- * Describes the message stackwright.v1.GetDeploymentRunRequest.
- * Use `create(GetDeploymentRunRequestSchema)` to create a new message.
+ * Describes the message stackwright.v1.ApproveDeploymentRunRequest.
+ * Use `create(ApproveDeploymentRunRequestSchema)` to create a new message.
  */
-export const GetDeploymentRunRequestSchema: GenMessage<GetDeploymentRunRequest> = /*@__PURE__*/
+export const ApproveDeploymentRunRequestSchema: GenMessage<ApproveDeploymentRunRequest> = /*@__PURE__*/
   messageDesc(file_stackwright_v1_deployments, 15);
 
 /**
- * @generated from message stackwright.v1.GetDeploymentRunResponse
+ * @generated from message stackwright.v1.ApproveDeploymentRunResponse
  */
-export type GetDeploymentRunResponse = Message<"stackwright.v1.GetDeploymentRunResponse"> & {
+export type ApproveDeploymentRunResponse = Message<"stackwright.v1.ApproveDeploymentRunResponse"> & {
   /**
    * @generated from field: stackwright.v1.DeploymentRun run = 1;
    */
@@ -473,16 +473,16 @@ export type GetDeploymentRunResponse = Message<"stackwright.v1.GetDeploymentRunR
 };
 
 /**
- * Describes the message stackwright.v1.GetDeploymentRunResponse.
- * Use `create(GetDeploymentRunResponseSchema)` to create a new message.
+ * Describes the message stackwright.v1.ApproveDeploymentRunResponse.
+ * Use `create(ApproveDeploymentRunResponseSchema)` to create a new message.
  */
-export const GetDeploymentRunResponseSchema: GenMessage<GetDeploymentRunResponse> = /*@__PURE__*/
+export const ApproveDeploymentRunResponseSchema: GenMessage<ApproveDeploymentRunResponse> = /*@__PURE__*/
   messageDesc(file_stackwright_v1_deployments, 16);
 
 /**
- * @generated from message stackwright.v1.DecideDeploymentRunRequest
+ * @generated from message stackwright.v1.RejectDeploymentRunRequest
  */
-export type DecideDeploymentRunRequest = Message<"stackwright.v1.DecideDeploymentRunRequest"> & {
+export type RejectDeploymentRunRequest = Message<"stackwright.v1.RejectDeploymentRunRequest"> & {
   /**
    * @generated from field: string org = 1;
    */
@@ -500,16 +500,16 @@ export type DecideDeploymentRunRequest = Message<"stackwright.v1.DecideDeploymen
 };
 
 /**
- * Describes the message stackwright.v1.DecideDeploymentRunRequest.
- * Use `create(DecideDeploymentRunRequestSchema)` to create a new message.
+ * Describes the message stackwright.v1.RejectDeploymentRunRequest.
+ * Use `create(RejectDeploymentRunRequestSchema)` to create a new message.
  */
-export const DecideDeploymentRunRequestSchema: GenMessage<DecideDeploymentRunRequest> = /*@__PURE__*/
+export const RejectDeploymentRunRequestSchema: GenMessage<RejectDeploymentRunRequest> = /*@__PURE__*/
   messageDesc(file_stackwright_v1_deployments, 17);
 
 /**
- * @generated from message stackwright.v1.DecideDeploymentRunResponse
+ * @generated from message stackwright.v1.RejectDeploymentRunResponse
  */
-export type DecideDeploymentRunResponse = Message<"stackwright.v1.DecideDeploymentRunResponse"> & {
+export type RejectDeploymentRunResponse = Message<"stackwright.v1.RejectDeploymentRunResponse"> & {
   /**
    * @generated from field: stackwright.v1.DeploymentRun run = 1;
    */
@@ -517,11 +517,55 @@ export type DecideDeploymentRunResponse = Message<"stackwright.v1.DecideDeployme
 };
 
 /**
- * Describes the message stackwright.v1.DecideDeploymentRunResponse.
- * Use `create(DecideDeploymentRunResponseSchema)` to create a new message.
+ * Describes the message stackwright.v1.RejectDeploymentRunResponse.
+ * Use `create(RejectDeploymentRunResponseSchema)` to create a new message.
  */
-export const DecideDeploymentRunResponseSchema: GenMessage<DecideDeploymentRunResponse> = /*@__PURE__*/
+export const RejectDeploymentRunResponseSchema: GenMessage<RejectDeploymentRunResponse> = /*@__PURE__*/
   messageDesc(file_stackwright_v1_deployments, 18);
+
+/**
+ * @generated from message stackwright.v1.CancelDeploymentRunRequest
+ */
+export type CancelDeploymentRunRequest = Message<"stackwright.v1.CancelDeploymentRunRequest"> & {
+  /**
+   * @generated from field: string org = 1;
+   */
+  org: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: int32 number = 3;
+   */
+  number: number;
+};
+
+/**
+ * Describes the message stackwright.v1.CancelDeploymentRunRequest.
+ * Use `create(CancelDeploymentRunRequestSchema)` to create a new message.
+ */
+export const CancelDeploymentRunRequestSchema: GenMessage<CancelDeploymentRunRequest> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_deployments, 19);
+
+/**
+ * @generated from message stackwright.v1.CancelDeploymentRunResponse
+ */
+export type CancelDeploymentRunResponse = Message<"stackwright.v1.CancelDeploymentRunResponse"> & {
+  /**
+   * @generated from field: stackwright.v1.DeploymentRun run = 1;
+   */
+  run?: DeploymentRun | undefined;
+};
+
+/**
+ * Describes the message stackwright.v1.CancelDeploymentRunResponse.
+ * Use `create(CancelDeploymentRunResponseSchema)` to create a new message.
+ */
+export const CancelDeploymentRunResponseSchema: GenMessage<CancelDeploymentRunResponse> = /*@__PURE__*/
+  messageDesc(file_stackwright_v1_deployments, 20);
 
 /**
  * @generated from enum stackwright.v1.DeploymentRunStatus
@@ -631,36 +675,28 @@ export const DeploymentService: GenService<{
     output: typeof StartDeploymentRunResponseSchema;
   },
   /**
-   * @generated from rpc stackwright.v1.DeploymentService.GetDeploymentRun
-   */
-  getDeploymentRun: {
-    methodKind: "unary";
-    input: typeof GetDeploymentRunRequestSchema;
-    output: typeof GetDeploymentRunResponseSchema;
-  },
-  /**
    * @generated from rpc stackwright.v1.DeploymentService.ApproveDeploymentRun
    */
   approveDeploymentRun: {
     methodKind: "unary";
-    input: typeof DecideDeploymentRunRequestSchema;
-    output: typeof DecideDeploymentRunResponseSchema;
+    input: typeof ApproveDeploymentRunRequestSchema;
+    output: typeof ApproveDeploymentRunResponseSchema;
   },
   /**
    * @generated from rpc stackwright.v1.DeploymentService.RejectDeploymentRun
    */
   rejectDeploymentRun: {
     methodKind: "unary";
-    input: typeof DecideDeploymentRunRequestSchema;
-    output: typeof DecideDeploymentRunResponseSchema;
+    input: typeof RejectDeploymentRunRequestSchema;
+    output: typeof RejectDeploymentRunResponseSchema;
   },
   /**
    * @generated from rpc stackwright.v1.DeploymentService.CancelDeploymentRun
    */
   cancelDeploymentRun: {
     methodKind: "unary";
-    input: typeof DecideDeploymentRunRequestSchema;
-    output: typeof DecideDeploymentRunResponseSchema;
+    input: typeof CancelDeploymentRunRequestSchema;
+    output: typeof CancelDeploymentRunResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_stackwright_v1_deployments, 0);

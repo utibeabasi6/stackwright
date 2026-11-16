@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -23,7 +25,12 @@ var migrations embed.FS
 var (
 	ErrNoPassword  = errors.New("postgres password is empty")
 	ErrBadPassword = errors.New("the app database password must be 20 or more letters and digits")
+	ErrOwnerRLS    = errors.New("the owner login must be a superuser or have BYPASSRLS: migrations, scheduled functions and rotate-kek read every org's rows")
 )
+
+// poolSize covers the background loops and the requests that hold a
+// connection at once; pgx's default is only max(4, CPUs).
+const poolSize = 25
 
 type Config struct {
 	Host     string
@@ -50,6 +57,7 @@ func Open(ctx context.Context, c Config) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("parse postgres config: %w", err)
 	}
 	cfg.ConnConfig.Password = c.Password
+	cfg.MaxConns = max(cfg.MaxConns, poolSize)
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
@@ -61,7 +69,23 @@ func Open(ctx context.Context, c Config) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+// CheckOwner refuses an owner login that row-level security would limit:
+// the tables force it on their owner, so such a login sees one org's rows.
+func CheckOwner(ctx context.Context, pool *pgxpool.Pool) error {
+	var bypass bool
+	if err := pool.QueryRow(ctx, `SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user`).Scan(&bypass); err != nil {
+		return err
+	}
+	if !bypass {
+		return ErrOwnerRLS
+	}
+	return nil
+}
+
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
+	if err := CheckOwner(ctx, pool); err != nil {
+		return err
+	}
 	sqlDB := stdlib.OpenDBFromPool(pool)
 	defer func() { _ = sqlDB.Close() }()
 
@@ -93,4 +117,20 @@ func SetAppPassword(ctx context.Context, pool *pgxpool.Pool, password string) er
 		return fmt.Errorf("set the stackwright_app password: %w", err)
 	}
 	return nil
+}
+
+// InOrg runs fn in a transaction whose row-level security sees orgID.
+func InOrg(ctx context.Context, pool *pgxpool.Pool, orgID string, fn func(pgx.Tx) error) error {
+	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
+			return err
+		}
+		return fn(tx)
+	})
+}
+
+// UniqueViolation reports whether err is a unique constraint's refusal.
+func UniqueViolation(err error) bool {
+	var pg *pgconn.PgError
+	return errors.As(err, &pg) && pg.Code == "23505"
 }

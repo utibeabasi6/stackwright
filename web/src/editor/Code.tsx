@@ -109,6 +109,8 @@ export const Code = forwardRef<CodeHandle, Props>(function Code({ org, session, 
         if (stopped) return;
         const scheme = window.location.protocol === "https:" ? "wss" : "ws";
         client.current = connect(monaco, `${scheme}://${window.location.host}/lsp/${session}`, ticket, () => {
+          client.current?.dispose();
+          client.current = undefined;
           setLanguage("off");
           if (!stopped) retry = setTimeout(open, 5000);
         });

@@ -54,8 +54,18 @@ func (r *reporter) send(ctx context.Context) (bool, error) {
 	req := connect.NewRequest(&v1.ReportEventsRequest{Events: batch})
 	req.Header().Set("Authorization", "Bearer "+r.token)
 	if _, err := r.client.ReportEvents(ctx, req); err != nil {
-		if connect.CodeOf(err) == connect.CodeUnauthenticated {
+		switch connect.CodeOf(err) {
+		case connect.CodeUnauthenticated:
 			r.lost()
+		case connect.CodeInvalidArgument:
+			// Sending the same batch again cannot succeed, and holding it
+			// would stop the heartbeats that keep the job alive.
+			slog.Error("dropping events the server refused", "count", len(batch), "err", err)
+			r.mu.Lock()
+			r.pending = r.pending[len(batch):]
+			more := len(r.pending) > 0
+			r.mu.Unlock()
+			return more, nil
 		}
 		return true, err
 	}

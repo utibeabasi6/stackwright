@@ -7,10 +7,13 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/stackwright/stackwright/internal/db"
 )
 
 const maxAnnotations = 50
@@ -32,20 +35,18 @@ func (g *GitHub) forkCheck(ctx context.Context, repo repoRow, sha string) error 
 }
 
 type checkRun struct {
-	runID, status, synced               string
+	runID, status                       string
 	checkRunID                          *int64
 	number                              int
 	commit                              string
 	pr                                  *int
 	repoID, repo                        string
 	installation                        int64
-	planOnly                            bool
 	hasChanges                          bool
 	adds, changes, destroys             int
 	errText                             string
 	jobID                               *string
 	orgSlug, project, folder, workspace string
-	attempts                            int
 }
 
 // RunChecks keeps each run's check and its pull request's comment in step
@@ -83,13 +84,10 @@ func (g *GitHub) syncChecks(ctx context.Context) error {
 }
 
 func (g *GitHub) syncOrg(ctx context.Context, orgID string) error {
-	return pgx.BeginFunc(ctx, g.Pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
-			return err
-		}
-		rows, err := tx.Query(ctx, `SELECT c.run_id, r.status, c.synced_status, c.check_run_id, r.number, r.commit_sha, r.pr_number,
-			rp.id, rp.full_name, rp.installation_id, r.plan_only, coalesce(r.has_changes, false), coalesce(r.adds, 0), coalesce(r.changes, 0),
-			coalesce(r.destroys, 0), coalesce(r.error, ''), coalesce(r.apply_job_id, r.plan_job_id), o.slug, p.slug, p.path, w.name, c.attempts
+	return db.InOrg(ctx, g.Pool, orgID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT c.run_id, r.status, c.check_run_id, r.number, r.commit_sha, r.pr_number,
+			rp.id, rp.full_name, rp.installation_id, coalesce(r.has_changes, false), coalesce(r.adds, 0), coalesce(r.changes, 0),
+			coalesce(r.destroys, 0), coalesce(r.error, ''), coalesce(r.apply_job_id, r.plan_job_id), o.slug, p.slug, p.path, w.name
 			FROM github_checks c JOIN runs r ON r.id = c.run_id JOIN repos rp ON rp.id = r.repo_id
 			JOIN workspaces w ON w.id = r.workspace_id JOIN projects p ON p.id = w.project_id JOIN orgs o ON o.id = r.org_id
 			WHERE c.org_id = $1 AND c.next_attempt_at <= now() AND c.synced_status <> r.status ORDER BY r.created_at`, orgID)
@@ -98,8 +96,8 @@ func (g *GitHub) syncOrg(ctx context.Context, orgID string) error {
 		}
 		due, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (checkRun, error) {
 			var c checkRun
-			return c, r.Scan(&c.runID, &c.status, &c.synced, &c.checkRunID, &c.number, &c.commit, &c.pr, &c.repoID, &c.repo, &c.installation,
-				&c.planOnly, &c.hasChanges, &c.adds, &c.changes, &c.destroys, &c.errText, &c.jobID, &c.orgSlug, &c.project, &c.folder, &c.workspace, &c.attempts)
+			return c, r.Scan(&c.runID, &c.status, &c.checkRunID, &c.number, &c.commit, &c.pr, &c.repoID, &c.repo, &c.installation,
+				&c.hasChanges, &c.adds, &c.changes, &c.destroys, &c.errText, &c.jobID, &c.orgSlug, &c.project, &c.folder, &c.workspace)
 		})
 		if err != nil {
 			return err
@@ -204,6 +202,12 @@ func (g *GitHub) syncCheck(ctx context.Context, tx pgx.Tx, c checkRun) error {
 	if err != nil {
 		return err
 	}
+	// A run that ended needs its check no more, and the loop reads only the
+	// checks that remain.
+	if slices.Contains([]string{"applied", "planned", "failed", "rejected", "canceled"}, c.status) {
+		_, err = tx.Exec(ctx, `DELETE FROM github_checks WHERE run_id = $1`, c.runID)
+		return err
+	}
 	_, err = tx.Exec(ctx, `UPDATE github_checks SET check_run_id = $2, synced_status = $3, attempts = 0, next_attempt_at = now() WHERE run_id = $1`,
 		c.runID, out.ID, c.status)
 	return err
@@ -228,9 +232,18 @@ func annotations(ctx context.Context, tx pgx.Tx, jobID, folder string) ([]map[st
 		if err := rows.Scan(&file, &start, &end, &summary, &detail); err != nil {
 			return nil, err
 		}
+		// GitHub refuses an annotation whose title passes 255 characters or
+		// whose message passes 64 KB.
+		// https://docs.github.com/en/rest/checks/runs#update-a-check-run
+		clip := func(s string, n int) string {
+			if r := []rune(s); len(r) > n {
+				return string(r[:n-1]) + "…"
+			}
+			return s
+		}
 		notes = append(notes, map[string]any{
 			"path": path.Join(folder, file), "start_line": start, "end_line": max(start, end), "annotation_level": "failure",
-			"title": summary, "message": strings.TrimSpace(summary + "\n" + detail),
+			"title": clip(summary, 255), "message": clip(strings.TrimSpace(summary+"\n"+detail), 16000),
 		})
 	}
 	return notes, rows.Err()

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"net"
 	"net/http"
@@ -182,7 +183,14 @@ func (d *Docker) Start(ctx context.Context, spec Spec) (Sandbox, error) {
 		return nil, fmt.Errorf("create sandbox network: %w", err)
 	}
 	s.networkID = network.ID
+	// A missing image is pulled only from a registry that its name gives:
+	// a bare name such as stackwright/executor resolves to Docker Hub,
+	// whose namespace the project does not hold (adr/0047).
 	if err := d.call(ctx, http.MethodGet, "/images/"+spec.Image+"/json", nil, nil, nil); isNotFound(err) {
+		host, _, _ := strings.Cut(spec.Image, "/")
+		if !strings.Contains(spec.Image, "/") || !strings.ContainsAny(host, ".:") && host != "localhost" {
+			return nil, fmt.Errorf("%w: %s; load it on this build server, or name an image in a registry", ErrNoSuchImage, spec.Image)
+		}
 		if err := d.pull(ctx, spec.Image); err != nil {
 			return nil, err
 		}
@@ -291,6 +299,72 @@ func (d *Docker) pull(ctx context.Context, image string) error {
 			return fmt.Errorf("pull %s: %s", image, line.Error)
 		}
 	}
+}
+
+func (d *Docker) Adopt(ctx context.Context, builder string) (map[string]Sandbox, error) {
+	byLabel := func(label string) url.Values {
+		f, _ := json.Marshal(map[string][]string{"label": {label}})
+		return url.Values{"filters": {string(f)}}
+	}
+	inspect := func(s *dockerSandbox, network string) error {
+		var n struct {
+			ID         string `json:"Id"`
+			Containers map[string]any
+		}
+		err := d.call(ctx, http.MethodGet, "/networks/"+network, nil, nil, &n)
+		if isNotFound(err) {
+			return nil
+		}
+		s.networkID = n.ID
+		for id := range n.Containers {
+			if id != s.containerID {
+				s.joined = append(s.joined, id)
+			}
+		}
+		return err
+	}
+	q := byLabel(BuilderLabel + "=" + builder)
+	q.Set("all", "1")
+	var containers []struct {
+		ID     string `json:"Id"`
+		Labels map[string]string
+	}
+	if err := d.call(ctx, http.MethodGet, "/containers/json", q, nil, &containers); err != nil {
+		return nil, err
+	}
+	out := map[string]Sandbox{}
+	seen := map[string]bool{}
+	for _, c := range containers {
+		name := c.Labels["dev.stackwright.sandbox"]
+		s := &dockerSandbox{d: d, name: name, containerID: c.ID}
+		if err := inspect(s, name); err != nil {
+			return nil, err
+		}
+		seen[name] = true
+		if job := c.Labels["dev.stackwright.job"]; job != "" {
+			out[job] = s
+		} else if err := s.Remove(ctx); err != nil {
+			slog.Warn("remove a sandbox with no job", "sandbox", name, "err", err)
+		}
+	}
+	var networks []struct{ Labels map[string]string }
+	if err := d.call(ctx, http.MethodGet, "/networks", byLabel(BuilderLabel+"="+builder), nil, &networks); err != nil {
+		return nil, err
+	}
+	for _, n := range networks {
+		name := n.Labels["dev.stackwright.sandbox"]
+		if seen[name] {
+			continue
+		}
+		s := &dockerSandbox{d: d, name: name}
+		if err := inspect(s, name); err != nil {
+			return nil, err
+		}
+		if err := s.Remove(ctx); err != nil {
+			slog.Warn("remove a network with no sandbox", "network", name, "err", err)
+		}
+	}
+	return out, nil
 }
 
 type dockerSandbox struct {

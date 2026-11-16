@@ -66,7 +66,7 @@ func back(w http.ResponseWriter, r *http.Request, to string, err error) {
 // fail goes back to the page that started the trip with the error, or
 // shows it when that page is unknown.
 func fail(w http.ResponseWriter, r *http.Request, to string, err error) {
-	slog.Warn("GitHub callback", "path", r.URL.Path, "err", err)
+	slog.Warn("GitHub callback failed", "path", r.URL.Path, "err", err)
 	if to == "" {
 		http.Error(w, "Stackwright could not finish with GitHub: "+err.Error(), http.StatusBadRequest)
 		return

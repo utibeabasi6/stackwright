@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/stackwright/stackwright/internal/db"
 )
 
 // DriftEvery is the interval of drift checks, from 00:00 UTC (adr/0042).
@@ -40,7 +42,23 @@ func (o *Orchestrator) LastApplied(ctx context.Context, tx pgx.Tx, orgID, worksp
 			*dst = *src
 		}
 	}
-	return r, nil
+	r.Inputs, err = o.lastInputs(ctx, tx, orgID, workspaceID)
+	return r, err
+}
+
+// lastInputs returns the variables that the workspace's last applied run
+// got from a deployment's links, so a later run of that code gets them too.
+func (o *Orchestrator) lastInputs(ctx context.Context, tx pgx.Tx, orgID, workspaceID string) ([]byte, error) {
+	var sealed []byte
+	err := tx.QueryRow(ctx, `SELECT inputs FROM runs WHERE workspace_id = $1 AND status = 'applied' ORDER BY number DESC LIMIT 1`,
+		workspaceID).Scan(&sealed)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && sealed == nil) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return o.KEK.Open(ctx, tx, orgID, sealed)
 }
 
 // Drift queues QueueDrift at each DriftEvery slot until ctx ends. A slot
@@ -76,7 +94,7 @@ func (o *Orchestrator) QueueDrift(ctx context.Context, slot time.Time) error {
 	}
 	var errs []error
 	for _, d := range all {
-		err := o.inOrg(ctx, d.org, func(tx pgx.Tx) error {
+		err := db.InOrg(ctx, o.Pool, d.org, func(tx pgx.Tx) error {
 			r, err := o.LastApplied(ctx, tx, d.org, d.workspace)
 			if err != nil {
 				return err

@@ -1,6 +1,9 @@
 package redact
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestRedact(t *testing.T) {
 	r := New(`hunter2"quoted`, "", "plainsecret")
@@ -10,8 +13,8 @@ func TestRedact(t *testing.T) {
 		t.Errorf("got %s", got)
 	}
 	amp := New(`a&b"c`)
-	for _, in := range []string{`{"v":"a&b\"c"}`, `{"v":"a&b\"c"}`} {
-		if got := amp.String(in); got != `{"v":"(sensitive value)"}` {
+	for _, in := range []string{`{"v":"a&b\"c"}`, `{"v":"a&b\"c"}`, `{"v":"{\"x\":\"a\\u0026b\\\"c\"}"}`} {
+		if got := amp.String(in); !strings.Contains(got, Mask) || strings.Contains(got, "b") {
 			t.Errorf("%s: got %s", in, got)
 		}
 	}

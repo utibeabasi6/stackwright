@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/stackwright/stackwright/internal/oidc"
 )
 
@@ -387,9 +389,17 @@ func TestRunGetsVariablesAndCloudCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 	jw := &jobWorld{world: w}
-	for _, a := range [][2]string{{planJob, "log.jsonl"}, {planJob, "plan.json"}, {applyJob, "log.jsonl"}} {
-		seen.Write(jw.artifact(a[0], a[1]))
+	seen.Write(jw.artifact(planJob, "plan.json"))
+	rows, err = w.owner.Query(context.Background(), `SELECT payload::text FROM job_events WHERE job_id = ANY($1) ORDER BY job_id, seq`,
+		[]string{planJob, applyJob})
+	if err != nil {
+		t.Fatal(err)
 	}
+	events, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen.WriteString(strings.Join(events, "\n"))
 	seen.WriteString(asJSON(owner.must("RunService/GetRun", merge(prod, map[string]any{"number": 1}))))
 	seen.WriteString(asJSON(owner.must("VariableService/ListVariables", map[string]any{"org": "a", "scope": map[string]any{"project": "net"}})))
 	if !strings.Contains(seen.String(), "hello-project:(sensitive value)") {

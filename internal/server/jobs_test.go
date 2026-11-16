@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io/fs"
 	"net/http"
@@ -248,7 +249,7 @@ func TestJobPlanAndApply(t *testing.T) {
 			t.Errorf("%s: event says %s, show -json says %s", addr, action, fromShow[addr])
 		}
 	}
-	for _, name := range []string{"plan.bin", "log.jsonl"} {
+	for _, name := range []string{"plan.bin", "plan.json"} {
 		if len(w.artifact(planID, name)) == 0 {
 			t.Errorf("%s is empty", name)
 		}
@@ -512,6 +513,13 @@ func TestJobTicketWorksOnce(t *testing.T) {
 	}
 	if code, _ := w.backend(http.MethodGet, "/state/a/legacy/default", token, ""); code != http.StatusNotFound {
 		t.Errorf("another workspace: %d", code)
+	}
+	if code, out := w.backend(http.MethodPost, "/state/a/net/prod", token, stateDoc(1, "L1", "a")); code != http.StatusForbidden {
+		t.Errorf("a plan job wrote state: %d %s", code, out)
+	}
+	nul := base64.StdEncoding.EncodeToString([]byte(`{"@message":"a\u0000b"}`))
+	if code, out := call("ReportEvents", token, `{"events":[{"seq":1,"type":"engine.log","payload":"`+nul+`"}]}`); code != http.StatusOK {
+		t.Errorf("an event with a NUL: %d %v", code, out)
 	}
 	if code, out := call("FinishJob", token, `{"succeeded": true}`); code != http.StatusOK {
 		t.Fatalf("finish: %d %v", code, out)

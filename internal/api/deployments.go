@@ -16,6 +16,7 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/runs"
 )
 
@@ -366,7 +367,7 @@ func (h Deployments) StartDeploymentRun(ctx context.Context, req *connect.Reques
 	}
 	_, number, err := h.Orchestrator.StartDeployment(ctx, s.Tx, s.OrgID, id, s.UserID, req.Msg.Destroy, code)
 	switch {
-	case uniqueViolation(err):
+	case db.UniqueViolation(err):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("a run of this deployment is under way"))
 	case err != nil:
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
@@ -379,30 +380,14 @@ func (h Deployments) StartDeploymentRun(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&v1.StartDeploymentRunResponse{Run: all[0]}), nil
 }
 
-func (Deployments) GetDeploymentRun(ctx context.Context, req *connect.Request[v1.GetDeploymentRunRequest]) (*connect.Response[v1.GetDeploymentRunResponse], error) {
-	tx := authz.ScopeFrom(ctx).Tx
-	id, err := deploymentID(ctx, tx, req.Msg.Name)
-	if err != nil {
-		return nil, err
-	}
-	all, err := deploymentRuns(ctx, tx, id, req.Msg.Number, 1)
-	if err != nil {
-		return nil, err
-	}
-	if len(all) == 0 {
-		return nil, errNotFound
-	}
-	return connect.NewResponse(&v1.GetDeploymentRunResponse{Run: all[0]}), nil
-}
-
-func (h Deployments) decide(ctx context.Context, m *v1.DecideDeploymentRunRequest, decision string) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
+func (h Deployments) decide(ctx context.Context, name string, number int32, decision string) (*v1.DeploymentRun, error) {
 	s := authz.ScopeFrom(ctx)
-	id, err := deploymentID(ctx, s.Tx, m.Name)
+	id, err := deploymentID(ctx, s.Tx, name)
 	if err != nil {
 		return nil, err
 	}
 	var runID string
-	err = s.Tx.QueryRow(ctx, `SELECT id FROM deployment_runs WHERE deployment_id = $1 AND number = $2`, id, m.Number).Scan(&runID)
+	err = s.Tx.QueryRow(ctx, `SELECT id FROM deployment_runs WHERE deployment_id = $1 AND number = $2`, id, number).Scan(&runID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNotFound
 	}
@@ -415,22 +400,34 @@ func (h Deployments) decide(ctx context.Context, m *v1.DecideDeploymentRunReques
 		}
 		return nil, authz.Internal(err)
 	}
-	s.Target(fmt.Sprintf("deployment %s run #%d", m.Name, m.Number))
-	all, err := deploymentRuns(ctx, s.Tx, id, m.Number, 1)
+	s.Target(fmt.Sprintf("deployment %s run #%d", name, number))
+	all, err := deploymentRuns(ctx, s.Tx, id, number, 1)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&v1.DecideDeploymentRunResponse{Run: all[0]}), nil
+	return all[0], nil
 }
 
-func (h Deployments) ApproveDeploymentRun(ctx context.Context, req *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
-	return h.decide(ctx, req.Msg, "approve")
+func (h Deployments) ApproveDeploymentRun(ctx context.Context, req *connect.Request[v1.ApproveDeploymentRunRequest]) (*connect.Response[v1.ApproveDeploymentRunResponse], error) {
+	run, err := h.decide(ctx, req.Msg.Name, req.Msg.Number, "approve")
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&v1.ApproveDeploymentRunResponse{Run: run}), nil
 }
 
-func (h Deployments) RejectDeploymentRun(ctx context.Context, req *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
-	return h.decide(ctx, req.Msg, "reject")
+func (h Deployments) RejectDeploymentRun(ctx context.Context, req *connect.Request[v1.RejectDeploymentRunRequest]) (*connect.Response[v1.RejectDeploymentRunResponse], error) {
+	run, err := h.decide(ctx, req.Msg.Name, req.Msg.Number, "reject")
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&v1.RejectDeploymentRunResponse{Run: run}), nil
 }
 
-func (h Deployments) CancelDeploymentRun(ctx context.Context, req *connect.Request[v1.DecideDeploymentRunRequest]) (*connect.Response[v1.DecideDeploymentRunResponse], error) {
-	return h.decide(ctx, req.Msg, "cancel")
+func (h Deployments) CancelDeploymentRun(ctx context.Context, req *connect.Request[v1.CancelDeploymentRunRequest]) (*connect.Response[v1.CancelDeploymentRunResponse], error) {
+	run, err := h.decide(ctx, req.Msg.Name, req.Msg.Number, "cancel")
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&v1.CancelDeploymentRunResponse{Run: run}), nil
 }

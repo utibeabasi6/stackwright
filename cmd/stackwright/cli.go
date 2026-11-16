@@ -166,8 +166,12 @@ func (a *api) find(ctx context.Context, f targetFlags) (target, error) {
 			return t, err
 		}
 		orgs = nil
+		// An org that wants its identity provider refuses this sign-in, so
+		// it cannot hold the project.
 		for _, o := range me.Msg.GetOrgs() {
-			orgs = append(orgs, o.GetSlug())
+			if !o.GetNeedsSso() {
+				orgs = append(orgs, o.GetSlug())
+			}
 		}
 	}
 	type match struct {

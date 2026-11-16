@@ -27,6 +27,17 @@ const (
 // ErrRefused marks a block or argument that Stackwright does not run yet.
 var ErrRefused = errors.New("is not supported by Stackwright yet")
 
+// IsConfig reports whether OpenTofu reads the file as configuration.
+// https://opentofu.org/docs/language/files/
+func IsConfig(name string) bool {
+	for _, ext := range []string{".tf", ".tofu", ".tf.json", ".tofu.json"} {
+		if strings.HasSuffix(name, ext) {
+			return true
+		}
+	}
+	return false
+}
+
 // IsStackFile reports whether name is a Stack's component or deployment
 // file, in HCL or JSON.
 func IsStackFile(name string) bool {
@@ -399,7 +410,10 @@ func (c *Config) providerArgs(a *hclsyntax.Attribute) ([]providerArg, error) {
 	var out []providerArg
 	for _, item := range obj.Items {
 		trav, diags := hcl.AbsTraversalForExpr(item.KeyExpr)
-		bad := diags.HasErrors() || len(trav) > 2
+		if diags.HasErrors() || len(trav) == 0 || len(trav) > 2 {
+			return nil, invalid(item.KeyExpr.Range(), "a providers key is a provider name, or a name and an alias")
+		}
+		bad := false
 		key := trav.RootName()
 		if len(trav) == 2 {
 			attr, ok := trav[1].(hcl.TraverseAttr)
@@ -483,7 +497,11 @@ func (c *Config) componentBlock(b *hclsyntax.Block) error {
 				}
 				return invalid(e.Range(), "depends_on takes references such as component.network")
 			}
-			comp.dependsOn = append(comp.dependsOn, trav[1].(hcl.TraverseAttr).Name)
+			attr, ok := trav[1].(hcl.TraverseAttr)
+			if !ok {
+				return invalid(e.Range(), "depends_on takes references such as component.network")
+			}
+			comp.dependsOn = append(comp.dependsOn, attr.Name)
 		}
 	}
 	c.Components[name] = comp
@@ -517,13 +535,21 @@ func (c *Config) removed(b *hclsyntax.Block) error {
 			}
 			return invalid(from.SrcRange, "from takes a reference such as component.network or component.network[each.key]")
 		}
-		r.Component = e.Traversal[1].(hcl.TraverseAttr).Name
+		attr, ok := e.Traversal[1].(hcl.TraverseAttr)
+		if !ok {
+			return invalid(from.SrcRange, "from takes a reference such as component.network or component.network[each.key]")
+		}
+		r.Component = attr.Name
 	case *hclsyntax.IndexExpr:
 		trav, diags := hcl.AbsTraversalForExpr(e.Collection)
 		if diags.HasErrors() || len(trav) != 2 || trav.RootName() != "component" {
 			return invalid(from.SrcRange, "from takes a reference such as component.network[each.key]")
 		}
-		r.Component, r.key = trav[1].(hcl.TraverseAttr).Name, e.Key
+		attr, ok := trav[1].(hcl.TraverseAttr)
+		if !ok {
+			return invalid(from.SrcRange, "from takes a reference such as component.network[each.key]")
+		}
+		r.Component, r.key = attr.Name, e.Key
 	default:
 		return invalid(from.SrcRange, "from takes a reference such as component.network")
 	}
@@ -695,7 +721,11 @@ func (c *Config) deploymentBlock(b *hclsyntax.Block) error {
 		if diags.HasErrors() || len(trav) != 2 || trav.RootName() != "deployment_group" {
 			return invalid(a.SrcRange, "deployment_group takes a reference such as deployment_group.canary")
 		}
-		d.Group = trav[1].(hcl.TraverseAttr).Name
+		attr, ok := trav[1].(hcl.TraverseAttr)
+		if !ok {
+			return invalid(a.SrcRange, "deployment_group takes a reference such as deployment_group.canary")
+		}
+		d.Group = attr.Name
 	}
 	var err error
 	if a := b.Body.Attributes["destroy"]; a != nil {

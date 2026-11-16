@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Action, Submit, useAction } from "../Action";
 import { deploymentApi } from "../api";
 import { DeploymentRunStatus, type DeploymentLink, type DeploymentRun, type WorkspaceRef } from "../gen/stackwright/v1/deployments_pb";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
-import { useShell } from "../me";
+import { useRole, useShell } from "../me";
 import { statusOf } from "../runs";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
@@ -26,11 +27,6 @@ const active = (s?: DeploymentRunStatus) =>
   s === DeploymentRunStatus.PLANNING || s === DeploymentRunStatus.NEEDS_APPROVAL || s === DeploymentRunStatus.APPLYING;
 
 const refText = (r?: WorkspaceRef) => (r ? `${r.project}/${r.workspace}` : "");
-
-function useRole(org: string) {
-  const { me } = useShell();
-  return me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
-}
 
 // Deployments lists the org's deployments (adr/0042).
 export function Deployments() {
@@ -108,10 +104,15 @@ export function Deployments() {
 export function DeploymentPage() {
   const { org, name } = useParams({ strict: false }) as { org: string; name: string };
   const role = useRole(org);
+  const navigate = useNavigate();
   const [version, setVersion] = useState(0);
   const got = useLoad(
     `deployment:${org}/${name}`,
-    () => deploymentApi.getDeployment({ org, name }).catch(() => undefined),
+    () =>
+      deploymentApi.getDeployment({ org, name }).catch((e) => {
+        if (e instanceof ConnectError && e.code === Code.NotFound) return null;
+        throw e;
+      }),
     version,
   );
   const latest = got.data?.runs[0];
@@ -127,11 +128,12 @@ export function DeploymentPage() {
   return (
     <div className="stack">
       <h1 className="mono">{name}</h1>
+      {got.error && <p className="error">{got.error}</p>}
       {stack ? (
         <section className="card stack" aria-label="Steps">
           <p>
             The Terraform Stack in project{" "}
-            <Link to="/$org/projects/$project" params={{ org, project: stack.stackProject }} className="mono">
+            <Link to="/$org/projects/$project/topology" params={{ org, project: stack.stackProject }} className="mono">
               {stack.stackProject}
             </Link>{" "}
             defines this deployment as <span className="mono">{stack.stackDeployment}</span>
@@ -151,8 +153,10 @@ export function DeploymentPage() {
           </ol>
         </section>
       ) : (
-        <Editor org={org} name={name} steps={got.data?.deployment?.steps ?? []} links={got.data?.deployment?.links ?? []} writer={role >= Role.WRITER}
-          locked={active(latest?.status)} saved={reload} key={got.data ? "loaded" : "new"} />
+        got.data !== undefined && (
+          <Editor org={org} name={name} steps={got.data?.deployment?.steps ?? []} links={got.data?.deployment?.links ?? []} writer={role >= Role.WRITER}
+            locked={active(latest?.status)} saved={reload} key={got.data ? "loaded" : "new"} />
+        )
       )}
       {got.data?.deployment && (
         <section className="stack" aria-labelledby="runs-h">
@@ -173,6 +177,15 @@ export function DeploymentPage() {
                   done="Started"
                 >
                   Destroy
+                </Action>
+                <Action
+                  className="danger"
+                  confirm={{ message: `Archive ${name}? Its runs stay, and its name can be used again.`, action: "Archive", danger: true }}
+                  run={() => deploymentApi.archiveDeployment({ org, name }).then(() => navigate({ to: "/$org/deployments", params: { org } }))}
+                  busy="Archiving…"
+                  done="Archived"
+                >
+                  Archive
                 </Action>
               </>
             )}

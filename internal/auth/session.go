@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -156,4 +157,23 @@ func ClientIP(r *http.Request) string {
 		return ""
 	}
 	return host
+}
+
+// safeNext returns next if it is a path on this site, else fallback. A
+// browser reads /\host as //host, and drops tabs and newlines from a URL.
+func safeNext(next, fallback string) string {
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") ||
+		strings.ContainsFunc(next, func(r rune) bool { return r == '\\' || unicode.IsControl(r) }) {
+		return fallback
+	}
+	return next
+}
+
+// ClipName trims a display name to the 100 characters that users.name holds.
+func ClipName(name string) string {
+	name = strings.TrimSpace(name)
+	if r := []rune(name); len(r) > 100 {
+		return string(r[:100])
+	}
+	return name
 }

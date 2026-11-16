@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/github"
 	"github.com/stackwright/stackwright/internal/graph"
 	"github.com/stackwright/stackwright/internal/jobs"
@@ -30,15 +31,6 @@ type agentHooks struct {
 	jobs   *jobs.Service
 	runs   *runs.Orchestrator
 	github *github.GitHub
-}
-
-func (h agentHooks) inOrg(ctx context.Context, orgID string, fn func(pgx.Tx) error) error {
-	return pgx.BeginFunc(ctx, h.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
-			return err
-		}
-		return fn(tx)
-	})
 }
 
 func (h agentHooks) plan(ctx context.Context, orgID, session, userID string, source []byte) (string, error) {
@@ -68,7 +60,7 @@ func (h agentHooks) plan(ctx context.Context, orgID, session, userID string, sou
 }
 
 func (h agentHooks) queuePlan(ctx context.Context, orgID, session, userID string, source []byte) (runID string, number int32, err error) {
-	err = h.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err = db.InOrg(ctx, h.pool, orgID, func(tx pgx.Tx) error {
 		var workspaceID, branch string
 		if err := tx.QueryRow(ctx, `SELECT workspace_id, branch FROM agent_sessions WHERE id = $1`, session).Scan(&workspaceID, &branch); err != nil {
 			return err
@@ -93,7 +85,7 @@ func (h agentHooks) queuePlan(ctx context.Context, orgID, session, userID string
 func (h agentHooks) planReport(ctx context.Context, orgID, runID string, number int32) (string, bool, error) {
 	var b strings.Builder
 	done := false
-	err := h.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, h.pool, orgID, func(tx pgx.Tx) error {
 		var status, msg string
 		var jobID *string
 		var adds, changes, destroys *int
@@ -178,7 +170,7 @@ func newestPlan(ctx context.Context, tx pgx.Tx, session string, run int32, ownOn
 
 func (h agentHooks) planDetails(ctx context.Context, orgID, session string, run int32, address string) (string, error) {
 	var b strings.Builder
-	err := h.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, h.pool, orgID, func(tx pgx.Tx) error {
 		number, jobID, err := newestPlan(ctx, tx, session, run, true)
 		if err != nil {
 			return err
@@ -230,7 +222,7 @@ func orNone(v string) string {
 
 func (h agentHooks) stateLookup(ctx context.Context, orgID, session, address string) (string, error) {
 	var out string
-	err := h.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, h.pool, orgID, func(tx pgx.Tx) error {
 		number, jobID, err := newestPlan(ctx, tx, session, 0, false)
 		if err != nil {
 			return err
@@ -258,7 +250,7 @@ func (h agentHooks) stateLookup(ctx context.Context, orgID, session, address str
 func (h agentHooks) openPullRequest(ctx context.Context, orgID, session, title, body string) (int, string, error) {
 	var repo, branch, base string
 	var installation int64
-	err := h.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, h.pool, orgID, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT rp.full_name, rp.installation_id, s.branch, s.base FROM agent_sessions s
 			JOIN repos rp ON rp.id = s.repo_id WHERE s.id = $1`, session).Scan(&repo, &installation, &branch, &base)
 	})

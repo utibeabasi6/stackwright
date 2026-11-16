@@ -25,11 +25,25 @@ func deploymentWorld(t *testing.T) *runWorld {
 	return w
 }
 
+// deploymentRun finds a deployment's run by number among its newest runs.
+func deploymentRun(c *client, name string, number int) map[string]any {
+	got, code := c.call("DeploymentService/GetDeployment", map[string]any{"org": "a", "name": name})
+	if code != "" {
+		return nil
+	}
+	for _, r := range asList(got["runs"]) {
+		if run := r.(map[string]any); run["number"] == float64(number) {
+			return run
+		}
+	}
+	return nil
+}
+
 func (w *runWorld) waitDeployment(name string, number int, statuses ...string) map[string]any {
 	w.t.Helper()
 	deadline := time.Now().Add(6 * time.Minute)
 	for {
-		run := w.owner.must("DeploymentService/GetDeploymentRun", map[string]any{"org": "a", "name": name, "number": number})["run"].(map[string]any)
+		run := deploymentRun(w.owner, name, number)
 		for _, s := range statuses {
 			if run["status"] == s {
 				return run

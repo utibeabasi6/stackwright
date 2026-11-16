@@ -39,16 +39,6 @@ type Security struct {
 	Orchestrator *runs.Orchestrator
 }
 
-// mayDecideRisk is the security role, an admin or an owner. Roles rank by
-// number, and writers and reviewers rank above security, so the list is
-// explicit: those who change code do not accept its risks.
-func mayDecideRisk(role v1.Role) error {
-	if role == v1.Role_ROLE_SECURITY || role == v1.Role_ROLE_ADMIN || role == v1.Role_ROLE_OWNER {
-		return nil
-	}
-	return connect.NewError(connect.CodePermissionDenied, errors.New("accepting a risk and changing the security policy need the security role, an admin or an owner"))
-}
-
 const findingColumns = `f.id, p.slug, w.name, f.check_id, f.severity, f.title, f.message, f.resource, f.fixed_at IS NOT NULL, f.unmatched,
 	f.first_seen_at, f.last_seen_at, a.reason, a.accepted_at, a.expires_at, coalesce(u.name, u.email)
 	FROM findings f JOIN workspaces w ON w.id = f.workspace_id JOIN projects p ON p.id = w.project_id
@@ -160,9 +150,6 @@ func (h Security) ListRunFindings(ctx context.Context, req *connect.Request[v1.L
 func (h Security) AcceptRisk(ctx context.Context, req *connect.Request[v1.AcceptRiskRequest]) (*connect.Response[v1.AcceptRiskResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	m := req.Msg
-	if err := mayDecideRisk(s.Role); err != nil {
-		return nil, err
-	}
 	reason := strings.TrimSpace(m.Reason)
 	if reason == "" || len(reason) > 2000 {
 		return nil, invalid("say why the risk is acceptable, in 1 to 2,000 characters")
@@ -233,9 +220,6 @@ func (Security) GetSecurityPolicy(ctx context.Context, _ *connect.Request[v1.Get
 func (Security) SetPolicySet(ctx context.Context, req *connect.Request[v1.SetPolicySetRequest]) (*connect.Response[v1.SetPolicySetResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	m := req.Msg
-	if err := mayDecideRisk(s.Role); err != nil {
-		return nil, err
-	}
 	if !policyName.MatchString(m.Name) {
 		return nil, invalid("a policy set's name is 1 to 40 lowercase letters, digits and hyphens")
 	}
@@ -252,9 +236,6 @@ func (Security) SetPolicySet(ctx context.Context, req *connect.Request[v1.SetPol
 
 func (Security) DeletePolicySet(ctx context.Context, req *connect.Request[v1.DeletePolicySetRequest]) (*connect.Response[v1.DeletePolicySetResponse], error) {
 	s := authz.ScopeFrom(ctx)
-	if err := mayDecideRisk(s.Role); err != nil {
-		return nil, err
-	}
 	tag, err := s.Tx.Exec(ctx, `DELETE FROM policy_sets WHERE name = $1`, req.Msg.Name)
 	if err != nil {
 		return nil, authz.Internal(err)
@@ -268,9 +249,6 @@ func (Security) DeletePolicySet(ctx context.Context, req *connect.Request[v1.Del
 
 func (Security) SetSkippedChecks(ctx context.Context, req *connect.Request[v1.SetSkippedChecksRequest]) (*connect.Response[v1.SetSkippedChecksResponse], error) {
 	s := authz.ScopeFrom(ctx)
-	if err := mayDecideRisk(s.Role); err != nil {
-		return nil, err
-	}
 	if len(req.Msg.SkippedChecks) > 500 {
 		return nil, invalid("skip at most 500 checks")
 	}

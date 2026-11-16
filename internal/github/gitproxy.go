@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/db"
 )
 
 const maxPush = 256 << 20
@@ -46,82 +47,88 @@ func (g *GitHub) GitProxy() http.Handler {
 			return
 		}
 
-		err = pgx.BeginFunc(ctx, g.Pool, func(tx pgx.Tx) error {
-			if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
-				return err
+		body, length := io.Reader(r.Body), r.ContentLength
+		if push && r.Method == http.MethodPost {
+			raw, err := io.ReadAll(io.LimitReader(r.Body, maxPush+1))
+			if err != nil {
+				http.Error(w, "read the push", http.StatusBadRequest)
+				return
 			}
-			var repo, branch string
-			var installation int64
+			if len(raw) > maxPush {
+				http.Error(w, fmt.Sprintf("the push is larger than %d bytes", maxPush), http.StatusForbidden)
+				return
+			}
+			body, length = bytes.NewReader(raw), int64(len(raw))
+		}
+
+		// The transaction ends before GitHub is called, so a slow transfer
+		// holds no database connection. A push reserves its approval here
+		// and gives it back if GitHub does not take the push.
+		var repo, branch string
+		var installation, proposal int64
+		err = db.InOrg(ctx, g.Pool, orgID, func(tx pgx.Tx) error {
 			if err := tx.QueryRow(ctx, `SELECT rp.full_name, rp.installation_id, s.branch FROM agent_sessions s
 				JOIN repos rp ON rp.id = s.repo_id WHERE s.id = $1`, sid).Scan(&repo, &installation, &branch); err != nil {
 				return err
 			}
-			body, length := io.Reader(r.Body), r.ContentLength
-			if push && r.Method == http.MethodPost {
-				raw, err := io.ReadAll(io.LimitReader(r.Body, maxPush+1))
-				if err != nil {
-					return err
-				}
-				if len(raw) > maxPush {
-					return fmt.Errorf("%w: the push is larger than %d bytes", ErrPushRefused, maxPush)
-				}
-				if err := checkPush(raw, r.Header.Get("Content-Encoding"), "refs/heads/"+branch); err != nil {
-					return err
-				}
-				var proposal int64
-				err = tx.QueryRow(ctx, `UPDATE agent_approvals SET used_at = now() WHERE (session_id, proposal_seq) = (
-					SELECT session_id, proposal_seq FROM agent_approvals WHERE session_id = $1 AND used_at IS NULL
-					ORDER BY proposal_seq LIMIT 1 FOR UPDATE) RETURNING proposal_seq`, sid).Scan(&proposal)
-				if errors.Is(err, pgx.ErrNoRows) {
-					return fmt.Errorf("%w: no approved proposal waits for this push", ErrPushRefused)
-				}
-				if err != nil {
-					return err
-				}
-				body, length = bytes.NewReader(raw), int64(len(raw))
+			if !push || r.Method != http.MethodPost {
+				return nil
 			}
-			token, err := g.installationToken(ctx, installation)
-			if err != nil {
+			if err := checkPush(body.(*bytes.Reader), r.Header.Get("Content-Encoding"), "refs/heads/"+branch); err != nil {
 				return err
 			}
-			// The approval is spent only if GitHub takes the push.
-			err = g.forward(ctx, w, r, body, length, fmt.Sprintf("%s/%s.git/%s", g.WebURL, repo, rest), token)
-			// A token from before a change to the App's permissions keeps the
-			// old ones; the next request gets a fresh token.
-			if s := upstreamStatus(0); errors.As(err, &s) && (s == http.StatusUnauthorized || s == http.StatusForbidden) {
-				g.mu.Lock()
-				delete(g.tokens, installation)
-				g.mu.Unlock()
+			err := tx.QueryRow(ctx, `UPDATE agent_approvals SET used_at = now() WHERE (session_id, proposal_seq) = (
+				SELECT session_id, proposal_seq FROM agent_approvals WHERE session_id = $1 AND used_at IS NULL
+				ORDER BY proposal_seq LIMIT 1 FOR UPDATE) RETURNING proposal_seq`, sid).Scan(&proposal)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("%w: no approved proposal waits for this push", ErrPushRefused)
 			}
 			return err
 		})
-		var refused interface{ Status() int }
-		switch {
-		case err == nil:
-		case errors.Is(err, ErrPushRefused):
+		if errors.Is(err, ErrPushRefused) {
 			http.Error(w, err.Error(), http.StatusForbidden)
-		case errors.As(err, &refused):
-		default:
-			slog.Error("git proxy", "session", sid, "err", err)
+			return
+		}
+		if err != nil {
+			slog.Error("git proxy request failed", "session", sid, "err", err)
+			http.Error(w, "the Git proxy failed", http.StatusBadGateway)
+			return
+		}
+		if seeker, ok := body.(*bytes.Reader); ok {
+			_, _ = seeker.Seek(0, io.SeekStart)
+		}
+		status, err := g.forwardWithToken(ctx, w, r, body, length, installation, fmt.Sprintf("%s/%s.git/%s", g.WebURL, repo, rest))
+		if proposal != 0 && status != http.StatusOK {
+			bg := context.WithoutCancel(ctx)
+			if err := db.InOrg(bg, g.Pool, orgID, func(tx pgx.Tx) error {
+				_, err := tx.Exec(bg, `UPDATE agent_approvals SET used_at = NULL WHERE session_id = $1 AND proposal_seq = $2`, sid, proposal)
+				return err
+			}); err != nil {
+				slog.Error("give back an unused push approval", "session", sid, "err", err)
+			}
+		}
+		if err != nil && status == 0 {
+			slog.Error("git proxy request failed", "session", sid, "err", err)
 			http.Error(w, "the Git proxy failed", http.StatusBadGateway)
 		}
 	})
 }
 
-// upstreamStatus is a GitHub answer that the proxy already wrote back; it
-// still rolls the transaction back, so no approval is spent.
-type upstreamStatus int
-
-func (s upstreamStatus) Error() string { return fmt.Sprintf("GitHub answered %d", int(s)) }
-func (s upstreamStatus) Status() int   { return int(s) }
-
-func (g *GitHub) forward(ctx context.Context, w http.ResponseWriter, r *http.Request, body io.Reader, length int64, url, token string) error {
+// forwardWithToken forwards with the installation's token. It returns the
+// status that GitHub answered, which it already wrote back, or 0 when no
+// answer came.
+func (g *GitHub) forwardWithToken(ctx context.Context, w http.ResponseWriter, r *http.Request, body io.Reader, length, installation int64,
+	url string) (int, error) {
+	token, err := g.installationToken(ctx, installation)
+	if err != nil {
+		return 0, err
+	}
 	if r.URL.RawQuery != "" {
 		url += "?" + r.URL.RawQuery
 	}
 	req, err := http.NewRequestWithContext(ctx, r.Method, url, body) //nolint:gosec // the configured GitHub web URL, a stored repository and one of three Git paths
 	if err != nil {
-		return err
+		return 0, err
 	}
 	req.ContentLength = length
 	for _, h := range []string{"Content-Type", "Content-Encoding", "Accept", "Accept-Encoding", "Git-Protocol"} {
@@ -132,29 +139,29 @@ func (g *GitHub) forward(ctx context.Context, w http.ResponseWriter, r *http.Req
 	req.SetBasicAuth("x-access-token", token)
 	resp, err := g.HTTP.Do(req) //nolint:gosec // the configured GitHub web URL, a stored repository and one of three Git paths
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer func() { _ = resp.Body.Close() }()
+	// A token from before a change to the App's permissions keeps the old
+	// ones; the next request gets a fresh token.
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		g.dropToken(token)
+	}
 	for _, h := range []string{"Content-Type", "Content-Encoding", "Cache-Control", "Expires", "Pragma"} {
 		if v := resp.Header.Get(h); v != "" {
 			w.Header().Set(h, v)
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	if _, err := io.Copy(w, resp.Body); err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return upstreamStatus(resp.StatusCode)
-	}
-	return nil
+	_, err = io.Copy(w, resp.Body)
+	return resp.StatusCode, err
 }
 
 // checkPush reads the ref updates at the start of a receive-pack request
 // and refuses any that is not an update of ref.
 // https://git-scm.com/docs/gitprotocol-pack#_reference_update_request_and_packfile_transfer
-func checkPush(raw []byte, encoding, ref string) error {
-	var in io.Reader = bytes.NewReader(raw)
+func checkPush(raw io.Reader, encoding, ref string) error {
+	in := raw
 	if encoding == "gzip" {
 		gz, err := gzip.NewReader(in)
 		if err != nil {
@@ -183,9 +190,14 @@ func checkPush(raw []byte, encoding, ref string) error {
 			return fmt.Errorf("%w: the request has no complete ref list", ErrPushRefused)
 		}
 		cmd, _, _ := strings.Cut(strings.TrimSuffix(string(line), "\n"), "\x00")
-		fields := strings.Fields(cmd)
-		if len(fields) != 3 {
+		// Git splits a command on single spaces and takes the rest of the
+		// line as the ref name, so this must too.
+		fields := strings.SplitN(cmd, " ", 3)
+		if len(fields) == 2 && fields[0] == "shallow" {
 			continue
+		}
+		if len(fields) != 3 {
+			return fmt.Errorf("%w: a ref list line that is not an update", ErrPushRefused)
 		}
 		if fields[2] != ref {
 			return fmt.Errorf("%w: a session may push only to %s, not %s", ErrPushRefused, ref, fields[2])

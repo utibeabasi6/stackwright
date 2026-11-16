@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { Action } from "../Action";
 import { useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
@@ -8,8 +9,8 @@ import { RunFindings } from "./Findings";
 import { Divider, paneWidth, useSavedWidth } from "../Divider";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus, type Run as RunType, type RunEvent } from "../gen/stackwright/v1/runs_pb";
-import { useShell } from "../me";
-import { emptyState, statuses, step, timeline } from "../plan/apply";
+import { useRole, useShell } from "../me";
+import { emptyState, statuses, step, timeline, type ApplyState } from "../plan/apply";
 import { Graph } from "../plan/Graph";
 import type { GetPlanGraphResponse } from "../gen/stackwright/v1/graph_pb";
 import { Select } from "../Select";
@@ -25,6 +26,7 @@ function useRun(org: string, project: string, workspace: string, number: number)
     const abort = new AbortController();
     let cursor = 0n;
     let done = false;
+    let delay = 1000;
     setRun(undefined);
     setEvents([]);
     (async () => {
@@ -40,10 +42,18 @@ function useRun(org: string, project: string, workspace: string, number: number)
               setEvents((prev) => [...prev, ...res.events]);
             }
             setError(undefined);
+            delay = 1000;
           }
         } catch (err) {
           if (abort.signal.aborted) return;
-          setError(message(err));
+          if (err instanceof ConnectError && err.code === Code.NotFound) {
+            setError(message(err));
+            return;
+          }
+          setError(`${message(err)} Reconnecting…`);
+          await new Promise((r) => setTimeout(r, delay));
+          delay = Math.min(delay * 2, 30000);
+          continue;
         }
         if (!done) await new Promise((r) => setTimeout(r, 1000));
       }
@@ -58,10 +68,10 @@ export function Run() {
   const params = useParams({ strict: false }) as { org: string; project: string; workspace: string; number: string };
   const { org, project, workspace } = params;
   const number = Number(params.number);
-  const { me, reloadWaiting } = useShell();
+  const { reloadWaiting } = useShell();
   const { run, events, error, setRun } = useRun(org, project, workspace, number);
   const [actionError, setActionError] = useState<string>();
-  const role = me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED;
+  const role = useRole(org);
   const [full, setFull] = useState(false);
   const [noGraph, setNoGraph] = useState(false);
   const [timelineWidth, setTimelineWidth] = useSavedWidth("stackwright.width.timeline");
@@ -153,7 +163,7 @@ export function Run() {
         )}
       </div>
 
-      {error && <p className="notice error">{error} Reconnecting…</p>}
+      {error && <p className="notice error">{error}</p>}
       <div className={showTimeline ? "run-split" : "run-split full"}>
         {showTimeline && (
           <ol
@@ -180,7 +190,7 @@ export function Run() {
                     {line.text}
                     {e.resourceAddr && !line.text.includes(e.resourceAddr) && <code> {e.resourceAddr}</code>}
                     {line.detail && <span className="detail">{line.detail}</span>}
-                    {line.fix && <AskAgent org={org} project={project} prompt={`Run #${number} hit this error. Fix the code.\n\n${line.fix}`} />}
+                    {line.fix && <AskAgent org={org} project={project} workspace={workspace} prompt={`Run #${number} hit this error. Fix the code.\n\n${line.fix}`} />}
                   </span>
                 </li>
               );
@@ -235,7 +245,17 @@ export function Run() {
             </>
           )}
           {!finished(run.status) && role >= Role.WRITER && (
-            <Action className="danger" run={() => act(() => runApi.cancelRun(target))} busy="Cancelling…" done="Cancelled">
+            <Action
+              className="danger"
+              confirm={
+                run.status === RunStatus.APPLYING
+                  ? { message: "Cancel the apply? It stops partway, and the changes it made so far stay.", action: "Cancel run", danger: true }
+                  : undefined
+              }
+              run={() => act(() => runApi.cancelRun(target))}
+              busy="Cancelling…"
+              done="Cancelled"
+            >
               Cancel run
             </Action>
           )}
@@ -290,7 +310,16 @@ function RunGraph({ org, project, workspace, graph, run, events, writer, full }:
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState("1");
   const shown = at === undefined ? applyEvents.length : times.filter((t) => t <= at).length;
-  const state = useMemo(() => applyEvents.slice(0, shown).reduce(step, emptyState()), [applyEvents, shown]);
+  // Live events and a replay that plays forward fold onto the last state;
+  // a new apply or a replay moved back folds from the start.
+  const folded = useRef<{ first?: RunEvent; n: number; state: ApplyState }>({ n: 0, state: emptyState() });
+  const state = useMemo(() => {
+    const f = folded.current;
+    const from = f.first === applyEvents[0] && f.n <= shown ? f : { n: 0, state: emptyState() };
+    const next = applyEvents.slice(from.n, shown).reduce(step, from.state);
+    folded.current = { first: applyEvents[0], n: shown, state: next };
+    return next;
+  }, [applyEvents, shown]);
   const g = graph.graph;
   const states = useMemo(() => (g && state.started ? statuses(g, state) : undefined), [g, state]);
 

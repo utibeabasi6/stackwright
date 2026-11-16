@@ -70,6 +70,12 @@ func TestSCIMRemovingAUserInTheIdentityProviderRemovesTheirAccess(t *testing.T) 
 	if code, _ := scimCall(t, w, token, http.MethodPost, "/Users", map[string]any{"userName": "bob@a.test"}); code != http.StatusConflict {
 		t.Errorf("bob again: %d", code)
 	}
+	if _, err := w.owner.Exec(t.Context(), `INSERT INTO users (id, email, name) VALUES (gen_random_uuid(), 'outsider@b.test', '')`); err != nil {
+		t.Fatal(err)
+	}
+	if code, _ := scimCall(t, w, token, http.MethodPost, "/Users", map[string]any{"userName": "outsider@b.test"}); code != http.StatusConflict {
+		t.Errorf("an account outside the org: %d", code)
+	}
 	_, e := scimCall(t, w, token, http.MethodPost, "/Users", map[string]any{"userName": "erin@a.test", "name": map[string]any{"givenName": "Erin"}})
 	if roleOf(t, w, "erin@a.test") != "viewer" {
 		t.Errorf("erin joined as %q", roleOf(t, w, "erin@a.test"))
@@ -94,8 +100,9 @@ func TestSCIMRemovingAUserInTheIdentityProviderRemovesTheirAccess(t *testing.T) 
 		t.Errorf("erin out of deployers is %q", roleOf(t, w, "erin@a.test"))
 	}
 
-	// Deactivating bob, as Entra ID does with a string, ends his access:
-	// the membership, his session and his CLI tokens.
+	// Deactivating bob, as Entra ID does with a string, ends his access to
+	// this org. His account came before SCIM linked it, so his password
+	// session and CLI tokens stay for his other orgs (adr/0047).
 	bob.must("ProjectService/ListProjects", org)
 	if _, err := w.owner.Exec(t.Context(), `INSERT INTO cli_tokens (id, user_id, token_hash, name) SELECT gen_random_uuid(), id, 'x', 'laptop'
 		FROM users WHERE email = 'bob@a.test'`); err != nil {
@@ -107,7 +114,7 @@ func TestSCIMRemovingAUserInTheIdentityProviderRemovesTheirAccess(t *testing.T) 
 	if code != http.StatusOK {
 		t.Fatalf("deactivate: %d", code)
 	}
-	if _, code := bob.call("ProjectService/ListProjects", org); code != "unauthenticated" {
+	if _, code := bob.call("ProjectService/ListProjects", org); code != "not_found" {
 		t.Errorf("bob after the IdP removed him: %q", code)
 	}
 	if roleOf(t, w, "bob@a.test") != "" {
@@ -115,7 +122,7 @@ func TestSCIMRemovingAUserInTheIdentityProviderRemovesTheirAccess(t *testing.T) 
 	}
 	var live int
 	if err := w.owner.QueryRow(t.Context(), `SELECT count(*) FROM cli_tokens t JOIN users u ON u.id = t.user_id
-		WHERE u.email = 'bob@a.test' AND t.revoked_at IS NULL`).Scan(&live); err != nil || live != 0 {
+		WHERE u.email = 'bob@a.test' AND t.revoked_at IS NULL`).Scan(&live); err != nil || live != 1 {
 		t.Errorf("bob's CLI tokens: %d %v", live, err)
 	}
 

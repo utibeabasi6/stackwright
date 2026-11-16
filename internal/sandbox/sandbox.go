@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+// BuilderLabel names the build server that started a sandbox, so a
+// builder that starts again adopts only its own.
+const BuilderLabel = "dev.stackwright.builder"
+
 // FilesDir is where a sandbox finds Spec.Files.
 const FilesDir = "/run/stackwright"
 
@@ -46,6 +50,9 @@ type Backend interface {
 	// Platform names the sandboxes' OS and architecture, such as linux_arm64.
 	Platform(ctx context.Context) (string, error)
 	Start(ctx context.Context, spec Spec) (Sandbox, error)
+	// Adopt returns the sandboxes whose BuilderLabel is builder, by the job
+	// they ran, and removes what such a builder left half made.
+	Adopt(ctx context.Context, builder string) (map[string]Sandbox, error)
 }
 
 type Sandbox interface {

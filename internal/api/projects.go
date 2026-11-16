@@ -18,6 +18,7 @@ import (
 	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/builders"
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/engine"
 )
 
@@ -218,7 +219,7 @@ func insertProject(ctx context.Context, s *authz.Scope, p *v1.Project, workspace
 	_, err := s.Tx.Exec(ctx, `INSERT INTO projects (id, org_id, slug, path, engine, engine_version, layout, repo_url, branch, sample, labels, state_backend)
 		VALUES ($1, app_org_id(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 		id, p.Slug, p.Path, engines[p.Engine], p.EngineVersion, layouts[p.Layout], p.RepoUrl, p.Branch, sample, labels, backend)
-	if uniqueViolation(err) {
+	if db.UniqueViolation(err) {
 		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("a project named %s exists", p.Slug))
 	}
 	if err != nil {
@@ -432,7 +433,7 @@ func (h Projects) CreateWorkspace(ctx context.Context, req *connect.Request[v1.C
 	}
 	_, err = s.Tx.Exec(ctx, `INSERT INTO workspaces (id, org_id, project_id, name) VALUES ($1, app_org_id(), $2, $3)`,
 		uuid.NewString(), pr.id, req.Msg.Name)
-	if uniqueViolation(err) {
+	if db.UniqueViolation(err) {
 		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("%s already has a workspace named %s", pr.p.Slug, req.Msg.Name))
 	}
 	if err != nil {

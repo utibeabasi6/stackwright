@@ -18,10 +18,15 @@ import (
 
 const MaxSize = 64 << 20
 
+// maxSerial is far above any serial an engine writes, and leaves room for a
+// rollback's serial + 1.
+const maxSerial = 1 << 53
+
 var (
 	ErrNotJSON      = errors.New("the state is not valid JSON")
 	ErrLineage      = errors.New("the state's lineage differs from the stored state; it belongs to another workspace")
 	ErrSerialBehind = errors.New("the state's serial is not newer than the stored state")
+	ErrSerialRange  = errors.New("the state's serial is out of range")
 )
 
 type Store struct {
@@ -49,6 +54,9 @@ func parse(body []byte) (document, error) {
 	var d document
 	if err := json.Unmarshal(body, &d); err != nil {
 		return document{}, ErrNotJSON
+	}
+	if d.Serial < 0 || d.Serial > maxSerial {
+		return document{}, ErrSerialRange
 	}
 	return d, nil
 }

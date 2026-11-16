@@ -45,6 +45,8 @@ func ReadSources(root, dir string) (Sources, error) {
 func readModule(root, dir string) SourceModule {
 	m := SourceModule{Resources: map[string]Location{}, ModuleCalls: map[string]Location{}, Locals: map[string][]string{}}
 	files, _ := filepath.Glob(filepath.Join(dir, "*.tf"))
+	tofu, _ := filepath.Glob(filepath.Join(dir, "*.tofu"))
+	files = append(files, tofu...)
 	for _, path := range files {
 		b, err := os.ReadFile(path) //nolint:gosec // a path under the job's folder
 		if err != nil {

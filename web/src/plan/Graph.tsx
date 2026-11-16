@@ -416,6 +416,7 @@ function NodePanel({ org, project, workspace, number, id, baseUrl, status, diagn
           <AskAgent
             org={org}
             project={project}
+            workspace={workspace}
             prompt={`Applying ${id} in run #${number} failed. Fix the code if the code causes it.\n\n${dg.summary}${dg.file ? ` (${dg.file}:${dg.line})` : ""}${dg.detail ? `\n${dg.detail}` : ""}`}
           />
         </div>

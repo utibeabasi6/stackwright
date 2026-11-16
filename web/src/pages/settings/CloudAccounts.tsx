@@ -5,13 +5,12 @@ import { cloudApi, message } from "../../api";
 import { Copy } from "../../Copy";
 import type { GetAwsSetupResponse } from "../../gen/stackwright/v1/cloud_pb";
 import { Role } from "../../gen/stackwright/v1/orgs_pb";
-import { useMe } from "../../me";
+import { useRole } from "../../me";
 import { useLoad } from "../../useLoad";
 
 export function CloudAccounts() {
   const { org } = useParams({ strict: false }) as { org: string };
-  const me = useMe();
-  const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
+  const admin = useRole(org) >= Role.ADMIN;
   const accounts = useLoad(`cloud:${org}`, () => cloudApi.listCloudAccounts({ org }));
   const [setup, setSetup] = useState<{ name: string; data: GetAwsSetupResponse }>();
   const [error, setError] = useState<string>();

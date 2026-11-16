@@ -52,3 +52,4 @@ line to the old one that points to the new one.
 | [0044](0044-cli.md) | The CLI signs in with a device code and acts as its user; plans upload what git tracks and never apply; the server writes the timeline |
 | [0045](0045-sso-scim-notifications-audit-export.md) | SAML and SCIM per org, SSO for all but owners, sessions scoped to their IdP's org; notifications and audit export through an outbox |
 | [0046](0046-running-in-production.md) | Sandboxes on internal networks reach out only through an egress proxy; the server relays object storage; rate limits per user and IP; online KEK rotation; an upgrade test |
+| [0047](0047-review-fixes.md) | Fixes from the full review: plan jobs cannot write state; owners configure SSO and SAML never signs in owners; SCIM acts only in its org; job artifacts stay 30 days; no default executor image |

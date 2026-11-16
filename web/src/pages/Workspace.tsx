@@ -7,7 +7,7 @@ import { describe, engineName } from "../engines";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { Layout, StateBackend } from "../gen/stackwright/v1/projects_pb";
 import { EngineVersion } from "../EngineVersion";
-import { useShell } from "../me";
+import { useRole, useShell } from "../me";
 import { formatLabels, parseLabels } from "../labels";
 import { useLoad } from "../useLoad";
 import { CloudPanel } from "./CloudPanel";
@@ -30,12 +30,12 @@ export type Section = keyof typeof titles;
 // Workspace shows one of a workspace's pages; the sidebar links them.
 export function Workspace({ section }: { section: Section }) {
   const { org, project, workspace } = useParams({ strict: false }) as { org: string; project: string; workspace: string };
-  const { me, reloadProjects } = useShell();
+  const { reloadProjects } = useShell();
   const navigate = useNavigate();
   const ws = useLoad(`${org}/${project}/${workspace}`, () => projectApi.getWorkspace({ org, project, workspace }));
   const [error, setError] = useState<string>();
   const [version, setVersion] = useState("");
-  const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
+  const admin = useRole(org) >= Role.ADMIN;
   const savingProject = useAction();
   const savingLabels = useAction();
   const adding = useAction();

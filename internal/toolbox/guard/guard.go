@@ -15,7 +15,7 @@ func Refused(rel string) string {
 		switch {
 		case part == ".git" || part == ".terraform":
 			return part + " is not for tools"
-		case strings.HasSuffix(part, ".tfstate") || strings.HasSuffix(part, ".tfstate.backup"):
+		case strings.Contains(part, ".tfstate"):
 			return "state files hold secrets and are never read or written"
 		case part == ".env" || strings.HasPrefix(part, ".env."):
 			return ".env files hold secrets and are never read or written"

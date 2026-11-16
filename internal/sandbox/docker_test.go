@@ -141,15 +141,18 @@ func TestDockerSandboxCacheIsReadOnly(t *testing.T) {
 	}
 }
 
-func TestDockerPullsAMissingImage(t *testing.T) {
-	const image = "busybox:1.36.1"
+func TestDockerPullsAMissingImageOnlyFromANamedRegistry(t *testing.T) {
+	const image = "docker.io/library/busybox:1.36.1"
 	d := docker(t)
 	_ = exec.Command("docker", "rmi", image).Run()
+	if _, err := d.Start(context.Background(), sandbox.Spec{Image: "busybox:1.36.1"}); !errors.Is(err, sandbox.ErrNoSuchImage) {
+		t.Errorf("a missing image with no registry in its name: %v", err)
+	}
 	_, code, logs := run(t, d, sandbox.Spec{Image: image, Command: []string{"true"}})
 	if code != 0 {
 		t.Errorf("exit %d: %s", code, logs)
 	}
-	if _, err := d.Start(context.Background(), sandbox.Spec{Image: "stackwright/no-such-image:missing"}); !errors.Is(err, sandbox.ErrNoSuchImage) {
-		t.Errorf("an image no registry has: %v", err)
+	if _, err := d.Start(context.Background(), sandbox.Spec{Image: "registry.invalid/stackwright/no-such-image:missing"}); err == nil {
+		t.Error("an image no registry has started")
 	}
 }

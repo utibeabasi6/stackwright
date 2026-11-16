@@ -16,6 +16,7 @@ import (
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/oidc"
 )
 
@@ -67,7 +68,7 @@ func (h CloudAccounts) CreateCloudAccount(ctx context.Context, req *connect.Requ
 	}
 	_, err := s.Tx.Exec(ctx, `INSERT INTO cloud_accounts (id, org_id, name, provider, aws_plan_role_arn, aws_apply_role_arn, aws_region)
 		VALUES ($1, $2, $3, 'aws', $4, $5, $6)`, uuid.NewString(), s.OrgID, name, aws.GetPlanRoleArn(), aws.GetApplyRoleArn(), aws.GetRegion())
-	if uniqueViolation(err) {
+	if db.UniqueViolation(err) {
 		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("a cloud account with that name exists"))
 	}
 	if err != nil {
@@ -91,8 +92,20 @@ func (h CloudAccounts) DeleteCloudAccount(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			fmt.Errorf("%s is used by %s; choose another account for them first", a.GetName(), strings.Join(a.GetWorkspaces(), ", ")))
 	}
-	if _, err := s.Tx.Exec(ctx, `DELETE FROM cloud_accounts WHERE id = $1`, a.GetId()); err != nil {
+	var export bool
+	if err := s.Tx.QueryRow(ctx, `SELECT EXISTS (SELECT FROM audit_exports WHERE cloud_account_id = $1)`, a.GetId()).Scan(&export); err != nil {
 		return nil, authz.Internal(err)
+	}
+	if export {
+		return nil, connect.NewError(connect.CodeFailedPrecondition,
+			fmt.Errorf("%s sends the audit log to S3; remove that export first", a.GetName()))
+	}
+	// An archived workspace never runs again, so it lets the account go.
+	for _, q := range []string{`UPDATE workspaces SET cloud_account_id = NULL WHERE cloud_account_id = $1 AND archived_at IS NOT NULL`,
+		`DELETE FROM cloud_accounts WHERE id = $1`} {
+		if _, err := s.Tx.Exec(ctx, q, a.GetId()); err != nil {
+			return nil, authz.Internal(err)
+		}
 	}
 	s.Target("cloud account " + a.GetName())
 	return connect.NewResponse(&v1.DeleteCloudAccountResponse{}), nil

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { cloudApi, githubApi, importApi, message } from "../api";
 import { Action, Submit, useAction } from "../Action";
@@ -14,6 +14,9 @@ type Choice = { chosen: boolean; slug: string; engine: Engine; version: string; 
 // where says where a root's state lives and what that means for its runs
 // (adr/0036).
 function where(r: FoundRoot) {
+  if (r.stateBackend === StateBackend.STACKWRIGHT && r.stackError) {
+    return `A Terraform Stack whose files do not parse, so it cannot import yet: ${r.stackError}`;
+  }
   if (r.stateBackend === StateBackend.STACKWRIGHT) {
     return `A Terraform Stack with ${r.stackDeployments.length === 1 ? "deployment" : "deployments"} ${r.stackDeployments.join(", ")}: each component of each deployment gets a workspace, and each deployment deploys them in order with one approval. Stackwright keeps their state.`;
   }
@@ -32,6 +35,7 @@ export function Import() {
   const accounts = useLoad(`cloud-accounts:${org}`, () => cloudApi.listCloudAccounts({ org }).then((r) => r.accounts));
   const repos = (gh.data?.installations ?? []).flatMap((i) => i.repos.map((r) => r.fullName));
   const [repo, setRepo] = useState("");
+  const chosenRepo = useRef("");
   const [scan, setScan] = useState<ScanRepositoryResponse>();
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   const [account, setAccount] = useState("");
@@ -42,6 +46,7 @@ export function Import() {
     setError(undefined);
     try {
       const r = await importApi.scanRepository({ org, repo });
+      if (chosenRepo.current !== repo) return false;
       setScan(r);
       setChoices(
         Object.fromEntries(
@@ -53,6 +58,7 @@ export function Import() {
       );
       return true;
     } catch (e) {
+      if (chosenRepo.current !== repo) return false;
       setError(message(e));
       return false;
     }
@@ -108,6 +114,7 @@ export function Import() {
             aria-label="Repository"
             value={repo}
             onChange={(v) => {
+              chosenRepo.current = v;
               setRepo(v);
               setScan(undefined);
             }}

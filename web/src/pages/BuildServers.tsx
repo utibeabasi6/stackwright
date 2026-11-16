@@ -2,20 +2,18 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Action, Submit, useAction } from "../Action";
 import { Link, useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { buildServerApi, message } from "../api";
+import { buildServerApi } from "../api";
 import { BuildServer_Status, type BuildServer } from "../gen/stackwright/v1/build_servers_pb";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { formatLabels, parseLabels } from "../labels";
-import { useShell } from "../me";
+import { useRole } from "../me";
 import { useLoad } from "../useLoad";
 
 export function BuildServers() {
   const { org } = useParams({ strict: false }) as { org: string };
-  const { me } = useShell();
-  const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
+  const admin = useRole(org) >= Role.ADMIN;
   const servers = useLoad(`build-servers:${org}`, () => buildServerApi.listBuildServers({ org }).then((r) => r.buildServers));
   const [editing, setEditing] = useState<string>();
-  const [error, setError] = useState<string>();
   const { reload } = servers;
 
   useEffect(() => {
@@ -24,16 +22,9 @@ export function BuildServers() {
   }, [reload]);
 
   const act = async (fn: () => Promise<unknown>) => {
-    setError(undefined);
-    try {
-      await fn();
-      setEditing(undefined);
-      reload();
-      return true;
-    } catch (err) {
-      setError(message(err));
-      return false;
-    }
+    await fn();
+    setEditing(undefined);
+    reload();
   };
   const saving = useAction();
   const remove = (s: BuildServer) => act(() => buildServerApi.removeBuildServer({ org, id: s.id }));
@@ -71,7 +62,7 @@ export function BuildServers() {
           </Link>
         )}
       </div>
-      {(servers.error || error) && <p className="error">{servers.error || error}</p>}
+      {servers.error && <p className="error">{servers.error}</p>}
 
       <div className="table-box">
         <table className="table">

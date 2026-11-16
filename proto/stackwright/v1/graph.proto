@@ -284,4 +284,3 @@ message GetTopologyResponse {
   // The workspaces whose nodes are drawn, as "project/workspace #run".
   repeated string sources = 2;
 }
-

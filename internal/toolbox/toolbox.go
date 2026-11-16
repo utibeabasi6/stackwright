@@ -154,6 +154,8 @@ func (b *box) result(ctx context.Context, id, out string, err error) *v1.Toolbox
 	if len(r.Output) > maxOutput {
 		r.Output = r.Output[:maxOutput] + "\n[cut short]"
 	}
+	// A proto3 string must be UTF-8, or the stream cannot send it.
+	r.Output = strings.ToValidUTF8(r.Output, "\uFFFD")
 	return &v1.ToolboxMessage{Body: &v1.ToolboxMessage_Result{Result: r}}
 }
 
@@ -178,7 +180,7 @@ func (b *box) checkout(ctx context.Context, c *v1.Checkout) error {
 		}
 		// validate runs init, which writes .terraform; no commit may take it.
 		exclude := filepath.Join(b.repo, ".git", "info", "exclude")
-		if err := os.WriteFile(exclude, []byte(".terraform/\n*.tfstate\n*.tfstate.backup\n"), 0o600); err != nil {
+		if err := os.WriteFile(exclude, []byte(".terraform/\n*.tfstate\n*.tfstate.*\n"), 0o600); err != nil {
 			return err
 		}
 	}
@@ -197,22 +199,32 @@ func (b *box) checkout(ctx context.Context, c *v1.Checkout) error {
 
 // dirty reports changes that are not committed, or commits that are not
 // pushed, such as one whose push failed.
+// dirty reports uncommitted or unpushed work. When git fails it reports
+// true: a sandbox kept by mistake costs a slot, one removed by mistake
+// loses a person's work.
 func (b *box) dirty(ctx context.Context) bool {
-	if out, err := b.git(ctx, b.repo, "status", "--porcelain"); err == nil && out != "" {
+	out, err := b.git(ctx, b.repo, "status", "--porcelain")
+	if err != nil || out != "" {
 		return true
 	}
 	ahead, err := b.git(ctx, b.repo, "rev-list", "--count", "HEAD", "--not", "--remotes=origin")
-	return err == nil && ahead != "0"
+	return err != nil || ahead != "0"
 }
 
 func (b *box) commit(ctx context.Context, c *v1.CommitOrder) (string, error) {
-	if !b.dirty(ctx) {
+	out, err := b.git(ctx, b.repo, "status", "--porcelain")
+	if err != nil {
+		return "", err
+	}
+	ahead, err := b.git(ctx, b.repo, "rev-list", "--count", "HEAD", "--not", "--remotes=origin")
+	if err != nil {
+		return "", err
+	}
+	if out == "" && ahead == "0" {
 		return "", errors.New("there is nothing to commit")
 	}
 	// A commit whose push failed is pushed as it is.
-	if out, err := b.git(ctx, b.repo, "status", "--porcelain"); err != nil {
-		return "", err
-	} else if out != "" {
+	if out != "" {
 		if _, err := b.git(ctx, b.repo, "add", "--all"); err != nil {
 			return "", err
 		}

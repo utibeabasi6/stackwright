@@ -16,6 +16,8 @@ const reasons: Record<string, string> = {
   "saml-account": "Your email belongs to an account outside this org. Sign in another way, or ask the org's admin.",
   "saml-email": "The identity provider did not send an email address.",
   "saml-internal": "The SSO sign-in failed. Try again.",
+  "saml-browser": "The SSO sign-in started in another browser. Start it again here.",
+  "saml-owner": "Owners sign in another way, not through the identity provider.",
 };
 
 export function SignIn() {
@@ -24,14 +26,14 @@ export function SignIn() {
   const providers = useLoad("providers", () => authApi.listSignInProviders({}));
   const [error, setError] = useState<string>();
   const pending = useAction();
+  const next = search.next?.startsWith("/") && !search.next.startsWith("//") ? search.next : undefined;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
       await authApi.signIn({ email: String(f.get("email")), password: String(f.get("password")) });
-      const next = search.next?.startsWith("/") && !search.next.startsWith("//") ? search.next : "/";
-      navigate({ to: next });
+      navigate({ to: next ?? "/" });
     } catch (err) {
       setError(message(err));
       return false;
@@ -45,7 +47,7 @@ export function SignIn() {
         <h1>Sign in</h1>
         {failure && <p className="error">{failure}</p>}
         {providers.data?.providers.map((p) => (
-          <a key={p.id} className="button" href={`/auth/oidc/${p.id}/start`}>
+          <a key={p.id} className="button" href={`/auth/oidc/${p.id}/start?next=${encodeURIComponent(next ?? "/")}`}>
             Sign in with {p.name}
           </a>
         ))}
@@ -55,8 +57,7 @@ export function SignIn() {
           onSubmit={(e) => {
             e.preventDefault();
             const org = String(new FormData(e.currentTarget).get("org")).trim();
-            const next = search.next?.startsWith("/") && !search.next.startsWith("//") ? search.next : `/${org}`;
-            window.location.assign(`/auth/saml/${encodeURIComponent(org)}/start?next=${encodeURIComponent(next)}`);
+            window.location.assign(`/auth/saml/${encodeURIComponent(org)}/start?next=${encodeURIComponent(next ?? `/${org}`)}`);
           }}
         >
           <label className="field grow">

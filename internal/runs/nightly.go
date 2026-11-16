@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/stackwright/stackwright/internal/db"
 )
 
 // NightlyHour is the hour, in UTC, of the nightly plan-only review.
@@ -18,7 +20,7 @@ type HeadFunc func(ctx context.Context, tx pgx.Tx, orgID, workspaceID string) (N
 
 // Nightly queues QueueNightly at each NightlyHour until ctx ends. A night
 // that passes while no server runs is skipped, not made up.
-func (o *Orchestrator) Nightly(ctx context.Context, head HeadFunc) {
+func (o *Orchestrator) Nightly(ctx context.Context) {
 	for {
 		now := time.Now().UTC()
 		slot := time.Date(now.Year(), now.Month(), now.Day(), NightlyHour, 0, 0, 0, time.UTC)
@@ -30,7 +32,7 @@ func (o *Orchestrator) Nightly(ctx context.Context, head HeadFunc) {
 			return
 		case <-time.After(time.Until(slot)):
 		}
-		if err := o.QueueNightly(ctx, slot, head); err != nil && ctx.Err() == nil {
+		if err := o.QueueNightly(ctx, slot); err != nil && ctx.Err() == nil {
 			slog.Error("queue nightly reviews", "err", err)
 		}
 	}
@@ -41,7 +43,7 @@ func (o *Orchestrator) Nightly(ctx context.Context, head HeadFunc) {
 // expired acceptances when the code does not change (adr/0037). A linked
 // workspace plans its branch's newest commit; any other plans the code of
 // its last own run again.
-func (o *Orchestrator) QueueNightly(ctx context.Context, slot time.Time, head HeadFunc) error {
+func (o *Orchestrator) QueueNightly(ctx context.Context, slot time.Time) error {
 	rows, err := o.Pool.Query(ctx, `SELECT workspace_id, org_id FROM nightly_reviews_due($1)`, slot)
 	if err != nil {
 		return err
@@ -56,9 +58,12 @@ func (o *Orchestrator) QueueNightly(ctx context.Context, slot time.Time, head He
 	}
 	var errs []error
 	for _, d := range all {
-		err := o.inOrg(ctx, d.org, func(tx pgx.Tx) error {
-			r, ok, err := codeOf(ctx, tx, d.org, d.workspace, head)
+		err := db.InOrg(ctx, o.Pool, d.org, func(tx pgx.Tx) error {
+			r, ok, err := codeOf(ctx, tx, d.org, d.workspace, o.Head)
 			if err != nil || !ok {
+				return err
+			}
+			if r.Inputs, err = o.lastInputs(ctx, tx, d.org, d.workspace); err != nil {
 				return err
 			}
 			r.PlanOnly, r.Trigger = true, "schedule"
@@ -91,7 +96,7 @@ func codeOf(ctx context.Context, tx pgx.Tx, orgID, workspaceID string, head Head
 	var runID string
 	var key *string
 	err := tx.QueryRow(ctx, `SELECT id, source_key, source, source_sha256 FROM runs WHERE workspace_id = $1
-		AND trigger IN ('ui', 'push', 'schedule', 'deployment') ORDER BY number DESC LIMIT 1`, workspaceID).
+		AND trigger = ANY($2) ORDER BY number DESC LIMIT 1`, workspaceID, OwnCode).
 		Scan(&runID, &key, &r.SourceName, &r.SourceSHA)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, false, nil

@@ -7,12 +7,12 @@ import { AskAgent } from "../agent/AgentPanel";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
 import { RunStatus } from "../gen/stackwright/v1/runs_pb";
 import { Severity, type Finding } from "../gen/stackwright/v1/security_pb";
-import { useShell } from "../me";
+import { useRole } from "../me";
 import { decidesRisk } from "../roles";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
 
-const severities: Record<Severity, { text: string; tone: string }> = {
+export const severities: Record<Severity, { text: string; tone: string }> = {
   [Severity.UNSPECIFIED]: { text: "Unknown", tone: "muted" },
   [Severity.LOW]: { text: "Low", tone: "muted" },
   [Severity.MEDIUM]: { text: "Medium", tone: "warn" },
@@ -31,9 +31,9 @@ type TableProps = {
 };
 
 export function FindingsTable({ org, findings, reload, where }: TableProps) {
-  const { me } = useShell();
-  const decides = decidesRisk(me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED);
-  const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
+  const role = useRole(org);
+  const decides = decidesRisk(role);
+  const writer = role >= Role.WRITER;
   const navigate = useNavigate();
   const [accepting, setAccepting] = useState<string>();
   return (
@@ -103,6 +103,7 @@ export function FindingsTable({ org, findings, reload, where }: TableProps) {
                     <AskAgent
                       org={org}
                       project={f.project}
+                      workspace={f.workspace}
                       label="Reconcile with agent"
                       prompt={`${f.resource} changed outside Stackwright (${f.message}). Change the code so it matches what is deployed now.`}
                     />
@@ -116,6 +117,7 @@ export function FindingsTable({ org, findings, reload, where }: TableProps) {
                     <AskAgent
                       org={org}
                       project={f.project}
+                      workspace={f.workspace}
                       prompt={`The security review found ${f.checkId} (${f.title}) on ${f.resource}: ${f.message}\nFix the code so the finding goes away.`}
                     />
                   )}
@@ -182,8 +184,7 @@ function AcceptForm({ org, finding, done, cancel }: { org: string; finding: Find
 
 export function WorkspaceSecurity({ org, project, workspace }: { org: string; project: string; workspace: string }) {
   const [fixed, setFixed] = useState(false);
-  const { me } = useShell();
-  const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
+  const writer = useRole(org) >= Role.WRITER;
   const navigate = useNavigate();
   const list = useLoad(`findings:${org}/${project}/${workspace}:${fixed}`, () =>
     securityApi.listFindings({ org, project, workspace, includeFixed: fixed }).then((r) => r.findings),

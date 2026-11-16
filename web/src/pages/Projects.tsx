@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { message, projectApi } from "../api";
 import { describe } from "../engines";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
-import { useShell } from "../me";
+import { useRole, useShell } from "../me";
 import type { Project } from "../gen/stackwright/v1/projects_pb";
 
 const groupKey = "stackwright.projects.groupBy";
@@ -47,10 +47,10 @@ function savedGroupBy(): string[] {
 
 export function Projects() {
   const { org } = useParams({ strict: false }) as { org: string };
-  const { me, projects, reloadProjects } = useShell();
+  const { projects, reloadProjects } = useShell();
   const navigate = useNavigate();
   const [error, setError] = useState<string>();
-  const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
+  const admin = useRole(org) >= Role.ADMIN;
   const [groupBy, setGroupBy] = useState(savedGroupBy);
   const keys = useMemo(() => [...new Set((projects ?? []).flatMap((p) => Object.keys(p.labels)))].sort(), [projects]);
   const tree = useMemo(() => groups(projects ?? [], groupBy.filter((k) => keys.includes(k))), [projects, groupBy, keys]);
@@ -185,7 +185,6 @@ function ProjectCard({ p, org }: { p: Project; org: string }) {
           <li key={w.name}>
             <Link to="/$org/projects/$project/$workspace" params={{ org, project: p.slug, workspace: w.name }}>
               <span className="mono">{w.name}</span>
-              <span className="muted">No runs yet</span>
             </Link>
           </li>
         ))}

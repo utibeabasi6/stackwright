@@ -108,8 +108,9 @@ func (g *GitHub) Manifest(ctx context.Context, tx pgx.Tx, userID, githubOrg, ret
 		"setup_on_update":          true,
 		"request_oauth_on_install": false,
 		"public":                   false,
-		"default_permissions":      map[string]string{"contents": "write", "pull_requests": "write", "checks": "write", "metadata": "read"},
-		"default_events":           []string{"push", "pull_request"},
+		"default_permissions": map[string]string{"contents": "write", "pull_requests": "write", "checks": "write", "metadata": "read",
+			"members": "read"},
+		"default_events": []string{"push", "pull_request"},
 	})
 	if err != nil {
 		return "", "", err
@@ -285,8 +286,11 @@ func (g *GitHub) userToken(ctx context.Context, app *App, code string) (string, 
 }
 
 // visibleInstallation returns the installation's account if the user's
-// token lists it.
+// token lists it and the user holds the account: is it, or is an admin of
+// its organization. A collaborator on one repository sees the installation
+// too, and must not link it (adr/0047).
 // https://docs.github.com/en/rest/apps/installations#list-app-installations-accessible-to-the-user-access-token
+// https://docs.github.com/en/rest/orgs/members#get-an-organization-membership-for-the-authenticated-user
 func (g *GitHub) visibleInstallation(ctx context.Context, userToken string, installation int64) (string, error) {
 	for page := 1; page <= 10; page++ {
 		var out struct {
@@ -294,6 +298,7 @@ func (g *GitHub) visibleInstallation(ctx context.Context, userToken string, inst
 				ID      int64 `json:"id"`
 				Account struct {
 					Login string `json:"login"`
+					Type  string `json:"type"`
 				} `json:"account"`
 			} `json:"installations"`
 		}
@@ -301,9 +306,25 @@ func (g *GitHub) visibleInstallation(ctx context.Context, userToken string, inst
 			return "", err
 		}
 		for _, i := range out.Installations {
-			if i.ID == installation {
-				return i.Account.Login, nil
+			if i.ID != installation {
+				continue
 			}
+			if i.Account.Type == "Organization" {
+				var m struct{ State, Role string }
+				err := g.call(ctx, http.MethodGet, "/user/memberships/orgs/"+url.PathEscape(i.Account.Login), userToken, nil, &m)
+				if errors.Is(err, ErrNotFound) || errors.Is(err, ErrForbidden) || err == nil && (m.State != "active" || m.Role != "admin") {
+					return "", ErrNotYours
+				}
+				return i.Account.Login, err
+			}
+			var u struct{ Login string }
+			if err := g.call(ctx, http.MethodGet, "/user", userToken, nil, &u); err != nil {
+				return "", err
+			}
+			if !strings.EqualFold(u.Login, i.Account.Login) {
+				return "", ErrNotYours
+			}
+			return i.Account.Login, nil
 		}
 		if len(out.Installations) < 100 {
 			break

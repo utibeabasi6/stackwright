@@ -40,8 +40,9 @@ commit that finishes a phase.
 - CI has not run: the repo has no remote yet.
 - The page has not been looked at in a browser; only its tests ran.
 - govulncheck reports standard library vulnerabilities. With the local Go
-  1.26.4 there are 22. The image builds with Go 1.26.9; some fixes need Go
-  1.26.10 (crypto/x509) and 1.26.11 (net/http), which are under 14 days old.
+  1.26.4 there are 22. The image builds with Go 1.26.10, which has the
+  crypto/x509 fixes. The net/http fixes need Go 1.26.11, released
+  2026-11-10, which passes the 14-day rule on 2026-11-24.
 
 **Deferred:**
 - The built-in builder to phase 4, when something uses it. Mailpit until
@@ -1573,3 +1574,47 @@ in a container and cannot join a sandbox's network. New docs:
   the server connect to private addresses.
 - Rate limits count in each server process.
 - No pen test has run.
+
+## Review of 2026-11-15
+
+A review of the whole codebase found 82 defects; ADR 0047 records the
+decisions they needed. The fixes are in the working tree.
+
+**Verified:**
+- New unit tests: hostile Stack files fail without a panic, the Git
+  proxy's ref check, the sign-in redirect check, doubly escaped secrets in
+  the redactor, and links in a source archive.
+- New server tests: a plan job's token cannot write state, an event with
+  a NUL byte is stored, a writer cannot unlock another's lock and an
+  admin's force-unlock is audited, a serial past 2^53 is refused, the
+  audit retention saves, and SCIM refuses an account outside its org.
+- The role matrix test reads the security role set from the policy.
+- A full Go run with `-race` passed every package on the final code
+  (2026-11-16). Earlier runs that failed waited on slow GitHub downloads
+  or on a Docker host that did not answer; `TestSecurityReview` passed
+  alone in 225 s once Docker answered again.
+- `buf lint`, golangci-lint, eslint, tsc and the 66 web unit tests pass.
+- The server image builds, with `/licenses` and the web app's
+  `THIRD_PARTY_NOTICES.txt`.
+
+**Not verified:**
+- Playwright.
+- A build server that restarts while a job runs, and adopts its sandbox.
+- The retention sweep against a real bucket with old jobs.
+- An owner login without BYPASSRLS on a managed Postgres.
+- The SAML owner refusal and the browser cookie against a real identity
+  provider over https.
+- The GitHub link check against GitHub.com, and an installation accepting
+  the new `members: read` permission.
+- A force push, and a Terragrunt push, against GitHub.com.
+- CI, which has never run.
+
+**Known gaps:**
+- Some full runs log `invalid input syntax for type uuid: ""` from an RPC
+  while a test's builder shuts down. No test fails, and the last full run
+  and four runs of the likely tests alone did not show it. Its source is
+  not found.
+- Go 1.26.11, which fixes net/http, passes the 14-day rule on 2026-11-24.
+- The CLI binaries that the server serves carry no licence texts; the
+  image holds them under `/licenses`.
+- See also "Where the protection stops" in threat-model.md.

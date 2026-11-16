@@ -114,8 +114,13 @@ func (a *Auditor) export(ctx context.Context, tx pgx.Tx, orgID string) error {
 		return err
 	}
 	for _, t := range targets {
+		// An id is taken at insert and seen at commit, so a newer row can be
+		// seen before an older one. Rows wait until those of the last five
+		// minutes are older, so the cursor does not pass a row still to come.
 		rows, err := tx.Query(ctx, `SELECT id, actor_id, actor_kind, action, target, coalesce(host(ip), ''), at FROM audit_log
-			WHERE org_id = $1 AND id > $2 ORDER BY id LIMIT $3`, orgID, t.sent, auditBatch)
+			WHERE org_id = $1 AND id > $2
+				AND id < coalesce((SELECT min(id) FROM audit_log WHERE org_id = $1 AND at > now() - interval '5 minutes'), 9223372036854775807)
+			ORDER BY id LIMIT $3`, orgID, t.sent, auditBatch)
 		if err != nil {
 			return err
 		}

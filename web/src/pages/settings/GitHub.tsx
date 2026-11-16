@@ -4,7 +4,7 @@ import { useParams } from "@tanstack/react-router";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { githubApi, message } from "../../api";
 import { Role } from "../../gen/stackwright/v1/orgs_pb";
-import { useMe } from "../../me";
+import { useMe, useRole } from "../../me";
 import { useLoad } from "../../useLoad";
 
 // postForm sends the browser to GitHub with the App manifest, which
@@ -22,13 +22,24 @@ function postForm(url: string, manifest: string) {
   form.submit();
 }
 
+// callbackErrors are the errors that GitHub's callbacks send back in
+// ?error=. The query is not trusted, so anything else gets a fixed message.
+const callbackErrors: Record<string, string> = {
+  "another org already linked this installation": "Another org already linked this installation.",
+  "your GitHub account cannot see this installation": "Your GitHub account cannot see this installation.",
+  "this instance already has a GitHub App": "This instance already has a GitHub App.",
+};
+
 export function GitHub() {
   const { org } = useParams({ strict: false }) as { org: string };
   const me = useMe();
-  const admin = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.ADMIN;
+  const admin = useRole(org) >= Role.ADMIN;
   const instanceAdmin = Boolean(me.user?.instanceAdmin);
   const gh = useLoad(`github:${org}`, () => githubApi.getGitHub({ org }));
-  const [error, setError] = useState<string | undefined>(() => new URLSearchParams(window.location.search).get("error") ?? undefined);
+  const [error, setError] = useState<string | undefined>(() => {
+    const code = new URLSearchParams(window.location.search).get("error");
+    return code === null ? undefined : (callbackErrors[code] ?? "GitHub did not finish the setup. Try again.");
+  });
   const creating = useAction();
 
   const act = async (fn: () => Promise<unknown>) => {

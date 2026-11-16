@@ -62,6 +62,9 @@ func (c *Config) Audiences() (map[string][]string, error) {
 			return nil, invalid(expr.Range(), "audience must be a list of strings")
 		}
 		for _, a := range list.AsValueSlice() {
+			if a.IsNull() || !a.IsKnown() || !a.Type().Equals(cty.String) {
+				return nil, invalid(expr.Range(), "audience must be a list of strings")
+			}
 			out[name] = append(out[name], a.AsString())
 		}
 	}
@@ -80,8 +83,12 @@ func evalLocals(exprs map[string]hclsyntax.Expression, ctx *hcl.EvalContext, str
 			}
 			ready := true
 			for _, t := range expr.Variables() {
-				if t.RootName() == "local" && len(t) > 1 {
-					dep := t[1].(hcl.TraverseAttr).Name
+				attr, ok := hcl.TraverseAttr{}, false
+				if len(t) > 1 {
+					attr, ok = t[1].(hcl.TraverseAttr)
+				}
+				if t.RootName() == "local" && ok {
+					dep := attr.Name
 					_, done := out[dep]
 					ready = ready && (done || exprs[dep] == nil)
 				}
@@ -293,6 +300,9 @@ func forEach(what string, expr hclsyntax.Expression, ctx *hcl.EvalContext) ([]ea
 		}
 	case ty.IsSetType() && ty.ElementType() == cty.String:
 		for _, el := range v.AsValueSlice() {
+			if el.IsNull() {
+				return nil, invalid(expr.Range(), "the for_each of %s holds a null", what)
+			}
 			out = append(out, each{key: el.AsString(), value: el})
 		}
 	default:
@@ -325,7 +335,11 @@ func (c *Config) refs(exprs []hclsyntax.Expression, seen map[string]bool, visit 
 				}
 			case "provider":
 				if len(t) > 2 {
-					key := name + "." + t[2].(hcl.TraverseAttr).Name
+					attr, ok := t[2].(hcl.TraverseAttr)
+					if !ok {
+						continue
+					}
+					key := name + "." + attr.Name
 					if p := c.providers[key]; p != nil && !seen["provider."+key] {
 						seen["provider."+key] = true
 						c.refs(append(bodyExprs(p.config), p.forEach), seen, visit)

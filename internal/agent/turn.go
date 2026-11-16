@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/toolbox/guard"
 )
 
@@ -75,7 +76,6 @@ type sessionInfo struct {
 	// that the toolbox reads from the code.
 	conventions string
 	steps       []stepRow
-	turnsBefore int
 }
 
 type stepRow struct {
@@ -86,7 +86,7 @@ type stepRow struct {
 func (s *Service) loadTurn(ctx context.Context, id, orgID string) (settings, sessionInfo, error) {
 	var st settings
 	var info sessionInfo
-	err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
 		var err error
 		if st, err = s.loadSettings(ctx, tx, orgID, true); err != nil {
 			return err
@@ -195,8 +195,38 @@ func (info sessionInfo) messages() []Message {
 	if len(edits) > 0 {
 		out = append(out, Message{Role: "user", Content: "Stackwright: " + strings.Join(edits, " ") + " Read a file again before you change it."})
 	}
+	// A long session outgrows the model's context. The oldest tool results
+	// and call arguments go first; the calls stay, so the model knows what
+	// it did.
+	size := 0
+	for _, m := range out {
+		size += len(m.Content)
+		for _, c := range m.ToolCalls {
+			size += len(c.Function.Arguments)
+		}
+	}
+	for i := 1; i < len(out) && size > maxChat; i++ {
+		if out[i].Role == "tool" && len(out[i].Content) > len(leftOut) {
+			size -= len(out[i].Content) - len(leftOut)
+			out[i].Content = leftOut
+		}
+		for j, c := range out[i].ToolCalls {
+			if len(c.Function.Arguments) > len(leftOutArgs) {
+				size -= len(c.Function.Arguments) - len(leftOutArgs)
+				out[i].ToolCalls[j].Function.Arguments = leftOutArgs
+			}
+		}
+	}
 	return out
 }
+
+const (
+	// maxChat bounds the characters sent to the model, well inside the
+	// context of the models the agent offers.
+	maxChat     = 400 << 10
+	leftOut     = "[an older result, left out to fit the model's context]"
+	leftOutArgs = `{"left_out":"older arguments, left out to fit the model's context"}`
+)
 
 func (s *Service) startTurn(id, orgID, userID string) {
 	l := s.session(id)
@@ -414,7 +444,7 @@ func (s *Service) proposePullRequest(ctx context.Context, id, orgID, callID, arg
 	a.Title = strings.TrimSpace(a.Title)
 	var dirty, pushed bool
 	var pr *int32
-	err := s.inOrg(ctx, orgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT dirty, pr_number, EXISTS (SELECT FROM agent_steps WHERE session_id = $1 AND kind = 'decision' AND payload ? 'commit')
 			FROM agent_sessions WHERE id = $1`, id).Scan(&dirty, &pr, &pushed)
 	})
@@ -471,6 +501,14 @@ func (s *Service) carryOut(id, orgID, userID string, seq int64, approve bool, p 
 			s.setStatus(bg, orgID, id, "waiting_for_approval", err.Error())
 			return
 		}
+		// An approval whose push never reached GitHub must not serve a later
+		// push of other changes.
+		if err := db.InOrg(bg, s.Pool, orgID, func(tx pgx.Tx) error {
+			_, err := tx.Exec(bg, `UPDATE agent_approvals SET used_at = now() WHERE session_id = $1 AND used_at IS NULL`, id)
+			return err
+		}); err != nil {
+			slog.Error("withdraw unused push approvals", "session", id, "err", err)
+		}
 		_ = s.step(bg, orgID, id, "decision", map[string]any{"proposal": seq, "approved": false,
 			"text": name + " discarded the proposed changes; the checkout is back at the branch's last commit."}, 0, userID)
 		s.setStatus(bg, orgID, id, "ready", "")
@@ -503,7 +541,7 @@ func (s *Service) openPullRequest(id, orgID, userID string, seq int64, approve b
 	body := strings.TrimSpace(p.body) + "\n\n---\nProposed by the Stackwright agent. " + name + " approved opening it."
 	number, url, err := s.Hooks.OpenPullRequest(bg, orgID, id, p.title, body)
 	if err == nil {
-		err = s.inOrg(bg, orgID, func(tx pgx.Tx) error {
+		err = db.InOrg(bg, s.Pool, orgID, func(tx pgx.Tx) error {
 			_, err := tx.Exec(bg, `UPDATE agent_sessions SET pr_number = $2, pr_url = $3 WHERE id = $1`, id, number, url)
 			return err
 		})

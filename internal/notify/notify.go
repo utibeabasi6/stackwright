@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/seal"
 )
 
@@ -43,11 +44,13 @@ type Event struct {
 	Project   string `json:"project,omitempty"`
 	Workspace string `json:"workspace,omitempty"`
 	Run       int32  `json:"run,omitempty"`
-	URL       string `json:"url,omitempty"`
-	Error     string `json:"error,omitempty"`
-	Resource  string `json:"resource,omitempty"`
-	Severity  string `json:"severity,omitempty"`
-	Check     string `json:"check,omitempty"`
+	// Deployment names a deployment, whose run is Run.
+	Deployment string `json:"deployment,omitempty"`
+	URL        string `json:"url,omitempty"`
+	Error      string `json:"error,omitempty"`
+	Resource   string `json:"resource,omitempty"`
+	Severity   string `json:"severity,omitempty"`
+	Check      string `json:"check,omitempty"`
 }
 
 // Enqueue writes a delivery of e for each of the org's destinations that
@@ -147,10 +150,7 @@ func (s *Sender) SendDue(ctx context.Context) error {
 }
 
 func (s *Sender) send(ctx context.Context, id, orgID string) error {
-	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
-			return err
-		}
+	return db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error {
 		var kind, event string
 		var sealedURL, sealedSecret, payload []byte
 		var attempts int
@@ -200,6 +200,8 @@ func post(ctx context.Context, client *http.Client, publicURL, kind, target, id,
 		return err
 	}
 	switch {
+	case e.Deployment != "":
+		e.URL = fmt.Sprintf("%s/%s/deployments/%s", publicURL, e.Org, e.Deployment)
 	case e.Run > 0:
 		e.URL = fmt.Sprintf("%s/%s/projects/%s/%s/runs/%d", publicURL, e.Org, e.Project, e.Workspace, e.Run)
 	case e.Workspace != "":

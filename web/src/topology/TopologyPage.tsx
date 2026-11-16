@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { graphApi } from "../api";
 import { PlanAction, TopologyRole, type Topology, type TopologyNode } from "../gen/stackwright/v1/graph_pb";
-import { Severity } from "../gen/stackwright/v1/security_pb";
+import { severities } from "../pages/Findings";
+import { actionInfo } from "../plan/actions";
 import { useLoad } from "../useLoad";
 import { layout } from "./layout";
 
@@ -24,28 +25,14 @@ const roleNames: Record<TopologyRole, string> = {
   [TopologyRole.INTERNET]: "Internet",
 };
 
-const actionClass: Partial<Record<PlanAction, string>> = {
-  [PlanAction.CREATE]: "create",
-  [PlanAction.UPDATE]: "update",
-  [PlanAction.REPLACE]: "replace",
-  [PlanAction.REPLACE_CREATE_FIRST]: "replace",
-  [PlanAction.DELETE]: "destroy",
-};
+const actionClass = (a: PlanAction) => (actionInfo[a].tone === "muted" ? undefined : actionInfo[a].tone);
 
-const actionText: Partial<Record<PlanAction, string>> = {
-  [PlanAction.CREATE]: "+ created by the plan",
-  [PlanAction.UPDATE]: "~ updated by the plan",
-  [PlanAction.REPLACE]: "± replaced by the plan",
-  [PlanAction.REPLACE_CREATE_FIRST]: "± replaced by the plan",
-  [PlanAction.DELETE]: "− destroyed by the plan",
-};
-
-const severityText: Record<Severity, string> = {
-  [Severity.UNSPECIFIED]: "",
-  [Severity.LOW]: "Low",
-  [Severity.MEDIUM]: "Medium",
-  [Severity.HIGH]: "High",
-  [Severity.CRITICAL]: "Critical",
+const actionText: Partial<Record<PlanAction, { glyph: string; text: string }>> = {
+  [PlanAction.CREATE]: { glyph: "+", text: "created by the plan" },
+  [PlanAction.UPDATE]: { glyph: "~", text: "updated by the plan" },
+  [PlanAction.REPLACE]: { glyph: "±", text: "replaced by the plan" },
+  [PlanAction.REPLACE_CREATE_FIRST]: { glyph: "±", text: "replaced by the plan" },
+  [PlanAction.DELETE]: { glyph: "−", text: "destroyed by the plan" },
 };
 
 // TopologyPage draws a project's AWS network from each workspace's latest
@@ -83,7 +70,7 @@ export function TopologyPage() {
           <div className="topo-stage" style={{ width: l.width, height: l.height }}>
             <svg className="topo-edges" width={l.width} height={l.height} aria-hidden="true">
               {l.paths.map(({ edge, d }) => (
-                <path key={`${edge.from}>${edge.to}>${edge.label}`} d={d} className={`topo-edge ${actionClass[edge.action] ?? ""}`} />
+                <path key={`${edge.from}>${edge.to}>${edge.label}`} d={d} className={`topo-edge ${actionClass(edge.action) ?? ""}`} />
               ))}
             </svg>
             {drawn.map((n) => {
@@ -92,12 +79,19 @@ export function TopologyPage() {
                 <button
                   key={n.id}
                   type="button"
-                  className={["topo-node", `role-${TopologyRole[n.role].toLowerCase()}`, actionClass[n.action], n.public ? "public" : "",
+                  className={["topo-node", `role-${TopologyRole[n.role].toLowerCase()}`, actionClass(n.action), n.public ? "public" : "",
                     n.context ? "context" : "", selected === n.id ? "selected" : ""].filter(Boolean).join(" ")}
                   style={{ left: b.x, top: b.y, width: b.w, height: b.h }}
                   onClick={() => setSelected(n.id)}
                   aria-pressed={selected === n.id}
-                  aria-label={`${roleNames[n.role]} ${n.name}${n.context ? `, from ${n.project}` : ""}`}
+                  aria-label={[
+                    `${roleNames[n.role]} ${n.name}`,
+                    n.context && `from ${n.project}`,
+                    actionText[n.action]?.text,
+                    n.findings > 0 && `${n.findings} open ${n.findings === 1 ? "finding" : "findings"}`,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
                 >
                   <span className="topo-role">
                     {n.context && !(n.vpc && nodes.get(n.vpc)?.context) && `${n.project} · `}
@@ -168,7 +162,11 @@ function Details({ org, node: n, topo, select }: { org: string; node: TopologyNo
       <div>
         <span className="hint">{roleNames[n.role]}</span>
         <h2>{n.name}</h2>
-        {actionText[n.action] && <p className={actionClass[n.action]}>{actionText[n.action]}</p>}
+        {actionText[n.action] && (
+          <p className={actionClass(n.action)}>
+            {actionText[n.action]!.glyph} {actionText[n.action]!.text}
+          </p>
+        )}
         {n.context && (
           <p className="muted">
             From project{" "}
@@ -216,7 +214,7 @@ function Details({ org, node: n, topo, select }: { org: string; node: TopologyNo
           <>
             <dt>Findings</dt>
             <dd className="error">
-              {n.findings} open, the worst {severityText[n.worst]}.{" "}
+              {n.findings} open, the worst {severities[n.worst].text}.{" "}
               <Link to="/$org/projects/$project/$workspace/security" params={{ org, project: n.project, workspace: n.workspace }}>
                 See them
               </Link>

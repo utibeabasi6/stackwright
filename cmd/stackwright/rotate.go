@@ -53,6 +53,9 @@ func runRotateKEK(args []string) error {
 		return err
 	}
 	defer pool.Close()
+	if err := db.CheckOwner(ctx, pool); err != nil {
+		return err
+	}
 	var n int
 	err = pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		n, err = kek.Rotate(ctx, tx)

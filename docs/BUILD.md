@@ -15,7 +15,7 @@ Each decision has a record in [adr/](adr/).
 | Licence | Apache-2.0, DCO sign-off | [0001](adr/0001-apache-2-licence.md) |
 | Control plane | One Go binary, `stackwright server` | [0002](adr/0002-one-control-plane-binary.md) |
 | Jobs and live events | NATS JetStream with a password, reached only by the server | [0003](adr/0003-nats-inside-the-control-plane.md) |
-| Key wrapping | A key file from `.env`; Vault Transit optional | [0004](adr/0004-key-file-with-optional-vault.md) |
+| Key wrapping | A key file from `.env`; Vault Transit is not built (adr/0047) | [0004](adr/0004-key-file-with-optional-vault.md) |
 | Blob storage | Any S3-compatible store, required; RustFS in compose | [0005](adr/0005-s3-required-rustfs-in-compose.md) |
 | Agent | Go, inside the server; models through OpenRouter | [0006](adr/0006-agent-in-go-through-openrouter.md) |
 | Sandboxes | A backend interface; Docker first; build servers optional | [0007](adr/0007-sandbox-backends-and-build-servers.md) |
@@ -143,7 +143,7 @@ it.
 | `cmd/stackwright-executor` | Also the tool runner inside an agent sandbox, as `stackwright-executor toolbox` ([0030](adr/0030-agent-sessions.md)) |
 | `internal/<package>` | One package per concern: `auth`, `state`, `runs`, `graph`, `github`, `agent`, … |
 | `proto/` | Connect-RPC definitions |
-| `web/` | The React app; `web/src/ui/tokens.css` mirrors `docs/design/tokens.json` |
+| `web/` | The React app; `web/src/tokens.css` mirrors `docs/design/tokens.json` |
 | `deploy/` | Config files that compose mounts, the builder's install script, the Helm chart later |
 | `fixtures/` | Sample repos for every layout, plus the sample project |
 | `docs/` | This plan, the ADRs, the design system, status, the threat model |

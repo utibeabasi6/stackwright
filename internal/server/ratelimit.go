@@ -1,7 +1,6 @@
 package server
 
 import (
-	"crypto/sha256"
 	"errors"
 	"math"
 	"net"
@@ -15,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/stackwright/stackwright/internal/auth"
+	"github.com/stackwright/stackwright/internal/authz"
 )
 
 // limiter is a token bucket for each key: rate tokens a second, up to
@@ -62,48 +62,69 @@ func (l *limiter) take(key string, now time.Time) (bool, time.Duration) {
 }
 
 // The limits of each kind of caller (adr/0046). Sign-in and the other
-// routes that need none are the tightest.
+// routes that need none are the tightest. The API is limited per signed-in
+// user, after authentication, and per client IP before it, which bounds
+// the lookups that unknown credentials cost.
 var (
 	signInLimit = struct{ rate, burst float64 }{5, 30}
 	apiLimit    = struct{ rate, burst float64 }{50, 300}
+	apiIPLimit  = struct{ rate, burst float64 }{100, 1000}
 	scimLimit   = struct{ rate, burst float64 }{20, 200}
 )
 
-// unauthenticated are the RPCs that anyone may call to get a session.
-var unauthenticated = map[string]bool{
-	"/stackwright.v1.AuthService/SignIn": true, "/stackwright.v1.AuthService/AcceptInvite": true,
-	"/stackwright.v1.AuthService/CompleteSetup": true, "/stackwright.v1.AuthService/GetInvite": true,
+func tooMany(wait time.Duration) (string, *connect.Error) {
+	seconds := strconv.Itoa(int(math.Ceil(wait.Seconds())))
+	return seconds, connect.NewError(connect.CodeResourceExhausted, errors.New("too many requests; try again in "+seconds+" s"))
 }
 
-// rateLimit limits the API by credential and the routes that need no
-// sign-in by client IP. Jobs, builders, the state backend, the S3 relay and
-// webhooks are not limited here: each has its own token.
+// userLimit spends one request of a signed-in user's API limit.
+func userLimit() func(userID string) error {
+	l := newLimiter(apiLimit.rate, apiLimit.burst)
+	return func(userID string) error {
+		if ok, wait := l.take(userID, time.Now()); !ok {
+			seconds, err := tooMany(wait)
+			err.Meta().Set("Retry-After", seconds)
+			return err
+		}
+		return nil
+	}
+}
+
+// rateLimit limits by client IP: the RPCs and routes that need no sign-in,
+// SCIM, and the API before its caller is known. Jobs, builders, the state
+// backend, the S3 relay and webhooks are not limited here: each has its
+// own token.
 func rateLimit(next http.Handler) http.Handler {
-	signIn, api, scim := newLimiter(signInLimit.rate, signInLimit.burst), newLimiter(apiLimit.rate, apiLimit.burst),
+	signIn, api, scim := newLimiter(signInLimit.rate, signInLimit.burst), newLimiter(apiIPLimit.rate, apiIPLimit.burst),
 		newLimiter(scimLimit.rate, scimLimit.burst)
+	public := map[string]bool{}
+	for procedure, rule := range authz.Policy {
+		public[procedure] = rule.Access == authz.Public
+	}
 	errs := connect.NewErrorWriter()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := r.URL.Path
 		var l *limiter
-		key := auth.ClientIP(r)
 		switch {
-		case unauthenticated[p], strings.HasPrefix(p, "/auth/"), strings.HasPrefix(p, "/cli/device/"):
+		case public[p], strings.HasPrefix(p, "/auth/"), strings.HasPrefix(p, "/cli/device/"):
 			l = signIn
 		case strings.HasPrefix(p, "/scim/"):
 			l = scim
 		case strings.HasPrefix(p, "/stackwright.v1.ExecutorService/"), strings.HasPrefix(p, "/stackwright.v1.ToolboxService/"):
 		case strings.HasPrefix(p, "/stackwright.v1."):
 			l = api
-			if c := credential(r); c != "" {
-				key = c
-			}
+		}
+		key := auth.ClientIP(r)
+		// One IPv6 client usually holds a whole /64.
+		if ip, err := netip.ParseAddr(key); err == nil && ip.Is6() && !ip.Is4In6() {
+			key = netip.PrefixFrom(ip, 64).Masked().String()
 		}
 		if l != nil {
 			if ok, wait := l.take(key, time.Now()); !ok {
-				seconds := strconv.Itoa(int(math.Ceil(wait.Seconds())))
+				seconds, err := tooMany(wait)
 				w.Header().Set("Retry-After", seconds)
 				if strings.HasPrefix(p, "/stackwright.v1.") && errs.IsSupported(r) {
-					_ = errs.Write(w, r, connect.NewError(connect.CodeResourceExhausted, errors.New("too many requests; try again in "+seconds+" s")))
+					_ = errs.Write(w, r, err)
 					return
 				}
 				http.Error(w, "too many requests", http.StatusTooManyRequests)
@@ -112,20 +133,6 @@ func rateLimit(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-// credential names the caller's session or CLI token, hashed, so a
-// limit follows the caller and not their address.
-func credential(r *http.Request) string {
-	c := auth.SessionToken(r.Header)
-	if c == "" {
-		c, _ = strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	}
-	if c == "" {
-		return ""
-	}
-	sum := sha256.Sum256([]byte(c))
-	return string(sum[:])
 }
 
 // trustProxies sets a request's RemoteAddr to its client's, from
@@ -151,7 +158,7 @@ func trustProxies(trusted []netip.Prefix, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err == nil && isTrusted(host) {
-			hops := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+			hops := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
 			for i := len(hops) - 1; i >= 0; i-- {
 				hop := strings.TrimSpace(hops[i])
 				if _, err := netip.ParseAddr(hop); err != nil {

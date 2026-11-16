@@ -125,6 +125,7 @@ type loginState struct {
 	Nonce    string `json:"n"`
 	Verifier string `json:"v"`
 	Invite   string `json:"i,omitempty"`
+	Next     string `json:"x,omitempty"`
 }
 
 func (s *SignIn) start(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +136,7 @@ func (s *SignIn) start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st := loginState{Provider: id, State: RandomToken(), Nonce: RandomToken(), Verifier: oauth2.GenerateVerifier(),
-		Invite: r.URL.Query().Get("invite")}
+		Invite: r.URL.Query().Get("invite"), Next: safeNext(r.URL.Query().Get("next"), "/")}
 	raw, _ := json.Marshal(st)
 	http.SetCookie(w, &http.Cookie{Name: loginCookie, Value: base64.RawURLEncoding.EncodeToString(raw), Path: "/auth/oidc/",
 		MaxAge: 600, HttpOnly: true, Secure: s.Cookies.Secure, SameSite: http.SameSiteLaxMode})
@@ -190,7 +191,7 @@ func (s *SignIn) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	next := "/"
+	next := safeNext(st.Next, "/")
 	var token, csrf string
 	err = pgx.BeginFunc(r.Context(), s.Pool, func(tx pgx.Tx) error {
 		userID, err := s.account(r.Context(), tx, id, ident, st.Invite, &next)
@@ -233,7 +234,7 @@ func (s *SignIn) account(ctx context.Context, tx pgx.Tx, providerID string, id i
 	case errors.Is(err, pgx.ErrNoRows):
 		userID = uuid.NewString()
 		if _, err := tx.Exec(ctx, `INSERT INTO users (id, email, name) VALUES ($1, $2, $3)`,
-			userID, id.Email, id.Name); err != nil {
+			userID, id.Email, ClipName(id.Name)); err != nil {
 			return "", err
 		}
 	case err != nil:

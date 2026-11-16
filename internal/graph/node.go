@@ -30,7 +30,7 @@ func Node(planJSON, sourcesJSON []byte, id string) (*v1.GetPlanNodeResponse, err
 	}
 	out := &v1.GetPlanNodeResponse{Node: n}
 	for _, rc := range b.changes[id] {
-		in := &v1.PlanInstance{Address: rc.Address, Action: action(rc.Change.Actions)}
+		in := &v1.PlanInstance{Address: rc.Address, Action: Action(rc.Change.Actions)}
 		if in.Action != v1.PlanAction_PLAN_ACTION_NO_OP {
 			in.Changes, in.Truncated = diff(rc.Change)
 		}

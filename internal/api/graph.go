@@ -16,6 +16,7 @@ import (
 	"github.com/stackwright/stackwright/internal/authz"
 	"github.com/stackwright/stackwright/internal/graph"
 	"github.com/stackwright/stackwright/internal/jobs"
+	"github.com/stackwright/stackwright/internal/runs"
 	"github.com/stackwright/stackwright/internal/topology"
 )
 
@@ -63,7 +64,11 @@ func (h Graph) load(ctx context.Context, tx pgx.Tx, project, workspace string, n
 	if status != "succeeded" {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("run #%d has no plan to show", a.number))
 	}
-	if a.plan, err = h.Jobs.ReadArtifact(ctx, tx, jobID, "plan.json"); err != nil {
+	a.plan, err = h.Jobs.ReadArtifact(ctx, tx, jobID, "plan.json")
+	if errors.Is(err, jobs.ErrNoArtifact) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("run #%d's plan files were deleted %d days after the run", a.number, jobs.KeepArtifacts))
+	}
+	if err != nil {
 		return nil, authz.Internal(err)
 	}
 	a.sources, err = h.Jobs.ReadArtifact(ctx, tx, jobID, "sources.json")
@@ -173,8 +178,8 @@ func (h Graph) GetTopology(ctx context.Context, req *connect.Request[v1.GetTopol
 	}
 	rows, err := tx.Query(ctx, `SELECT DISTINCT ON (w.id) p.slug, w.name, r.number, j.id
 		FROM runs r JOIN jobs j ON j.id = r.plan_job_id JOIN workspaces w ON w.id = r.workspace_id JOIN projects p ON p.id = w.project_id
-		WHERE w.archived_at IS NULL AND p.archived_at IS NULL AND r.trigger IN ('ui', 'push', 'schedule') AND j.status = 'succeeded'
-		ORDER BY w.id, r.number DESC`)
+		WHERE w.archived_at IS NULL AND p.archived_at IS NULL AND r.trigger = ANY($1) AND j.status = 'succeeded'
+		ORDER BY w.id, r.number DESC`, runs.OwnCode)
 	if err != nil {
 		return nil, authz.Internal(err)
 	}
@@ -191,17 +196,21 @@ func (h Graph) GetTopology(ctx context.Context, req *connect.Request[v1.GetTopol
 	}
 	slices.SortFunc(all, func(a, b latest) int { return strings.Compare(a.project+"/"+a.workspace, b.project+"/"+b.workspace) })
 	out := &v1.GetTopologyResponse{}
+	ids := make([]string, len(all))
+	for i, l := range all {
+		ids[i] = l.job
+	}
+	raw, err := h.Jobs.ReadArtifacts(ctx, tx, ids, "plan.json")
+	if err != nil {
+		return nil, authz.Internal(err)
+	}
 	var plans []topology.Plan
 	var read []latest
-	for _, l := range all {
-		b, err := h.Jobs.ReadArtifact(ctx, tx, l.job, "plan.json")
-		if errors.Is(err, jobs.ErrNoArtifact) {
+	for i, l := range all {
+		if raw[i] == nil {
 			continue
 		}
-		if err != nil {
-			return nil, authz.Internal(err)
-		}
-		plans = append(plans, topology.Plan{Project: l.project, Workspace: l.workspace, JSON: b})
+		plans = append(plans, topology.Plan{Project: l.project, Workspace: l.workspace, JSON: raw[i]})
 		read = append(read, l)
 	}
 	full, err := topology.Build(plans)

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/pem"
 	"encoding/xml"
@@ -23,12 +24,15 @@ import (
 const (
 	samlRequestLifetime = 10 * time.Minute
 	emailFormat         = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+	samlCookie          = "sw_saml"
 )
 
 var (
 	errNoSAML       = errors.New("the org has no SAML identity provider")
 	errUnsolicited  = errors.New("the response answers no sign-in that Stackwright started")
 	errOutsideOrg   = errors.New("the email belongs to an account with no place in this org")
+	errOtherBrowser = errors.New("the sign-in started in another browser")
+	errOwner        = errors.New("an owner signs in another way, so the identity provider cannot act as an owner")
 	errAssertion    = errors.New("the assertion is not valid now or not for Stackwright")
 	errNotAnAddress = errors.New("the NameID is not an email address")
 )
@@ -98,6 +102,7 @@ func (s *SAML) provider(o samlOrg) (*saml2.SAMLServiceProvider, error) {
 		AudienceURI:                 SPEntityID(s.PublicURL, o.slug),
 		IDPCertificateStore:         store,
 		NameIdFormat:                emailFormat,
+		AllowMissingAttributes:      true,
 	}, nil
 }
 
@@ -144,11 +149,7 @@ func (s *SAML) start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := doc.Root().SelectAttrValue("ID", "")
-	next := r.URL.Query().Get("next")
-	// A browser reads /\host as //host, another site.
-	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.Contains(next, "\\") {
-		next = "/" + o.slug
-	}
+	next := safeNext(r.URL.Query().Get("next"), "/"+o.slug)
 	if _, err := s.Pool.Exec(ctx, `DELETE FROM saml_requests WHERE expires_at < now()`); err != nil {
 		s.fail(w, r, "internal", err)
 		return
@@ -157,6 +158,14 @@ func (s *SAML) start(w http.ResponseWriter, r *http.Request) {
 		id, o.id, next, time.Now().Add(samlRequestLifetime)); err != nil {
 		s.fail(w, r, "internal", err)
 		return
+	}
+	// The request is bound to this browser, so a member of the IdP cannot
+	// make another person's browser sign in as that member. The IdP posts
+	// back from another site, which only a SameSite=None cookie survives,
+	// and browsers take one only over https.
+	if s.Cookies.Secure {
+		http.SetCookie(w, &http.Cookie{Name: samlCookie, Value: id, Path: "/auth/saml/", MaxAge: int(samlRequestLifetime.Seconds()),
+			HttpOnly: true, Secure: true, SameSite: http.SameSiteNoneMode})
 	}
 	u, err := sp.BuildAuthURLRedirect(id, doc)
 	if err != nil {
@@ -192,6 +201,14 @@ func (s *SAML) acs(w http.ResponseWriter, r *http.Request) {
 	inResponseTo := ""
 	if sub := info.Assertions[0].Subject; sub != nil && sub.SubjectConfirmation != nil && sub.SubjectConfirmation.SubjectConfirmationData != nil {
 		inResponseTo = sub.SubjectConfirmation.SubjectConfirmationData.InResponseTo
+	}
+	if s.Cookies.Secure {
+		c, err := r.Cookie(samlCookie)
+		if err != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(inResponseTo)) != 1 {
+			s.fail(w, r, "browser", errOtherBrowser)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{Name: samlCookie, Path: "/auth/saml/", MaxAge: -1, HttpOnly: true, Secure: true, SameSite: http.SameSiteNoneMode})
 	}
 	email := strings.ToLower(strings.TrimSpace(info.NameID))
 	if !strings.Contains(email, "@") {
@@ -243,6 +260,9 @@ func (s *SAML) acs(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, errOutsideOrg):
 		s.fail(w, r, "account", err)
 		return
+	case errors.Is(err, errOwner):
+		s.fail(w, r, "owner", err)
+		return
 	case err != nil:
 		s.fail(w, r, "internal", err)
 		return
@@ -257,23 +277,24 @@ func (s *SAML) acs(w http.ResponseWriter, r *http.Request) {
 // tx has the org set.
 func samlUser(ctx context.Context, tx pgx.Tx, o samlOrg, email, name string, groups []string) (string, error) {
 	var userID string
-	var member bool
+	var member, owner bool
 	err := tx.QueryRow(ctx, `SELECT u.id, EXISTS (SELECT FROM memberships m WHERE m.user_id = u.id AND m.org_id = $2)
-		OR EXISTS (SELECT FROM scim_users s WHERE s.user_id = u.id AND s.active) FROM users u WHERE lower(u.email) = $1`,
-		email, o.id).Scan(&userID, &member)
+		OR EXISTS (SELECT FROM scim_users s WHERE s.user_id = u.id AND s.org_id = $2 AND s.active),
+		EXISTS (SELECT FROM memberships m WHERE m.user_id = u.id AND m.org_id = $2 AND m.role = 'owner')
+		FROM users u WHERE lower(u.email) = $1`,
+		email, o.id).Scan(&userID, &member, &owner)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		userID = uuid.NewString()
-		if len(name) > 100 {
-			name = name[:100]
-		}
-		if _, err := tx.Exec(ctx, `INSERT INTO users (id, email, name) VALUES ($1, $2, $3)`, userID, email, name); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO users (id, email, name) VALUES ($1, $2, $3)`, userID, email, ClipName(name)); err != nil {
 			return "", err
 		}
 	case err != nil:
 		return "", err
 	case !member:
 		return "", errOutsideOrg
+	case owner:
+		return "", errOwner
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO memberships (org_id, user_id, role)
 		SELECT $1, $2, coalesce((SELECT max(role) FROM org_group_roles WHERE org_id = $1 AND group_name = ANY($3)), $4::member_role)

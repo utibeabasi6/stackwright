@@ -103,8 +103,6 @@ func (r *runner) terragrunt(ctx context.Context, tofu, dir, root string, env []s
 				if e.resourceAddr != "" {
 					e.resourceAddr = "module." + u.slug + "." + e.resourceAddr
 				}
-				r.log.Write(e.payload)
-				r.log.WriteByte('\n')
 				r.rep.emit(e.typ, e.resourceAddr, e.payload)
 			}}
 	}

@@ -108,8 +108,26 @@ func TestStateBackendProtocol(t *testing.T) {
 	if code, _ := w.backend("UNLOCK", path, token, `{"ID":"lock-2"}`); code != http.StatusConflict {
 		t.Errorf("unlock with the wrong ID: %d", code)
 	}
+	writer := w.token(w.member(owner, "a", "writer@a.test", "ROLE_WRITER"), "a")
+	if code, _ := w.backend("UNLOCK", path, writer, lock); code != http.StatusForbidden {
+		t.Errorf("a writer unlocked another's lock: %d", code)
+	}
 	if code, _ := w.backend("UNLOCK", path, token, lock); code != http.StatusOK {
 		t.Errorf("unlock: %d", code)
+	}
+	if code, _ := w.backend("LOCK", path, writer, lock); code != http.StatusOK {
+		t.Fatalf("the writer's lock: %d", code)
+	}
+	if code, _ := w.backend("UNLOCK", path, token, lock); code != http.StatusOK {
+		t.Errorf("an admin's force-unlock: %d", code)
+	}
+	var forced int
+	if err := w.owner.QueryRow(context.Background(), `SELECT count(*) FROM audit_log WHERE action = 'StateService/ForceUnlockState'`).
+		Scan(&forced); err != nil || forced != 1 {
+		t.Errorf("force-unlock audit rows: %d %v", forced, err)
+	}
+	if code, _ := w.backend(http.MethodPost, path, token, stateDoc(1<<60, "L1", "a")); code != http.StatusConflict {
+		t.Errorf("a serial past the range: %d", code)
 	}
 	if code, _ := w.backend(http.MethodDelete, path, token, ""); code != http.StatusMethodNotAllowed {
 		t.Errorf("delete: %d", code)

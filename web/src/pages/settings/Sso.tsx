@@ -4,6 +4,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Action, Submit, useAction } from "../../Action";
 import { message, ssoApi } from "../../api";
 import { Copy } from "../../Copy";
+import { useRole } from "../../me";
 import { Role } from "../../gen/stackwright/v1/orgs_pb";
 import { Select } from "../../Select";
 import { useLoad } from "../../useLoad";
@@ -22,6 +23,7 @@ type Mapping = { group: string; role: Role };
 export function Sso() {
   const { org } = useParams({ strict: false }) as { org: string };
   const sso = useLoad(`sso:${org}`, () => ssoApi.getSso({ org }));
+  const owner = useRole(org) === Role.OWNER;
   const cfg = sso.data?.sso;
   const [source, setSource] = useState<"url" | "xml">("url");
   const [mappings, setMappings] = useState<Mapping[] | undefined>();
@@ -62,6 +64,7 @@ export function Sso() {
         Members sign in through your SAML identity provider. With SSO required, a member signed in another way cannot open this org; owners
         keep their other sign-in, so a broken identity provider cannot lock you out.
       </p>
+      {!owner && <p className="notice">Only an owner changes the identity provider or the SCIM token.</p>}
       {(sso.error || error) && <p className="error">{sso.error || error}</p>}
       {sso.data && (
         <section className="card stack" aria-labelledby="sp-h">
@@ -85,6 +88,7 @@ export function Sso() {
       )}
       <form className="card stack" onSubmit={save} aria-label="Identity provider" key={cfg ? "loaded" : "new"}>
         <h2>Identity provider</h2>
+        <fieldset className="stack" disabled={!owner}>
         <fieldset className="row">
           <legend>Metadata</legend>
           <label>
@@ -138,19 +142,21 @@ export function Sso() {
           <Submit action={saving} className="primary" busy="Saving…" done="Saved">
             Save
           </Submit>
-          {cfg && (
+          {cfg && owner && (
             <Action className="danger" confirm={{ message: "Remove the identity provider? Members sign in the other ways again.", action: "Remove", danger: true }}
               run={() => ssoApi.deleteSso({ org }).then(() => sso.reload())} busy="Removing…" done="Removed">
               Remove
             </Action>
           )}
         </div>
+        </fieldset>
       </form>
       {sso.data && (
         <section className="card stack" aria-labelledby="scim-h">
           <h2 id="scim-h">SCIM</h2>
           <p className="muted">
-            Your identity provider adds and removes members here. Removing a user removes their access, their sessions and their CLI sign-ins.
+            Your identity provider adds and removes members here. Removing a user removes their access to this org and ends the sessions they
+            started through it.
           </p>
           <Copy label="SCIM base URL" text={sso.data.scimUrl} />
           {scimToken && <Copy label="SCIM token, shown once" text={scimToken} />}
@@ -159,7 +165,7 @@ export function Sso() {
               ? `The token was made ${timestampDate(sso.data.scimTokenCreatedAt).toLocaleString()}. A new one replaces it.`
               : "There is no token yet."}
           </p>
-          <div>
+          <div hidden={!owner}>
             <Action run={() => ssoApi.rotateScimToken({ org }).then((r) => (setScimToken(r.token), sso.reload()))} busy="Making…" done="Made">
               {sso.data.scimTokenCreatedAt ? "Replace the token" : "Make a token"}
             </Action>

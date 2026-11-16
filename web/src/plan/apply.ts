@@ -50,7 +50,7 @@ const parse = (payload: string): Record<string, unknown> => {
 export function step(s: ApplyState, e: RunEvent): ApplyState {
   if (e.seq <= s.seq) return s;
   const next = { ...s, seq: e.seq };
-  const p = parse(e.payload);
+  const p = e.type === "run.dispatched" || e.type === "engine.diagnostic" ? parse(e.payload) : {};
   if (e.type === "run.dispatched" && p.operation === "apply") {
     return { seq: e.seq, started: true, progress: new Map(), diagnostics: new Map() };
   }

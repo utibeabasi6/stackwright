@@ -8,11 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,6 +26,7 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/artifact"
 	"github.com/stackwright/stackwright/internal/auth"
+	"github.com/stackwright/stackwright/internal/db"
 	"github.com/stackwright/stackwright/internal/engine"
 	"github.com/stackwright/stackwright/internal/oidc"
 	"github.com/stackwright/stackwright/internal/seal"
@@ -37,11 +40,17 @@ const (
 	lostAfter      = 3 * HeartbeatEvery
 	unclaimedFor   = 10 * time.Minute
 	timeLimit      = 2 * time.Hour
+	// leaseGrace keeps the token and upload URLs working past the deadline,
+	// while an interrupted engine saves its state and the executor reports.
+	leaseGrace = 2 * time.Minute
 )
 
 var (
-	ErrNoPlan     = errors.New("an apply needs a succeeded plan with changes, of the same workspace")
-	ErrNoArtifact = errors.New("the job did not upload this artifact")
+	// ErrNotClaimable is a job that ran already, or whose run ended before
+	// its sandbox started.
+	ErrNotClaimable = errors.New("the job ran already, or its run ended")
+	ErrNoPlan       = errors.New("an apply needs a succeeded plan with changes, of the same workspace")
+	ErrNoArtifact   = errors.New("the job did not upload this artifact")
 )
 
 type Service struct {
@@ -120,21 +129,12 @@ func objectKey(orgID, jobID, name string) string {
 	return fmt.Sprintf("orgs/%s/jobs/%s/%s", orgID, jobID, name)
 }
 
-func (s *Service) inOrg(ctx context.Context, orgID string, fn func(pgx.Tx) error) error {
-	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT set_config('stackwright.org_id', $1, true)`, orgID); err != nil {
-			return err
-		}
-		return fn(tx)
-	})
-}
-
 // Create queues a job and returns the one-time ticket that its sandbox
 // claims it with.
 func (s *Service) Create(ctx context.Context, r Request) (Created, error) {
 	var eng, version, platform, sourceSHA string
 	var sealedKey []byte
-	err := s.inOrg(ctx, r.OrgID, func(tx pgx.Tx) error {
+	err := db.InOrg(ctx, s.Pool, r.OrgID, func(tx pgx.Tx) error {
 		var cloud bool
 		if err := tx.QueryRow(ctx, `SELECT cloud_account_id IS NOT NULL FROM workspaces WHERE id = $1`, r.WorkspaceID).Scan(&cloud); err != nil {
 			return err
@@ -167,24 +167,29 @@ func (s *Service) Create(ctx context.Context, r Request) (Created, error) {
 	}
 
 	jobID, ticket := uuid.NewString(), auth.RandomToken()
-	err = s.inOrg(ctx, r.OrgID, func(tx pgx.Tx) error {
-		operation, planJobID := "apply", &r.PlanJobID
-		if r.Operation == v1.JobOperation_JOB_OPERATION_PLAN {
-			operation, planJobID = "plan", nil
-			sum := sha256.Sum256(r.Source)
-			sourceSHA = hex.EncodeToString(sum[:])
-			key := artifact.NewKey()
+	// The source goes to S3 before the transaction, which then holds no
+	// connection while it uploads.
+	operation, planJobID := "apply", &r.PlanJobID
+	var key []byte
+	if r.Operation == v1.JobOperation_JOB_OPERATION_PLAN {
+		operation, planJobID = "plan", nil
+		sum := sha256.Sum256(r.Source)
+		sourceSHA = hex.EncodeToString(sum[:])
+		key = artifact.NewKey()
+		blob, err := artifact.Seal(key, jobID, "source.tar.gz", r.Source)
+		if err != nil {
+			return Created{}, err
+		}
+		if _, err := s.S3.PutObject(ctx, s.Bucket, objectKey(r.OrgID, jobID, "source.tar.gz"), bytes.NewReader(blob), int64(len(blob)),
+			minio.PutObjectOptions{ContentType: "application/octet-stream"}); err != nil {
+			return Created{}, fmt.Errorf("store job source: %w", err)
+		}
+	}
+	err = db.InOrg(ctx, s.Pool, r.OrgID, func(tx pgx.Tx) error {
+		if key != nil {
 			var err error
 			if sealedKey, err = s.KEK.Seal(ctx, tx, r.OrgID, key); err != nil {
 				return err
-			}
-			blob, err := artifact.Seal(key, jobID, "source.tar.gz", r.Source)
-			if err != nil {
-				return err
-			}
-			if _, err := s.S3.PutObject(ctx, s.Bucket, objectKey(r.OrgID, jobID, "source.tar.gz"), bytes.NewReader(blob), int64(len(blob)),
-				minio.PutObjectOptions{ContentType: "application/octet-stream"}); err != nil {
-				return fmt.Errorf("store job source: %w", err)
 			}
 		}
 		deadline := time.Now().Add(timeLimit)
@@ -196,7 +201,7 @@ func (s *Service) Create(ctx context.Context, r Request) (Created, error) {
 			return err
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO job_leases (job_id, org_id, workspace_id, ticket_hash, expires_at) VALUES ($1, $2, $3, $4, $5)`,
-			jobID, r.OrgID, r.WorkspaceID, auth.HashToken(ticket), deadline)
+			jobID, r.OrgID, r.WorkspaceID, auth.HashToken(ticket), deadline.Add(leaseGrace))
 		return err
 	})
 	if err != nil {
@@ -222,8 +227,9 @@ func (s *Service) EngineDownload(ctx context.Context, eng, version, platform str
 // Claim starts a job whose ticket the caller spent, and returns everything
 // its sandbox needs. tx needs the org setting.
 func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, error) {
-	token := auth.NewJobToken()
-	if _, err := tx.Exec(ctx, `UPDATE job_leases SET token_hash = $2, heartbeat_at = now() WHERE job_id = $1`, jobID, auth.HashToken(token)); err != nil {
+	token, stateToken := auth.NewJobToken(), auth.StateTokenPrefix+auth.RandomToken()
+	if _, err := tx.Exec(ctx, `UPDATE job_leases SET token_hash = $2, state_token_hash = $3, heartbeat_at = now() WHERE job_id = $1`,
+		jobID, auth.HashToken(token), auth.HashToken(stateToken)); err != nil {
 		return nil, err
 	}
 	var (
@@ -236,15 +242,21 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		planJobID                                *string
 		sealedKey                                []byte
 		deadline                                 time.Time
+		planOnly                                 bool
 	)
 	err := tx.QueryRow(ctx, `UPDATE jobs j SET status = 'running', claimed_at = now()
 		FROM workspaces w, projects p, orgs o
 		WHERE j.id = $1 AND j.status = 'queued' AND w.id = j.workspace_id AND p.id = w.project_id AND o.id = j.org_id
+			AND (j.run_id IS NULL OR EXISTS (SELECT FROM runs r WHERE r.id = j.run_id AND r.status IN ('planning', 'applying')))
 		RETURNING j.org_id, j.operation, j.plan_job_id, j.engine, j.engine_version, j.platform, j.artifact_key, j.deadline,
 			j.source_sha256, o.slug, p.slug, p.path, w.name, p.id, w.id, j.run_id,
-			EXISTS (SELECT FROM build_servers b WHERE b.id = j.build_server_id AND b.org_id IS NOT NULL), p.state_backend, p.layout`, jobID).
+			EXISTS (SELECT FROM build_servers b WHERE b.id = j.build_server_id AND b.org_id IS NOT NULL), p.state_backend, p.layout,
+			coalesce((SELECT r.plan_only FROM runs r WHERE r.id = j.run_id), false)`, jobID).
 		Scan(&orgID, &operation, &planJobID, &eng, &version, &platform, &sealedKey, &deadline,
-			&sourceSHA, &orgSlug, &project, &projectPath, &workspace, &projectID, &workspaceID, &runID, &remote, &stateBackend, &layout)
+			&sourceSHA, &orgSlug, &project, &projectPath, &workspace, &projectID, &workspaceID, &runID, &remote, &stateBackend, &layout, &planOnly)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("claim job %s: %w", jobID, ErrNotClaimable)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("claim job %s: %w", jobID, err)
 	}
@@ -258,7 +270,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 		return nil, err
 	}
 
-	expires := time.Until(deadline)
+	expires := time.Until(deadline) + leaseGrace
 	get := func(objKey string) (string, error) {
 		return s.presign(ctx, remote, http.MethodGet, objKey, expires)
 	}
@@ -269,6 +281,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	job := &v1.Job{
 		Id:            jobID,
 		Token:         token,
+		StateToken:    stateToken,
 		Operation:     v1.JobOperation_JOB_OPERATION_PLAN,
 		Engine:        v1.Engine_ENGINE_OPENTOFU,
 		EngineVersion: version,
@@ -300,7 +313,7 @@ func (s *Service) Claim(ctx context.Context, tx pgx.Tx, jobID string) (*v1.Job, 
 	if job.SkippedChecks, err = pgx.CollectRows(rows, pgx.RowTo[string]); err != nil {
 		return nil, err
 	}
-	job.Terragrunt = layout == "terragrunt"
+	job.Terragrunt, job.PlanOnly = layout == "terragrunt", planOnly
 	// A project on the code's backend runs it as written (adr/0036).
 	if stateBackend != "stackwright" {
 		job.CodeBackend = true
@@ -435,18 +448,56 @@ func (s *Service) ReadArtifact(ctx context.Context, tx pgx.Tx, jobID, name strin
 	if err != nil {
 		return nil, err
 	}
+	return s.fetch(ctx, key, orgID, jobID, name)
+}
+
+// ReadArtifacts returns one artifact of each job, as ReadArtifact does,
+// fetched eight at a time. A job without it gets nil. tx needs the org
+// setting.
+func (s *Service) ReadArtifacts(ctx context.Context, tx pgx.Tx, jobIDs []string, name string) ([][]byte, error) {
+	keys, orgs := make([][]byte, len(jobIDs)), make([]string, len(jobIDs))
+	for i, id := range jobIDs {
+		var sealedKey []byte
+		if err := tx.QueryRow(ctx, `SELECT org_id, artifact_key FROM jobs WHERE id = $1`, id).Scan(&orgs[i], &sealedKey); err != nil {
+			return nil, err
+		}
+		var err error
+		if keys[i], err = s.KEK.Open(ctx, tx, orgs[i], sealedKey); err != nil {
+			return nil, err
+		}
+	}
+	out, errs := make([][]byte, len(jobIDs)), make([]error, len(jobIDs))
+	sem := make(chan struct{}, 8)
+	var wg sync.WaitGroup
+	for i, id := range jobIDs {
+		wg.Go(func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			if out[i], errs[i] = s.fetch(ctx, keys[i], orgs[i], id, name); errors.Is(errs[i], ErrNoArtifact) {
+				errs[i] = nil
+			}
+		})
+	}
+	wg.Wait()
+	return out, errors.Join(errs...)
+}
+
+func (s *Service) fetch(ctx context.Context, key []byte, orgID, jobID, name string) ([]byte, error) {
 	obj, err := s.S3.GetObject(ctx, s.Bucket, objectKey(orgID, jobID, name), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = obj.Close() }()
-	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(obj); minio.ToErrorResponse(err).Code == "NoSuchKey" {
+	sealed, err := io.ReadAll(io.LimitReader(obj, artifact.MaxSize+1))
+	switch {
+	case minio.ToErrorResponse(err).Code == "NoSuchKey":
 		return nil, fmt.Errorf("%w: %s", ErrNoArtifact, name)
-	} else if err != nil {
+	case err != nil:
 		return nil, err
+	case len(sealed) > artifact.MaxSize:
+		return nil, fmt.Errorf("%w: %s", artifact.ErrTooLarge, name)
 	}
-	return artifact.Open(key, jobID, name, buf.Bytes())
+	return artifact.Open(key, jobID, name, sealed)
 }
 
 // Finish ends a job and releases any state lock it holds. tx needs the org
@@ -488,7 +539,7 @@ func (s *Service) Abandon(ctx context.Context, jobID, msg string) error {
 	if err != nil {
 		return err
 	}
-	return s.inOrg(ctx, orgID, func(tx pgx.Tx) error { return s.end(ctx, tx, jobID, "failed", msg, nil) })
+	return db.InOrg(ctx, s.Pool, orgID, func(tx pgx.Tx) error { return s.end(ctx, tx, jobID, "failed", msg, nil) })
 }
 
 // Event is one line an executor reported.
@@ -560,7 +611,7 @@ func (s *Service) Reap(ctx context.Context) error {
 		return err
 	}
 	for _, l := range all {
-		if err := s.inOrg(ctx, l.org, func(tx pgx.Tx) error { return s.end(ctx, tx, l.job, "lost", l.why, nil) }); err != nil {
+		if err := db.InOrg(ctx, s.Pool, l.org, func(tx pgx.Tx) error { return s.end(ctx, tx, l.job, "lost", l.why, nil) }); err != nil {
 			return err
 		}
 		slog.Info("job lost", "job", l.job, "reason", l.why)
@@ -568,7 +619,64 @@ func (s *Service) Reap(ctx context.Context) error {
 	return nil
 }
 
+// KeepArtifacts is how many days job artifacts stay, except those of a
+// run that has not ended, of each workspace's last applied run, and of its
+// last plan of its own code (adr/0047).
+const KeepArtifacts = 30
+
+// RunRetention deletes old job artifacts once a day until ctx ends.
+func (s *Service) RunRetention(ctx context.Context) {
+	for {
+		if err := s.deleteOldArtifacts(ctx); err != nil && ctx.Err() == nil {
+			slog.Error("delete old job artifacts", "err", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(24 * time.Hour):
+		}
+	}
+}
+
+func (s *Service) deleteOldArtifacts(ctx context.Context) error {
+	for {
+		rows, err := s.Pool.Query(ctx, `SELECT job_id, org_id FROM job_artifacts_due(now() - make_interval(days => $1))`, KeepArtifacts)
+		if err != nil {
+			return err
+		}
+		type due struct{ job, org string }
+		all, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (due, error) {
+			var d due
+			return d, r.Scan(&d.job, &d.org)
+		})
+		if err != nil || len(all) == 0 {
+			return err
+		}
+		for _, d := range all {
+			objects := s.S3.ListObjects(ctx, s.Bucket, minio.ListObjectsOptions{Prefix: objectKey(d.org, d.job, ""), Recursive: true})
+			for r := range s.S3.RemoveObjects(ctx, s.Bucket, objects, minio.RemoveObjectsOptions{}) {
+				if r.Err != nil {
+					return fmt.Errorf("delete %s: %w", r.ObjectName, r.Err)
+				}
+			}
+			if err := db.InOrg(ctx, s.Pool, d.org, func(tx pgx.Tx) error {
+				_, err := tx.Exec(ctx, `UPDATE jobs SET artifacts_deleted_at = now() WHERE id = $1`, d.job)
+				return err
+			}); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+// RunReaper waits one heartbeat window first, so executors whose reports
+// failed while the server restarted can report again.
 func (s *Service) RunReaper(ctx context.Context, every time.Duration) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(lostAfter):
+	}
 	tick := time.NewTicker(every)
 	defer tick.Stop()
 	for {

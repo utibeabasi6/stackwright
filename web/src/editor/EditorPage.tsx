@@ -5,7 +5,7 @@ import { Code as Status, ConnectError } from "@connectrpc/connect";
 import { agentApi, message, projectApi } from "../api";
 import { AgentSessionStatus, SaveOutcome } from "../gen/stackwright/v1/agent_pb";
 import { Role } from "../gen/stackwright/v1/orgs_pb";
-import { useShell } from "../me";
+import { useRole } from "../me";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
 import type { CodeHandle, OpenFile } from "./Code";
@@ -51,10 +51,9 @@ const parent = (path: string) => path.split("/").slice(0, -1).join("/");
 
 export function EditorPage() {
   const { org, project, workspace } = useParams({ strict: false }) as { org: string; project: string; workspace: string };
-  const { me } = useShell();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const writer = (me.orgs.find((o) => o.slug === org)?.role ?? Role.UNSPECIFIED) >= Role.WRITER;
+  const writer = useRole(org) >= Role.WRITER;
   const ws = useLoad(`${org}/${project}/${workspace}`, () => projectApi.getWorkspace({ org, project, workspace }));
   const sessions = useLoad(`agent-sessions:${org}/${project}/${workspace}`, () =>
     agentApi.listSessions({ org, project, workspace }).then((r) => r.sessions.filter((s) => s.status !== AgentSessionStatus.CLOSED)),
@@ -134,12 +133,10 @@ export function EditorPage() {
         });
         return false;
       }
-      // Text typed while the save was on its way stays; the next save
-      // merges it from the new base.
+      // Text typed while the save was on its way stays, with the sent text
+      // as its base, so the next save merges it with the file on disk.
       setTabs((ts) =>
-        ts.map((t) =>
-          t.path !== current.path ? t : t.text === current.text ? { ...t, text: r.content, base: r.content, rev: t.rev + 1 } : { ...t, base: r.content },
-        ),
+        ts.map((t) => (t.path !== current.path ? t : t.text === text ? { ...t, text: r.content, base: r.content, rev: t.rev + 1 } : { ...t, base: text })),
       );
       setNote({
         text: r.outcome === SaveOutcome.MERGED ? `Saved ${current.path}, merged with changes made since you opened it.` : `Saved ${current.path}.`,

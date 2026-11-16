@@ -65,6 +65,13 @@ message Job {
   bool destroy = 21;
   // Set for a component instance of a Terraform Stack (adr/0043).
   StackInstance stack = 22;
+  // The run can never apply this plan, so the job uploads no plan.bin
+  // and no working tree (adr/0047).
+  bool plan_only = 23;
+  // Reaches only this job's state. The engine gets it as TF_HTTP_PASSWORD
+  // in place of token, so code that a plan runs cannot call the job API
+  // (adr/0047).
+  string state_token = 24;
 }
 
 message StackInstance {

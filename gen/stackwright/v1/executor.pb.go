@@ -176,7 +176,14 @@ type Job struct {
 	// Plan -destroy.
 	Destroy bool `protobuf:"varint,21,opt,name=destroy,proto3" json:"destroy,omitempty"`
 	// Set for a component instance of a Terraform Stack (adr/0043).
-	Stack         *StackInstance `protobuf:"bytes,22,opt,name=stack,proto3" json:"stack,omitempty"`
+	Stack *StackInstance `protobuf:"bytes,22,opt,name=stack,proto3" json:"stack,omitempty"`
+	// The run can never apply this plan, so the job uploads no plan.bin
+	// and no working tree (adr/0047).
+	PlanOnly bool `protobuf:"varint,23,opt,name=plan_only,json=planOnly,proto3" json:"plan_only,omitempty"`
+	// Reaches only this job's state. The engine gets it as TF_HTTP_PASSWORD
+	// in place of token, so code that a plan runs cannot call the job API
+	// (adr/0047).
+	StateToken    string `protobuf:"bytes,24,opt,name=state_token,json=stateToken,proto3" json:"state_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -363,6 +370,20 @@ func (x *Job) GetStack() *StackInstance {
 		return x.Stack
 	}
 	return nil
+}
+
+func (x *Job) GetPlanOnly() bool {
+	if x != nil {
+		return x.PlanOnly
+	}
+	return false
+}
+
+func (x *Job) GetStateToken() string {
+	if x != nil {
+		return x.StateToken
+	}
+	return ""
 }
 
 type StackInstance struct {
@@ -983,7 +1004,7 @@ const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x16\n" +
 	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x15\n" +
-	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xe3\a\n" +
+	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"\xa1\b\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12:\n" +
@@ -1010,7 +1031,10 @@ const file_stackwright_v1_executor_proto_rawDesc = "" +
 	"terragrunt\x12!\n" +
 	"\frefresh_only\x18\x14 \x01(\bR\vrefreshOnly\x12\x18\n" +
 	"\adestroy\x18\x15 \x01(\bR\adestroy\x123\n" +
-	"\x05stack\x18\x16 \x01(\v2\x1d.stackwright.v1.StackInstanceR\x05stack\x1a:\n" +
+	"\x05stack\x18\x16 \x01(\v2\x1d.stackwright.v1.StackInstanceR\x05stack\x12\x1b\n" +
+	"\tplan_only\x18\x17 \x01(\bR\bplanOnly\x12\x1f\n" +
+	"\vstate_token\x18\x18 \x01(\tR\n" +
+	"stateToken\x1a:\n" +
 	"\fUploadsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xae\x02\n" +

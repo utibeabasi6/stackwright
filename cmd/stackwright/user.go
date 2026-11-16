@@ -38,7 +38,7 @@ func runUser(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("new password for %s: %s\nIt is shown once. Every session of this user was signed out.\n", *email, password)
+	fmt.Printf("new password for %s: %s\nIt is shown once. Every session, CLI token and API token of this user was ended.\n", *email, password)
 	return nil
 }
 
@@ -54,8 +54,12 @@ func resetPassword(ctx context.Context, pool *pgxpool.Pool, email string) (strin
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1`, id); err != nil {
-			return err
+		for _, q := range []string{`DELETE FROM sessions WHERE user_id = $1`,
+			`UPDATE cli_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`,
+			`UPDATE api_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`} {
+			if _, err := tx.Exec(ctx, q, id); err != nil {
+				return err
+			}
 		}
 		_, err = tx.Exec(ctx, `INSERT INTO audit_log (actor_kind, actor_id, action, target)
 			VALUES ('system', 'cli', 'user.reset_password', $1)`, "user:"+id)

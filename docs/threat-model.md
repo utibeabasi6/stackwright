@@ -40,7 +40,10 @@ anything that a request can reach. The operator's side is in
   `SECURITY DEFINER` and does one job.
 - Each org has its own data key. The KEK wraps the data keys, and the
   KEK is not in the database.
-- A SAML session works only in the org of its identity provider.
+- A SAML session works only in the org of its identity provider, and
+  never as an owner. Only owners change an org's identity provider.
+- SCIM acts only on members of its org, and ends only the sign-ins made
+  through its org, unless its org's SCIM made the account.
 
 ### Inside an org
 
@@ -62,7 +65,13 @@ container:
   private, loopback, link-local, shared and multicast addresses. The
   proxy checks each address after it resolves the name, and dials the
   address that it checked.
-- It gets a token for its job only. The token ends with the job.
+- It gets a token for its job only. The token ends with the job. The
+  engine, and the code it runs, gets a second token that reaches only the
+  job's state. A plan job reads the state and takes its own lock; only an
+  apply job writes the state.
+- `/run/stackwright`, where its ticket and files arrive, is read-only to
+  it. After a plan, the executor kills every other process in the
+  sandbox before it reads the plan file.
 - Object storage is reached through presigned URLs, one for each object.
 
 `TestSandboxesCannotEscape` in `internal/server/escape_test.go` checks
@@ -80,8 +89,10 @@ server's job API and a public host.
 ### The public API
 
 - Rate limits per caller: see [operations.md](operations.md#rate-limits).
-- Cookies are `HttpOnly` and `SameSite=Lax`, and `Secure` behind https.
-  Requests that change state need the CSRF header.
+- The session cookie is `HttpOnly`; the CSRF cookie is not, because the
+  web app reads it to send the CSRF header. Both are `SameSite=Lax`, and
+  `Secure` behind https. Requests that change state need the CSRF header.
+- Request bodies are size-limited before they are decompressed.
 
 ## Where the protection stops
 
@@ -105,6 +116,13 @@ These are known. Each one needs a decision before a change can close it.
   language server and the state backend's API tokens do not check it.
 - **Rate limits count in each server process.** Two servers allow twice
   as much.
+- **One egress proxy serves every org's sandboxes on a build server.**
+  One sandbox can use up its memory and slow others' jobs.
+- **Over plain http, a SAML sign-in is not bound to the browser that
+  started it.** A member of the org's identity provider can make another
+  person's browser sign in as that member. Over https it is bound.
+- **Stack files are evaluated in the server.** A function such as
+  `setproduct` or `range` with large inputs can use much memory.
 - **No pen test has run.**
 
 ## Changing this

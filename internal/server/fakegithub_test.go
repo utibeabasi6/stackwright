@@ -248,9 +248,11 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/user/installations":
 		var list []map[string]any
 		for _, id := range f.visible {
-			list = append(list, map[string]any{"id": id, "account": map[string]string{"login": f.installations[id]}})
+			list = append(list, map[string]any{"id": id, "account": map[string]string{"login": f.installations[id], "type": "Organization"}})
 		}
 		f.json(w, map[string]any{"installations": list})
+	case strings.HasPrefix(p, "/user/memberships/orgs/"):
+		f.json(w, map[string]string{"state": "active", "role": "admin"})
 	case p == "/installation/repositories":
 		var list []map[string]any
 		for _, repo := range f.repos {

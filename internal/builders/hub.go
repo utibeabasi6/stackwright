@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ import (
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
+	"github.com/stackwright/stackwright/internal/db"
 )
 
 var (
@@ -35,6 +37,10 @@ var (
 )
 
 const BuiltInName = "built-in"
+
+// sendTimeout bounds how long an order waits for a builder that stopped
+// reading its stream; the hub then drops that builder.
+const sendTimeout = 30 * time.Second
 
 // Hub serves BuilderService and keeps the connected builders in memory, so
 // one server process holds them all (adr/0020).
@@ -152,6 +158,14 @@ func (s *Slot) Start(order *v1.StartSandbox) error {
 	s.b.reserved--
 	s.b.jobs[order.GetJobId()] = true
 	s.h.mu.Unlock()
+	// The builder may report on this job after a reconnect only if it got
+	// the job: a hello's list of running jobs is checked against this.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := s.h.Pool.Exec(ctx, `INSERT INTO build_server_jobs (job_id, build_server_id) VALUES ($1, $2)
+		ON CONFLICT (job_id) DO UPDATE SET build_server_id = excluded.build_server_id`, order.GetJobId(), s.b.id); err != nil {
+		return err
+	}
 	order.Image = s.h.Images[s.b.backend]
 	order.ServerUrl = s.h.ServerURL
 	if !s.Remote {
@@ -179,10 +193,16 @@ func (h *Hub) Stop(jobID string) {
 }
 
 func (h *Hub) send(b *builder, msg *v1.ConnectResponse) error {
+	t := time.NewTimer(sendTimeout)
+	defer t.Stop()
 	select {
 	case b.send <- msg:
 		return nil
 	case <-b.done:
+		return ErrGone
+	case <-t.C:
+		slog.Warn("dropping a build server that stopped reading its stream", "build_server", b.id)
+		b.close()
 		return ErrGone
 	}
 }
@@ -349,11 +369,6 @@ func CheckServer(name string, slots int32, labels map[string]string) error {
 	return CheckLabels(labels)
 }
 
-func isUnique(err error) bool {
-	var pgErr interface{ SQLState() string }
-	return errors.As(err, &pgErr) && pgErr.SQLState() == "23505"
-}
-
 func (h *Hub) Enrol(ctx context.Context, req *connect.Request[v1.EnrolRequest]) (*connect.Response[v1.EnrolResponse], error) {
 	s := authz.ScopeFrom(ctx)
 	resp := &v1.EnrolResponse{CaCertificate: h.CA.Certificate(), BuilderUrl: h.BuilderURL}
@@ -377,6 +392,12 @@ func (h *Hub) Enrol(ctx context.Context, req *connect.Request[v1.EnrolRequest]) 
 			return nil, authz.Internal(err)
 		}
 		resp.Name = BuiltInName
+		// An enrolment ends the certificates of the ones before it, so those
+		// stop working once the token that made them rotates out.
+		if _, err := s.Tx.Exec(ctx, `UPDATE build_server_certs SET revoked_at = now() WHERE build_server_id = $1 AND revoked_at IS NULL`,
+			resp.BuildServerId); err != nil {
+			return nil, authz.Internal(err)
+		}
 	} else {
 		var serverID, name, via, sshHost, sshUser, hostKey string
 		var labels []byte
@@ -397,7 +418,7 @@ func (h *Hub) Enrol(ctx context.Context, req *connect.Request[v1.EnrolRequest]) 
 		_, err = s.Tx.Exec(ctx, `INSERT INTO build_servers (id, org_id, name, labels, slots, enrolled_via, ssh_host, ssh_port, ssh_user, ssh_host_key, created_by)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 			serverID, orgID, name, labels, slots, via, sshHost, sshPort, sshUser, hostKey, createdBy)
-		if isUnique(err) {
+		if db.UniqueViolation(err) {
 			return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("the org already has a build server named %s", name))
 		}
 		if err != nil {
@@ -455,7 +476,16 @@ func (h *Hub) Connect(ctx context.Context, stream *connect.BidiStream[v1.Connect
 	if err := json.Unmarshal(labels, &b.labels); err != nil {
 		return authz.Internal(err)
 	}
-	for _, j := range hello.GetRunningJobs() {
+	rows, err := h.Pool.Query(ctx, `SELECT job_id FROM build_server_jobs WHERE build_server_id = $1 AND job_id = ANY($2)`,
+		b.id, hello.GetRunningJobs())
+	if err != nil {
+		return authz.Internal(err)
+	}
+	given, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return authz.Internal(err)
+	}
+	for _, j := range given {
 		b.jobs[j] = true
 	}
 	h.mu.Lock()
@@ -558,6 +588,10 @@ func (h *Hub) Connect(ctx context.Context, stream *connect.BidiStream[v1.Connect
 			st := msg.GetSandbox()
 			if st.GetState() != v1.SandboxStatus_STATE_EXITED && st.GetState() != v1.SandboxStatus_STATE_FAILED {
 				continue
+			}
+			if _, err := h.Pool.Exec(ctx, `DELETE FROM build_server_jobs WHERE job_id = $1 AND build_server_id = $2`,
+				st.GetJobId(), b.id); err != nil && ctx.Err() == nil {
+				slog.Warn("forget an exited job", "job", st.GetJobId(), "err", err)
 			}
 			h.mu.Lock()
 			known := b.jobs[st.GetJobId()]

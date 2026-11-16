@@ -34,7 +34,12 @@ func LookupToken(ctx context.Context, pool *pgxpool.Pool, token string) (userID,
 	return userID, orgID, nil
 }
 
-const JobTokenPrefix = "swj_"
+const (
+	JobTokenPrefix = "swj_"
+	// A state token reaches only its job's state, so the engine, and the
+	// code it runs, never holds the job's token (adr/0047).
+	StateTokenPrefix = "swe_"
+)
 
 func NewJobToken() string {
 	return JobTokenPrefix + RandomToken()

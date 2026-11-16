@@ -154,7 +154,7 @@ func (h SSO) GetSso(ctx context.Context, req *connect.Request[v1.GetSsoRequest])
 // assignable is a role that an IdP group or the default may give: owner
 // is not one, so an IdP cannot make or unmake owners.
 func assignable(r v1.Role) bool {
-	return r != v1.Role_ROLE_UNSPECIFIED && r != v1.Role_ROLE_OWNER && authz.RoleToDB(r) != ""
+	return authz.ValidRole(r) && r != v1.Role_ROLE_OWNER
 }
 
 func (h SSO) SaveSso(ctx context.Context, req *connect.Request[v1.SaveSsoRequest]) (*connect.Response[v1.SaveSsoResponse], error) {
@@ -230,7 +230,9 @@ func (h SSO) SaveSso(ctx context.Context, req *connect.Request[v1.SaveSsoRequest
 
 func (h SSO) DeleteSso(ctx context.Context, req *connect.Request[v1.DeleteSsoRequest]) (*connect.Response[v1.DeleteSsoResponse], error) {
 	s := authz.ScopeFrom(ctx)
-	for _, q := range []string{`DELETE FROM org_group_roles WHERE org_id = $1`, `DELETE FROM org_saml WHERE org_id = $1`} {
+	for _, q := range []string{`DELETE FROM org_group_roles WHERE org_id = $1`, `DELETE FROM org_saml WHERE org_id = $1`,
+		`DELETE FROM sessions WHERE sso_org_id = $1`,
+		`UPDATE cli_tokens SET revoked_at = now() WHERE sso_org_id = $1 AND revoked_at IS NULL`} {
 		if _, err := s.Tx.Exec(ctx, q, s.OrgID); err != nil {
 			return nil, authz.Internal(err)
 		}

@@ -34,7 +34,7 @@ func main() {
 	}
 	if len(os.Args) == 2 && os.Args[1] == "egress-proxy" {
 		if err := egress.Serve(ctx, os.Getenv("STACKWRIGHT_EGRESS_ALLOW")); err != nil {
-			slog.Error("egress proxy", "err", err)
+			slog.Error("egress proxy stopped", "err", err)
 			os.Exit(1)
 		}
 		return
@@ -53,9 +53,6 @@ func main() {
 	if err != nil || serverURL == "" {
 		slog.Error("the sandbox needs STACKWRIGHT_SERVER_URL and a ticket file", "ticket", ticketFile, "err", err)
 		os.Exit(2)
-	}
-	if err := os.Remove(ticketFile); err != nil {
-		slog.Warn("remove the ticket file", "err", err)
 	}
 	if len(os.Args) == 2 && os.Args[1] == "toolbox" {
 		if err := toolbox.Run(ctx, serverURL, string(ticket), "/work", cache); err != nil {

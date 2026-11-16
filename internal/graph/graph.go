@@ -122,7 +122,7 @@ func parse(planJSON, sourcesJSON []byte) (*builder, error) {
 	for _, n := range b.nodes {
 		counts := map[v1.PlanAction]int32{}
 		for _, rc := range b.changes[n.Id] {
-			counts[action(rc.Change.Actions)]++
+			counts[Action(rc.Change.Actions)]++
 		}
 		n.Action = v1.PlanAction_PLAN_ACTION_NO_OP
 		for a, c := range counts {
@@ -172,7 +172,7 @@ func Build(planJSON, sourcesJSON []byte) (*v1.PlanGraph, error) {
 		groups[n.Module] = true
 		g.Nodes = append(g.Nodes, n)
 		for _, rc := range b.changes[n.Id] {
-			count(g.Summary, action(rc.Change.Actions))
+			count(g.Summary, Action(rc.Change.Actions))
 		}
 	}
 	for id := range groups {
@@ -327,7 +327,8 @@ func references(exprs ...json.RawMessage) []string {
 	})
 }
 
-func action(actions []string) v1.PlanAction {
+// Action maps a plan change's actions to the API's action.
+func Action(actions []string) v1.PlanAction {
 	switch strings.Join(actions, ",") {
 	case "no-op":
 		return v1.PlanAction_PLAN_ACTION_NO_OP

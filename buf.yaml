@@ -3,5 +3,10 @@ modules:
   - path: proto
 lint:
   use: [STANDARD]
+  # The toolbox stream predates these rules, and renaming its two messages
+  # would rename every order and result in the sandbox protocol.
+  ignore_only:
+    RPC_REQUEST_STANDARD_NAME: [proto/stackwright/v1/agent.proto]
+    RPC_RESPONSE_STANDARD_NAME: [proto/stackwright/v1/agent.proto]
 breaking:
   use: [FILE]

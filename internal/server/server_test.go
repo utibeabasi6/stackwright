@@ -28,7 +28,6 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	v1 "github.com/stackwright/stackwright/gen/stackwright/v1"
-	"github.com/stackwright/stackwright/gen/stackwright/v1/stackwrightv1connect"
 	"github.com/stackwright/stackwright/internal/agent"
 	"github.com/stackwright/stackwright/internal/auth"
 	"github.com/stackwright/stackwright/internal/authz"
@@ -456,15 +455,6 @@ func TestAWrongCSRFHeaderCountsAsSignedOut(t *testing.T) {
 	}
 }
 
-// decidesRisk are the procedures whose handlers admit the security role,
-// admins and owners only, narrower than the policy's rank (adr/0037).
-var decidesRisk = map[string]bool{
-	stackwrightv1connect.SecurityServiceAcceptRiskProcedure:       true,
-	stackwrightv1connect.SecurityServiceSetPolicySetProcedure:     true,
-	stackwrightv1connect.SecurityServiceDeletePolicySetProcedure:  true,
-	stackwrightv1connect.SecurityServiceSetSkippedChecksProcedure: true,
-}
-
 func TestRoleMatrix(t *testing.T) {
 	w := newWorld(t, nil)
 	owner := w.setup()
@@ -498,10 +488,7 @@ func TestRoleMatrix(t *testing.T) {
 		case authz.InOrg:
 			for role, c := range as {
 				_, code := c.call(short(m.procedure), map[string]any{"org": "a"})
-				want := !authz.AtLeast(role, rule.Min)
-				if decidesRisk[m.procedure] {
-					want = role != v1.Role_ROLE_SECURITY && !authz.AtLeast(role, v1.Role_ROLE_ADMIN)
-				}
+				want := !rule.Admits(role)
 				if denied := code == "permission_denied"; denied != want {
 					t.Errorf("%s as %s: %q, want denied=%v", m.procedure, role, code, want)
 				}

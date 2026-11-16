@@ -507,7 +507,7 @@ func TestAgentCapAndMissingKey(t *testing.T) {
 }
 
 // TestAgentRealModel runs the agent checks against OpenRouter with the key
-// in STACKWRIGHT_TEST_OPENROUTER_KEY. It spends real money, about a dollar;
+// in STACKWRIGHT_TEST_OPENROUTER_KEY. It spends real money, about five cents;
 // the org's cap stops it at $3.
 func TestAgentRealModel(t *testing.T) {
 	key := os.Getenv("STACKWRIGHT_TEST_OPENROUTER_KEY")

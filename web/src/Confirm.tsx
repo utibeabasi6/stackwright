@@ -22,9 +22,17 @@ export const useConfirm = () => useContext(ConfirmContext);
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState<ConfirmOptions & { resolve: (yes: boolean) => void }>();
   const dialog = useRef<HTMLDialogElement>(null);
+  const opener = useRef<Element | null>(null);
   const id = useId();
 
-  const ask = useCallback<Ask>((o) => new Promise((resolve) => setOpen({ ...o, resolve })), []);
+  const ask = useCallback<Ask>(
+    (o) =>
+      new Promise((resolve) => {
+        opener.current = document.activeElement;
+        setOpen({ ...o, resolve });
+      }),
+    [],
+  );
   const answer = (yes: boolean) => {
     open?.resolve(yes);
     setOpen(undefined);
@@ -34,6 +42,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     const d = dialog.current;
     if (open && d && !d.open) d.showModal();
     if (!open && d?.open) d.close();
+    if (!open && opener.current instanceof HTMLElement) {
+      opener.current.focus();
+      opener.current = null;
+    }
   }, [open]);
 
   return (
