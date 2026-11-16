@@ -1594,11 +1594,15 @@ decisions they needed. The fixes are in the working tree.
   or on a Docker host that did not answer; `TestSecurityReview` passed
   alone in 225 s once Docker answered again.
 - `buf lint`, golangci-lint, eslint, tsc and the 66 web unit tests pass.
+- CI passes on GitHub (2026-11-16): lint, the full Go suite, the web
+  unit tests, the 70 Playwright tests, the smoke test, gitleaks,
+  govulncheck and the licence check. Its first runs found Linux-only
+  test faults, a gitleaks checksum from a moved tag, and empty agent
+  session ids that answered internal; all are fixed.
 - The server image builds, with `/licenses` and the web app's
   `THIRD_PARTY_NOTICES.txt`.
 
 **Not verified:**
-- Playwright.
 - A build server that restarts while a job runs, and adopts its sandbox.
 - The retention sweep against a real bucket with old jobs.
 - An owner login without BYPASSRLS on a managed Postgres.
@@ -1607,7 +1611,6 @@ decisions they needed. The fixes are in the working tree.
 - The GitHub link check against GitHub.com, and an installation accepting
   the new `members: read` permission.
 - A force push, and a Terragrunt push, against GitHub.com.
-- CI, which has never run.
 
 **Known gaps:**
 - Some full runs log `invalid input syntax for type uuid: ""` from an RPC
