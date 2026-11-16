@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -148,9 +149,12 @@ func (s *Service) changed(id string) {
 
 func connectErr(err error) error {
 	var ce *connect.Error
+	var pg *pgconn.PgError
 	switch {
 	case errors.As(err, &ce):
 		return err
+	case errors.As(err, &pg) && pg.Code == "22P02":
+		return connect.NewError(connect.CodeNotFound, errors.New("no such session or proposal"))
 	case errors.Is(err, ErrNoKey), errors.Is(err, ErrCap), errors.Is(err, ErrNotLinked), errors.Is(err, ErrBusy),
 		errors.Is(err, ErrDirty), errors.Is(err, ErrNotWaiting):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
@@ -436,11 +440,8 @@ func (s *Service) DecideProposal(ctx context.Context, req *connect.Request[v1.De
 		coalesce(st.payload->>'title', ''), coalesce(st.payload->>'body', '') FROM agent_sessions s
 		JOIN agent_steps st ON st.session_id = s.id AND st.seq = $2 AND st.kind = 'proposal'
 		WHERE s.id = $1 FOR UPDATE OF s`, m.Id, m.Proposal).Scan(&status, &p.kind, &p.message, &p.title, &p.body)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, connectErr(ErrNoProposal)
-	}
 	if err != nil {
-		return nil, authz.Internal(err)
+		return nil, connectErr(err)
 	}
 	if status != "waiting_for_approval" {
 		return nil, connectErr(ErrNotWaiting)

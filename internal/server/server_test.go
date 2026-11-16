@@ -489,7 +489,7 @@ func TestRoleMatrix(t *testing.T) {
 			for role, c := range as {
 				_, code := c.call(short(m.procedure), map[string]any{"org": "a"})
 				want := !rule.Admits(role)
-				if denied := code == "permission_denied"; denied != want {
+				if denied := code == "permission_denied"; denied != want || code == "internal" {
 					t.Errorf("%s as %s: %q, want denied=%v", m.procedure, role, code, want)
 				}
 			}
