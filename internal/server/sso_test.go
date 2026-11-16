@@ -27,7 +27,7 @@ type keycloak struct {
 
 func startKeycloak(t *testing.T) *keycloak {
 	t.Helper()
-	out, err := exec.Command("docker", "run", "-d", "-p", "127.0.0.1::8080", "-e", "KC_BOOTSTRAP_ADMIN_USERNAME=admin",
+	out, err := exec.Command("docker", "run", "-d", "--quiet", "-p", "127.0.0.1::8080", "-e", "KC_BOOTSTRAP_ADMIN_USERNAME=admin",
 		"-e", "KC_BOOTSTRAP_ADMIN_PASSWORD=admin", keycloakImage, "start-dev").CombinedOutput()
 	if err != nil {
 		t.Fatalf("start Keycloak: %v %s", err, out)
