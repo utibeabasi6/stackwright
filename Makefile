@@ -30,7 +30,7 @@ test-web:
 	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) test
 
 e2e:
-	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) exec playwright install chromium && $(PNPM) exec playwright test
+	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) exec playwright install chromium && $(PNPM) exec playwright test --grep-invert @timing && $(PNPM) exec playwright test --grep @timing --workers=1
 
 # eval runs the agent on every task in evals/tasks with the real model, which
 # spends money (adr/0032). ARM is baseline (no provider_schema or

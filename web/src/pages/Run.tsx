@@ -12,6 +12,7 @@ import { RunStatus, type Run as RunType, type RunEvent } from "../gen/stackwrigh
 import { useRole, useShell } from "../me";
 import { emptyState, statuses, step, timeline, type ApplyState } from "../plan/apply";
 import { Graph } from "../plan/Graph";
+import { loadElk } from "../plan/layout";
 import type { GetPlanGraphResponse } from "../gen/stackwright/v1/graph_pb";
 import { Select } from "../Select";
 import { useLoad } from "../useLoad";
@@ -79,6 +80,7 @@ export function Run() {
   // The timeline follows new events while it is scrolled to its end, and
   // stops when someone scrolls up to read.
   const follow = useRef(true);
+  useEffect(() => void loadElk(), []);
   useEffect(() => {
     if (!full) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFull(false);

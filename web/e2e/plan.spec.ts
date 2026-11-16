@@ -102,7 +102,8 @@ test("the resource panel takes no room until a resource is chosen", async ({ pag
   await expect(page.getByRole("complementary", { name: "Resource" })).toBeHidden();
 });
 
-test("a 300-node plan draws in under 1 s", async ({ page }) => {
+// make e2e runs this alone, so other tests do not share its CPU.
+test("a 300-node plan draws in under 1 s", { tag: "@timing" }, async ({ page }) => {
   const { served } = await open(page, { graph: big(300, false) });
   await page.waitForFunction(() => document.querySelectorAll(".react-flow__node-item").length === 300, undefined, { polling: "raf" });
   const ms = Date.now() - served();

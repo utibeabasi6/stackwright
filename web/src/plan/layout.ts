@@ -72,8 +72,10 @@ export function visible(g: PlanGraph, closed: boolean, open: Set<string>, hideUn
   return { items: [...items.values()], groups, edges: [...edges.values()] };
 }
 
-// ELK loads on the first layout, so it stays out of the main bundle.
+// ELK stays out of the main bundle. A page that draws a plan starts the
+// load when it opens, so the chunk arrives while the plan does.
 let elk: Promise<InstanceType<typeof ELK>> | undefined;
+export const loadElk = () => (elk ??= import("elkjs/lib/elk.bundled.js").then((m) => new m.default()));
 
 // layout returns where ELK puts each item, as absolute positions.
 export async function layout(v: View): Promise<Map<string, Point>> {
@@ -104,8 +106,7 @@ export async function layout(v: View): Promise<Map<string, Point>> {
       walk(c, p.x, p.y);
     }
   };
-  elk ??= import("elkjs/lib/elk.bundled.js").then((m) => new m.default());
-  walk(await (await elk).layout(root), 0, 0);
+  walk(await (await loadElk()).layout(root), 0, 0);
   return out;
 }
 
