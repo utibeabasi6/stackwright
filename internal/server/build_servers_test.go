@@ -289,7 +289,7 @@ func sshHost(t *testing.T, authorizedKey, cacheVolume string, noDocker bool) (st
 	if out, err := exec.Command("docker", "build", "-q", "-t", "stackwright/test-sshd:dev", "testdata/sshd").CombinedOutput(); err != nil {
 		t.Fatalf("build the SSH host image: %v: %s", err, out)
 	}
-	args := []string{"run", "-d", "--rm", "-p", "127.0.0.1::22", "-e", "AUTHORIZED_KEY=" + authorizedKey,
+	args := []string{"run", "-d", "--rm", "--add-host", "host.docker.internal:host-gateway", "-p", "127.0.0.1::22", "-e", "AUTHORIZED_KEY=" + authorizedKey,
 		"-v", "/var/run/docker.sock:/var/run/docker.sock", "-v", cacheVolume + ":/var/cache/stackwright-builder", "-e", "SANDBOX_CACHE=" + cacheVolume}
 	if noDocker {
 		args = append(args, "-e", "NO_DOCKER=1")

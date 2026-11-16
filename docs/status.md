@@ -1614,7 +1614,9 @@ decisions they needed. The fixes are in the working tree.
   while a test's builder shuts down. No test fails, and the last full run
   and four runs of the likely tests alone did not show it. Its source is
   not found.
-- Go 1.26.11, which fixes net/http, passes the 14-day rule on 2026-11-24.
+- CI and the images use Go 1.26.11, which fixes GO-2026-6859 in net/http.
+  It came out on 2026-11-10; the user accepted it before the 14-day rule
+  allows it, as a security fix.
 - The CLI binaries that the server serves carry no licence texts; the
   image holds them under `/licenses`.
 - See also "Where the protection stops" in threat-model.md.

@@ -128,8 +128,12 @@ func run() error {
 	if a := config.Env("STACKWRIGHT_EGRESS_ALLOW", ""); a != "" {
 		allow = strings.Split(a, ",")
 	}
+	var hosts []string
+	if h := config.Env("STACKWRIGHT_SANDBOX_EXTRA_HOSTS", ""); h != "" {
+		hosts = strings.Split(h, ",")
+	}
 	cache := config.Env("STACKWRIGHT_BUILDER_CACHE", cacheDir)
-	docker, err := sandbox.NewDocker(sandbox.DockerConfig{Allow: allow, Cache: config.Env("STACKWRIGHT_SANDBOX_CACHE", cache)})
+	docker, err := sandbox.NewDocker(sandbox.DockerConfig{Allow: allow, ExtraHosts: hosts, Cache: config.Env("STACKWRIGHT_SANDBOX_CACHE", cache)})
 	if err != nil {
 		return err
 	}

@@ -300,7 +300,7 @@ func TestJobPlanAndApply(t *testing.T) {
 func TestJobAppliesAPlanMadeAtAnotherAddress(t *testing.T) {
 	t.Parallel()
 	w := newJobWorld(t)
-	planOnly, err := sandbox.NewDocker(sandbox.DockerConfig{ExtraHosts: []string{"plan-only.internal:host-gateway"}})
+	planOnly, err := sandbox.NewDocker(sandbox.DockerConfig{ExtraHosts: []string{"plan-only.internal:host-gateway", "host.docker.internal:host-gateway"}})
 	if err != nil {
 		t.Fatal(err)
 	}

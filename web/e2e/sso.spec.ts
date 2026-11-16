@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mockApi } from "./mock";
 
-test("an admin sets up SAML with a group that maps to a role, and makes a SCIM token", async ({ page }) => {
+test("an owner sets up SAML with a group that maps to a role, and makes a SCIM token", async ({ page }) => {
   const saved: unknown[] = [];
   let sso: Record<string, unknown> | undefined;
   const response = () => ({
@@ -11,7 +11,7 @@ test("an admin sets up SAML with a group that maps to a role, and makes a SCIM t
     spMetadataUrl: "https://sw.test/auth/saml/a/metadata",
     scimUrl: "https://sw.test/scim/v2/a",
   });
-  await mockApi(page, "ROLE_ADMIN", {
+  await mockApi(page, "ROLE_OWNER", {
     GetSso: () => response(),
     SaveSso: (req) => {
       saved.push(req);
@@ -71,4 +71,14 @@ test("a webhook destination shows its signing secret once", async ({ page }) => 
   await expect.poll(() => created).toEqual([expect.objectContaining({ kind: "DESTINATION_KIND_WEBHOOK", name: "siem", url: "https://siem.test/hook",
     events: ["NOTIFICATION_EVENT_RUN_FAILED", "NOTIFICATION_EVENT_DRIFT_FOUND"] })]);
   await expect(page.getByLabel("The webhook's signing secret, shown once")).toHaveText("whsec");
+});
+
+test("an admin sees SSO but cannot change it", async ({ page }) => {
+  await mockApi(page, "ROLE_ADMIN", {
+    GetSso: () => ({ acsUrl: "https://sw.test/auth/saml/a/acs", scimUrl: "https://sw.test/scim/v2/a" }),
+  });
+  await page.goto("/a/settings/sso");
+  await expect(page.getByLabel("Assertion consumer service URL")).toHaveText("https://sw.test/auth/saml/a/acs");
+  await expect(page.getByText("Only an owner changes the identity provider or the SCIM token.")).toBeVisible();
+  await expect(page.getByRole("form", { name: "Identity provider" }).getByLabel("Metadata URL")).toBeDisabled();
 });

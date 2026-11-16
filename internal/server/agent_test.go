@@ -455,7 +455,7 @@ func TestAgentTurnEndsWhenTheSandboxExitsEarly(t *testing.T) {
 	w := newAgentWorld(t, labFiles)
 	// The plain Alpine image has no toolbox command, so the sandbox exits at
 	// once, as one from an old builder did.
-	w.hub.Images = map[string]string{"docker": "alpine:3.22.2"}
+	w.hub.Images = map[string]string{"docker": "docker.io/library/alpine:3.22.2"}
 	start := time.Now()
 	id := w.startSession("List the files")
 	w.waitStatus(id, "ready")

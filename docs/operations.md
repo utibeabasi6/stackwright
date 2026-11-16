@@ -208,5 +208,9 @@ link-local, shared and multicast addresses, and logs each refusal.
   through the server, under `/s3/`. Set it for an object store that every
   sandbox, built-in or remote, can reach directly, such as AWS S3. If
   that address is private, add it to `STACKWRIGHT_EGRESS_ALLOW` too.
+- The egress proxy resolves names with Docker's DNS, not the builder
+  host's `/etc/hosts`. To give it a name that only the host knows, set
+  `STACKWRIGHT_SANDBOX_EXTRA_HOSTS` on the builder to a comma-separated
+  list of `name:address` pairs, as `docker run --add-host` takes them.
 
 See [threat-model.md](threat-model.md) for what this protects against.

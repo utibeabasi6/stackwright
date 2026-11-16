@@ -5,6 +5,7 @@ case "$1" in
   restart)
     pkill -f 'stackwright-builder run' || true
     STACKWRIGHT_SANDBOX_CACHE="$(cat /etc/stackwright-sandbox-cache)" \
+    STACKWRIGHT_SANDBOX_EXTRA_HOSTS=host.docker.internal:host-gateway \
       nohup /usr/local/bin/stackwright-builder run >/var/log/stackwright-builder.log 2>&1 &
     ;;
 esac

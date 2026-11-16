@@ -27,16 +27,17 @@ type keycloak struct {
 
 func startKeycloak(t *testing.T) *keycloak {
 	t.Helper()
-	out, err := exec.Command("docker", "run", "-d", "--rm", "-p", "127.0.0.1::8080", "-e", "KC_BOOTSTRAP_ADMIN_USERNAME=admin",
+	out, err := exec.Command("docker", "run", "-d", "-p", "127.0.0.1::8080", "-e", "KC_BOOTSTRAP_ADMIN_USERNAME=admin",
 		"-e", "KC_BOOTSTRAP_ADMIN_PASSWORD=admin", keycloakImage, "start-dev").CombinedOutput()
 	if err != nil {
 		t.Fatalf("start Keycloak: %v %s", err, out)
 	}
 	id := strings.TrimSpace(string(out))
 	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", id).Run() })
-	port, err := exec.Command("docker", "port", id, "8080").Output()
+	port, err := exec.Command("docker", "port", id, "8080").CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		logs, _ := exec.Command("docker", "logs", id).CombinedOutput()
+		t.Fatalf("the Keycloak port: %v %s\n%s", err, port, logs)
 	}
 	k := &keycloak{t: t, base: "http://" + strings.TrimSpace(strings.Split(string(port), "\n")[0])}
 	deadline := time.Now().Add(3 * time.Minute)

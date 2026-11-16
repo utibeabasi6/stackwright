@@ -8,7 +8,7 @@ RUN npx --yes pnpm@10.34.7 build
 # The bundle ships its packages' code, so it ships their licences too.
 RUN npx --yes pnpm@10.34.7 licenses list --prod --json | node scripts/notices.mjs > dist/THIRD_PARTY_NOTICES.txt
 
-FROM golang:1.26.10-alpine@sha256:87c65a688975c0b1d4585d204874c45ca78354670e3a5f11368c5a492303d696 AS go
+FROM golang:1.26.11-alpine@sha256:ae52b5bc6ed045a9ed26ab03dc19327a802a9cc9aa8b27ed57f5c6b60579b0bb AS go
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
